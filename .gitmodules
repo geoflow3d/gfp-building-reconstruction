@@ -1,0 +1,3 @@
+[submodule "thirdparty/region-grower"]
+	path = thirdparty/region-grower
+	url = https://github.com/Ylannl/region-grower.git
