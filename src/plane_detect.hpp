@@ -1,8 +1,9 @@
 #pragma once
 
 #include <geoflow/common.hpp>
-#include "../region_grower_DS_CGAL.hpp"
-#include "../region_grower.hpp"
+
+#include <region_grower_DS_CGAL.hpp>
+#include <region_grower.hpp>
 
 #include <CGAL/linear_least_squares_fitting_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
