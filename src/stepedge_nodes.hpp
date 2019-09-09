@@ -356,13 +356,18 @@ namespace geoflow::nodes::stepedge {
 
   class LASInPolygonsNode:public Node {
     std::string filepath = "";
+    int filter_class = 6;
+    bool do_filter = true;
     public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
+      add_vector_output("colors", typeid(vec3f));
 
       add_param("las_filepath", ParamPath(filepath, "LAS filepath"));
+      add_param("filter_class", ParamBoundedInt(filter_class, 0, 100, "Filter class"));
+      add_param("do_filter", ParamBool(do_filter, "Do filter"));
     }
     void process();
   };

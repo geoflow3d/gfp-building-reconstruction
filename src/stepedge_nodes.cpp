@@ -1710,8 +1710,11 @@ pGridSet build_grid(const vec3f& ring) {
 
 void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
+
   auto& point_clouds = vector_output("point_clouds");
   point_clouds.resize<PointCollection>(polygons.size());
+  auto& color_clouds = vector_output("colors");
+  color_clouds.resize<vec3f>(polygons.size());
 
   std::vector<pGridSet> poly_grids;
           
@@ -1724,17 +1727,25 @@ void LASInPolygonsNode::process() {
   LASreader* lasreader = lasreadopener.open();
 
   while (lasreader->read_point()) {
-    if (lasreader->point.get_classification() == 6) {
+    if (do_filter && lasreader->point.get_classification() != filter_class) {
+      continue;
+    } else {
       int i=0;
       pPipoint point = new Pipoint{ lasreader->point.get_x()-(*manager.data_offset)[0], lasreader->point.get_y()-(*manager.data_offset)[1] };
       
       for (auto& poly_grid:poly_grids) {
         if (GridTest(poly_grid, point)) {
+          color_clouds.get<vec3f&>(i).push_back({
+            float(lasreader->point.get_R())/65535,
+            float(lasreader->point.get_G())/65535,
+            float(lasreader->point.get_B())/65535
+          });
           point_clouds.get<PointCollection&>(i).push_back({
             float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
             float(lasreader->point.get_y()-(*manager.data_offset)[1]),
             float(lasreader->point.get_z()-(*manager.data_offset)[2])
           });
+
           break;
           // laswriter->write_point(&lasreader->point);
         }
