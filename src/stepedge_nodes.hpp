@@ -206,7 +206,6 @@ namespace geoflow::nodes::stepedge {
     float data_multiplier = 50.0;
     float smoothness_multiplier = 1.0;
     bool preset_labels = false;
-    bool dissolve_edges = false;
     int n_iterations = 3;
     int graph_cut_impl = 2;
 
@@ -222,10 +221,29 @@ namespace geoflow::nodes::stepedge {
       add_param("data_multiplier", ParamBoundedFloat(data_multiplier, 0.001, 100, "Multiplier on data term"));
       add_param("smoothness_multiplier", ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "Multiplier on smoothness term"));
       add_param("preset_labels", ParamBool(preset_labels, "Preset face labels"));
-      add_param("dissolve_edges", ParamBool(dissolve_edges, "Dissolve edges"));
     }
     void process();
   };
+
+  class ArrDissolveEdgesNode: public Node {
+    bool dissolve_edges = false;
+    public:
+    using Node::Node;
+    void init() {
+      add_input("arrangement", typeid(Arrangement_2));
+      add_output("arrangement", typeid(Arrangement_2));
+
+      add_param("dissolve_edges", ParamBool(dissolve_edges, "Dissolve edges"));
+    }
+    void process() {
+      auto arr = input("arrangement").get<Arrangement_2>();
+
+      if(dissolve_edges)
+        arr_dissolve_edges(arr);
+
+      output("arrangement").set(arr);
+    }
+  }
 
   class LinearRingtoRingsNode:public Node {
     public:

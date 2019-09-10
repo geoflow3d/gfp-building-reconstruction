@@ -17,13 +17,12 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<RegulariseLinesNode>("RegulariseLines");
     node_register.register_node<RegulariseRingsNode>("RegulariseRings");
     node_register.register_node<SimplifyPolygonNode>("SimplifyPolygon");
-    // node_register.register_node<LOD10GeneratorNode>("LOD10Generator");
-    // node_register.register_node<LOD13GeneratorNode>("LOD13Generator");
     node_register.register_node<Ring2SegmentsNode>("Ring2Segments");
     node_register.register_node<PrintResultNode>("PrintResult");
     node_register.register_node<PolygonGrowerNode>("PolygonGrower");
     node_register.register_node<PlaneIntersectNode>("PlaneIntersect");
     node_register.register_node<OptimiseArrangmentNode>("OptimiseArrangment");
+    node_register.register_node<ArrDissolveEdgesNode>("ArrDissolveEdges");
 }
 
 namespace geoflow::nodes::las {

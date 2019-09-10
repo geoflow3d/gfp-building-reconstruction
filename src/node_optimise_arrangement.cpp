@@ -291,9 +291,6 @@ void OptimiseArrangmentNode::process() {
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
   }
 
-  if(dissolve_edges)
-    arr_dissolve_edges(arr);
-
   output("arrangement").set(arr);
 }
 
