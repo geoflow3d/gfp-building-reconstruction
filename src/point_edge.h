@@ -101,12 +101,10 @@ struct FaceInfo {
   float elevation_min, elevation_max;
   int segid=0;
   float segid_coverage;
-  float segid_count;
   std::vector<Point> points;
   float rms_error_to_avg=0;
   size_t inlier_count=0;
   float max_error=0;
-  float total_count;
   Plane plane;
 
   // graph-cut optimisation
@@ -233,15 +231,17 @@ class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
   virtual void before_merge_face (Face_handle remaining_face,
                                  Face_handle discarded_face, Halfedge_handle e )
   {
-    auto count1 = remaining_face->data().segid_count;
-    auto count2 = discarded_face->data().segid_count;
+    auto count1 = float(remaining_face->data().inlier_count);
+    auto count2 = float(discarded_face->data().inlier_count);
     auto sum_count = count1+count2;
-    auto new_elevation = remaining_face->data().elevation_avg * (count1/sum_count) + discarded_face->data().elevation_avg * (count2/sum_count);
-    remaining_face->data().elevation_avg = new_elevation;
-    // and sum the counts
-    remaining_face->data().segid_count = sum_count;
-    remaining_face->data().elevation_min = std::min(remaining_face->data().elevation_min, discarded_face->data().elevation_min);
-    remaining_face->data().elevation_max = std::max(remaining_face->data().elevation_max, discarded_face->data().elevation_max);
+    if (sum_count!=0){
+      auto new_elevation = remaining_face->data().elevation_avg * (count1/sum_count) + discarded_face->data().elevation_avg * (count2/sum_count);
+      remaining_face->data().elevation_avg = new_elevation;
+      // and sum the counts
+      remaining_face->data().inlier_count = sum_count;
+    }
+    // remaining_face->data().elevation_min = std::min(remaining_face->data().elevation_min, discarded_face->data().elevation_min);
+    // remaining_face->data().elevation_max = std::max(remaining_face->data().elevation_max, discarded_face->data().elevation_max);
     // merge the point lists
     if (remaining_face==discarded_face){
       std::cout << "merging the same face!?\n";
@@ -306,4 +306,5 @@ Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring);
 
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons);
 
-void arr_dissolve_edges(Arrangement_2& arr);
+void arr_dissolve_seg_edges(Arrangement_2& arr);
+void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold);

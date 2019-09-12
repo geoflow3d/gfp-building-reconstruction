@@ -7,6 +7,8 @@
 #include <CGAL/Arr_face_index_map.h>
 #include <CGAL/boost/graph/Alpha_expansion_MaxFlow_tag.h>
 
+#include <algorithm>
+
 class FootprintGraph {
   public:
   typedef typename Arrangement_2::Face_handle vertex_descriptor;
@@ -166,10 +168,17 @@ void OptimiseArrangmentNode::process() {
   auto arr = input("arrangement").get<Arrangement_2>();
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
 
-  std::vector<std::tuple<Plane, std::vector<Point>, size_t>> points_per_plane;
+  std::vector<std::tuple<Plane, std::vector<Point>, size_t, float>> points_per_plane; // plane, points, seg_id, average elevation
   for (auto& [plane_id, plane_pts] : planes) {
     if (plane_id<1) continue; // ignore unclassified points
-    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_pts.second, plane_id));
+    // also calculate percentile elevation for all inliers of this plane
+    auto points = plane_pts.second;
+    std::sort(points.begin(), points.end(), [](auto& p1, auto& p2) {
+      return p1.z() < p2.z();
+    });
+    int elevation_id = std::floor(z_percentile*float(points.size()-1));
+
+    points_per_plane.push_back(std::make_tuple(plane_pts.first, points, plane_id, points[elevation_id].z()));
   }
 
   // note we can try to use Face_filtered_graph to exclude the inf face
@@ -179,7 +188,7 @@ void OptimiseArrangmentNode::process() {
   typedef CGAL::Arr_walk_along_line_point_location<Arrangement_2> Point_location;
   Point_location pl(arr);
   size_t label = 0;
-  for (auto& [plane, pts, plane_id] : points_per_plane) {
+  for (auto& [plane, pts, plane_id, elevation_avg] : points_per_plane) {
     for (auto& p : pts) {
       auto obj = pl.locate( Point_2(p.x(), p.y()) );
       if (auto f = boost::get<Face_const_handle>(&obj)) {
@@ -200,13 +209,14 @@ void OptimiseArrangmentNode::process() {
   std::vector<Face_handle> faces;
   for (auto face: arr.face_handles()) {
     if(face->data().in_footprint) {
-      for (auto& [plane, pts, plane_id] : points_per_plane) {
+      for (auto& [plane, pts, plane_id, elevation_avg] : points_per_plane) {
         double d = rmse_plane_points(plane, face->data().points);
         face->data().vertex_label_cost.push_back(d);
         max_cost = std::max(max_cost, d);
       }
       face->data().v_index = face_i++;
       faces.push_back(face);
+      // also compute average elevation for all inliers (needed for LoD1.3 later)
     }
   }
   // normalise
@@ -288,6 +298,8 @@ void OptimiseArrangmentNode::process() {
     size_t i = face->data().label;
     face->data().plane = std::get<0>(points_per_plane[i]);
     face->data().segid = std::get<2>(points_per_plane[i]);
+    face->data().elevation_avg = std::get<3>(points_per_plane[i]);
+    face->data().inlier_count = std::get<1>(points_per_plane[i]).size();
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
   }
 

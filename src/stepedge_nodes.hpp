@@ -106,6 +106,7 @@ namespace geoflow::nodes::stepedge {
       add_output("triangles", typeid(TriangleCollection), true);
       add_output("normals_vec3f", typeid(vec3f), true);
       add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
+      add_output("roof_lines", typeid(LinearRingCollection), true);
 
       add_param("do_walls", ParamBool(do_walls, "Do walls"));
       add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
@@ -132,7 +133,7 @@ namespace geoflow::nodes::stepedge {
   class BuildArrFromRingsExactNode:public Node {
     bool extrude_unsegmented = true;
     float extrude_mindensity = 5;
-    float z_percentile = 0.9;
+    float z_percentile = 0.;
     float rel_area_thres = 0.1;
     bool flood_to_unsegmented = true;
     bool dissolve_edges = true;
@@ -170,7 +171,7 @@ namespace geoflow::nodes::stepedge {
       add_param("flood_to_unsegmented", ParamBool(flood_to_unsegmented, "flood_to_unsegmented"));
       add_param("dissolve_edges", ParamBool(dissolve_edges, "dissolve_edges"));
       add_param("dissolve_stepedges", ParamBool(dissolve_stepedges, "dissolve_stepedges"));
-      add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 100, "step_height_threshold"));
+      add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
       add_param("snap_clean", ParamBool(snap_clean, "Snap"));
       add_param("snap_clean_fp", ParamBool(snap_clean_fp, "Snap fp"));
       add_param("snap_detect_only", ParamBool(snap_detect_only, "snap_detect_only"));
@@ -209,6 +210,8 @@ namespace geoflow::nodes::stepedge {
     int n_iterations = 3;
     int graph_cut_impl = 2;
 
+    float z_percentile = 0.9;
+
     public:
     using Node::Node;
     void init() {
@@ -221,29 +224,38 @@ namespace geoflow::nodes::stepedge {
       add_param("data_multiplier", ParamBoundedFloat(data_multiplier, 0.001, 100, "Multiplier on data term"));
       add_param("smoothness_multiplier", ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "Multiplier on smoothness term"));
       add_param("preset_labels", ParamBool(preset_labels, "Preset face labels"));
+      add_param("z_percentile", ParamBoundedFloat(z_percentile, 0, 1, "Elevation percentile"));
     }
     void process();
   };
 
-  class ArrDissolveEdgesNode: public Node {
-    bool dissolve_edges = false;
+  class ArrDissolveNode: public Node {
+    bool dissolve_seg_edges = true;
+    bool dissolve_step_edges = true;
+    float step_height_threshold = 1.0;
     public:
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
       add_output("arrangement", typeid(Arrangement_2));
 
-      add_param("dissolve_edges", ParamBool(dissolve_edges, "Dissolve edges"));
+      add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
+      add_param("dissolve_step_edges", ParamBool(dissolve_step_edges, "Dissolve step edges"));
+      add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
     }
     void process() {
       auto arr = input("arrangement").get<Arrangement_2>();
-
-      if(dissolve_edges)
-        arr_dissolve_edges(arr);
+      
+      Face_merge_observer obs(arr);
+      if(dissolve_seg_edges)
+        arr_dissolve_seg_edges(arr);
+      if (dissolve_step_edges) {
+        arr_dissolve_step_edges(arr, step_height_threshold);
+      }
 
       output("arrangement").set(arr);
     }
-  }
+  };
 
   class LinearRingtoRingsNode:public Node {
     public:

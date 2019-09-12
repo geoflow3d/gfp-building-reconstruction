@@ -383,7 +383,7 @@ void Arr2LinearRingsNode::process(){
       // attributes["rms_error"].push_back(face->data().rms_error_to_avg);
       // attributes["max_error"].push_back(face->data().max_error);
       // attributes["coverage"].push_back(face->data().segid_coverage);
-      attributes["count"].push_back(face->data().total_count);
+      attributes["count"].push_back(face->data().inlier_count);
       attributes["segid"].push_back(face->data().segid);
     }
   }
@@ -399,6 +399,7 @@ void ExtruderNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
   TriangleCollection triangles;
+  LinearRingCollection roof_lines;
   vec3f normals;
   vec1i cell_id_vec1i, plane_id;
   vec1i labels;
@@ -975,34 +976,17 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
       }
     }
   }
-  if (dissolve_stepedges) {
-    std::vector<Arrangement_2::Halfedge_handle> edges;
-    for (auto edge : arr.edge_handles()) {
-      edges.push_back(edge);
+  
+  {
+    Face_merge_observer obs(arr);
+    if (dissolve_stepedges) {
+      arr_dissolve_step_edges(arr, step_height_threshold);
     }
-    for (auto& edge : edges) {
-      auto f1 = edge->face();
-      auto f2 = edge->twin()->face();
-
-      if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
-        if(std::abs(f1->data().elevation_avg - f2->data().elevation_avg) < step_height_threshold){
-          // should add face merge call back in face observer class...
-          // pick elevation of the segment with the highest count
-          if (f2->data().elevation_avg < f1->data().elevation_avg) {
-            f2->data()= f1->data();
-          } else {
-            f1->data() = f2->data();
-          }
-          arr.remove_edge(edge);
-        }
-      }
+    //remove edges that have the same segid on both sides
+    if (dissolve_edges) {
+      arr_dissolve_seg_edges(arr);
     }
   }
-  //remove edges that have the same segid on both sides
-  if (dissolve_edges) {
-    arr_dissolve_edges(arr);
-  }
-
   // if (remove_low_holes) {
   //   std::vector<Arrangement_2::Halfedge_handle> to_remove;
   //   for (auto& face : arr.face_handles()) {
