@@ -106,6 +106,7 @@ namespace geoflow::nodes::stepedge {
       add_output("triangles", typeid(TriangleCollection), true);
       add_output("normals_vec3f", typeid(vec3f), true);
       add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
+      add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_output("roof_lines", typeid(LinearRingCollection), true);
 
       add_param("do_walls", ParamBool(do_walls, "Do walls"));
@@ -231,7 +232,8 @@ namespace geoflow::nodes::stepedge {
 
   class ArrDissolveNode: public Node {
     bool dissolve_seg_edges = true;
-    bool dissolve_step_edges = true;
+    bool dissolve_step_edges = false;
+    bool dissolve_outside_fp = true;
     float step_height_threshold = 1.0;
     public:
     using Node::Node;
@@ -239,22 +241,12 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_output("arrangement", typeid(Arrangement_2));
 
+      add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
       add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
       add_param("dissolve_step_edges", ParamBool(dissolve_step_edges, "Dissolve step edges"));
       add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
     }
-    void process() {
-      auto arr = input("arrangement").get<Arrangement_2>();
-      
-      Face_merge_observer obs(arr);
-      if(dissolve_seg_edges)
-        arr_dissolve_seg_edges(arr);
-      if (dissolve_step_edges) {
-        arr_dissolve_step_edges(arr, step_height_threshold);
-      }
-
-      output("arrangement").set(arr);
-    }
+    void process();
   };
 
   class LinearRingtoRingsNode:public Node {
@@ -556,5 +548,26 @@ namespace geoflow::nodes::stepedge {
     // }
     void process();
   };
+
+
+  class PC2MeshQualityNode:public Node {
+
+    public:
+    using Node::Node;
+    void init() {
+      add_input("points", typeid(PointCollection));
+      add_input("triangles", typeid(TriangleCollection));
+      add_input("face_ids", typeid(vec1i));
+      
+      add_output("point_errors", typeid(vec1f));
+      add_output("face_errors", typeid(vec1f));
+      add_output("mesh_error_f", typeid(float));
+      add_output("mesh_error", typeid(vec1f));
+
+    }
+    void process();
+  };
+
+
 
 }

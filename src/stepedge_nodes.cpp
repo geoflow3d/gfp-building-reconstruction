@@ -401,12 +401,12 @@ void ExtruderNode::process(){
   TriangleCollection triangles;
   LinearRingCollection roof_lines;
   vec3f normals;
-  vec1i cell_id_vec1i, plane_id;
+  vec1i cell_id_vec1i, plane_id, face_ids;
   vec1i labels;
   vec1f rms_errors, max_errors, segment_coverages, elevations;
   using N = uint32_t;
   
-  size_t cell_id=0, pid;
+  size_t cell_id=0, pid, face_id=0; // face_id==0 is the floor
   float rms_error, max_error, segment_coverage;
   for (auto face: arr.face_handles()) {
     // bool extract = param<bool>("in_footprint") ? face->data().in_footprint : face->data().is_finite;
@@ -432,6 +432,7 @@ void ExtruderNode::process(){
           normals.push_back({0,0,-1});
           cell_id_vec1i.push_back(cell_id);
           plane_id.push_back(pid);
+          face_ids.push_back(0);
           rms_errors.push_back(rms_error);
           elevations.push_back(face->data().elevation_avg);
           max_errors.push_back(max_error);
@@ -441,6 +442,7 @@ void ExtruderNode::process(){
       }
       if (do_roofs) {
         // roof triangles
+        ++face_id;
         auto& plane = face->data().plane;
         arr3f roof_normal = {0,0,1};
         if (LoD2) {
@@ -464,6 +466,7 @@ void ExtruderNode::process(){
             labels.push_back(1);
             normals.push_back(roof_normal);
             cell_id_vec1i.push_back(cell_id);
+            face_ids.push_back(face_id);
             plane_id.push_back(pid);
             // rms_errors.push_back(rms_error);
             rms_errors.push_back(rms_error);
@@ -485,6 +488,7 @@ void ExtruderNode::process(){
       auto plane_u = edge->twin()->face()->data().plane;
       auto plane_l = edge->face()->data().plane;
       if (fp_u || fp_l) {
+        ++face_id;
         auto& source = edge->source()->point();
         auto& target = edge->target()->point();
         int wall_label = 2;
@@ -541,6 +545,9 @@ void ExtruderNode::process(){
         labels.push_back(wall_label);
         // triangles.push_back(l1);
         labels.push_back(wall_label);
+        face_ids.push_back(face_id);
+        face_ids.push_back(face_id);
+        face_ids.push_back(face_id);
 
         n = get_normal(u1,l2,l1);
         normals.push_back(n);
@@ -573,6 +580,9 @@ void ExtruderNode::process(){
         labels.push_back(wall_label);
         // triangles.push_back(l2);
         labels.push_back(wall_label);
+        face_ids.push_back(face_id);
+        face_ids.push_back(face_id);
+        face_ids.push_back(face_id);
 
         n = get_normal(u1,u2,l2);
         normals.push_back(n);
@@ -610,6 +620,7 @@ void ExtruderNode::process(){
   output("segment_coverages").set(segment_coverages);
   output("triangles").set(triangles);
   output("labels_vec1i").set(labels);
+  output("face_ids").set(face_ids);
 }
 
 void arr2segments(Face_handle& face, LineStringCollection& segments) {
@@ -2227,6 +2238,41 @@ void SimplifyPolygonNode::process(){
   
 }
 
+void ArrDissolveNode::process() {
+  auto arr = input("arrangement").get<Arrangement_2>();
+  
+  Face_merge_observer obs(arr);
+  if(dissolve_seg_edges)
+    arr_dissolve_seg_edges(arr);
+  if (dissolve_step_edges) {
+    arr_dissolve_step_edges(arr, step_height_threshold);
+  }
+
+  // remove all lines not inside footprint
+  if (dissolve_outside_fp) {
+    {
+      std::vector<Arrangement_2::Halfedge_handle> to_remove;
+      for (auto he : arr.edge_handles()) {
+        auto d1 = he->face()->data();
+        auto d2 = he->twin()->face()->data();
+        if (!d1.in_footprint && !d2.in_footprint)
+          to_remove.push_back(he);
+      }
+      for (auto he : to_remove) {
+        arr.remove_edge(he);
+      }
+    }
+    {
+      // cleanup vertices with degree==2
+      for (auto v : arr.vertex_handles()) {
+        //this removes v if degree is 0 or 2
+        CGAL::remove_vertex(arr, v);
+      }
+    }
+  }
+
+  output("arrangement").set(arr);
+}
 
 // void PlaneDetectorNode::process() {
 //   auto points = input("point_clouds").get<Feature>();
