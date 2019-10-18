@@ -24,9 +24,10 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<OptimiseArrangmentNode>("OptimiseArrangment");
     node_register.register_node<ArrDissolveNode>("ArrDissolve");
     node_register.register_node<PC2MeshQualityNode>("PC2MeshQuality");
+    node_register.register_node<PCRasteriseNode>("PCRasterise");
 }
 
-namespace geoflow::nodes::las {
+namespace geoflow::nodes::stepedge {
   NodeRegisterHandle create_register() {
     auto R = NodeRegister::create(GF_PLUGIN_NAME);
     register_nodes(*R);

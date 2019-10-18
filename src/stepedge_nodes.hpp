@@ -4,6 +4,7 @@
 
 #include "point_edge.h"
 #include "line_regulariser.hpp"
+#include "Raster.h"
 
 namespace geoflow::nodes::stepedge {
 
@@ -564,6 +565,22 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh_error_f", typeid(float));
       add_output("mesh_error", typeid(vec1f));
 
+    }
+    void process();
+  };
+
+  class PCRasteriseNode:public Node {
+    float cellsize = 0.5;
+    public:
+    using Node::Node;
+    void init() {
+      add_input("points", typeid(PointCollection));
+      
+      add_output("grid", typeid(RasterTools::Raster));
+      add_output("grid_points", typeid(PointCollection));
+      add_output("values", typeid(vec1f));
+
+      add_param("cellsize", ParamBoundedFloat(cellsize, 0, 50, "cellsize"));
     }
     void process();
   };

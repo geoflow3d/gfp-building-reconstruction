@@ -2274,6 +2274,31 @@ void ArrDissolveNode::process() {
   output("arrangement").set(arr);
 }
 
+void PCRasteriseNode::process() {
+  auto& points = input("points").get<PointCollection&>();
+  auto box = points.box();
+  auto boxmin = box.min();
+  auto boxmax = box.max();
+
+  RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+  r.prefill_arrays(RasterTools::MAX);
+
+  for(auto& p : points) {
+    r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+  }
+  PointCollection grid_points;
+  vec1f values;
+  for(size_t i=0; i<r.dimx ; ++i) {
+    for(size_t j=0; j<r.dimy ; ++j) {
+      auto p = r.getPointFromRasterCoords(i,j);
+      grid_points.push_back(p);
+      values.push_back(p[2]);
+    }
+  }
+  output("values").set(values);
+  output("grid_points").set(grid_points);
+}
+
 // void PlaneDetectorNode::process() {
 //   auto points = input("point_clouds").get<Feature>();
 
