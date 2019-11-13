@@ -1736,10 +1736,13 @@ void LASInPolygonsNode::process() {
 }
 
 void BuildingSelectorNode::process() {
-  auto& point_cloud = vector_input("point_clouds").get<PointCollection&>(building_id);
-  auto& polygon = vector_input("polygons").get<LinearRing&>(building_id);
-  output("point_cloud").set(point_cloud);
-  output("polygon").set(polygon);
+  if ((building_id < vector_input("point_clouds").size()) && 
+  (vector_input("point_clouds").size() == vector_input("polygons").size())) {
+    auto& point_cloud = vector_input("point_clouds").get<PointCollection&>(building_id);
+    auto& polygon = vector_input("polygons").get<LinearRing&>(building_id);
+    output("point_cloud").set(point_cloud);
+    output("polygon").set(polygon);
+  }
 };
 
 void RegulariseLinesNode::process(){
