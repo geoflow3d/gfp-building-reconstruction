@@ -28,6 +28,7 @@ namespace geoflow::nodes::stepedge {
     R->register_node<Ring2SegmentsNode>("Ring2Segments");
     R->register_node<PrintResultNode>("PrintResult");
     R->register_node<PolygonGrowerNode>("PolygonGrower");
+    R->register_node<SegmentRasteriseNode>("SegmentRasterise");
     return R;
   }
 

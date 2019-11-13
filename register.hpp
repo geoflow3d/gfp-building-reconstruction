@@ -25,6 +25,8 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<ArrDissolveNode>("ArrDissolve");
     node_register.register_node<PC2MeshQualityNode>("PC2MeshQuality");
     node_register.register_node<PCRasteriseNode>("PCRasterise");
+    node_register.register_node<SegmentRasteriseNode>("SegmentRasterise");
+    node_register.register_node<PolygonUnionNode>("PolygonUnion");
 }
 
 namespace geoflow::nodes::stepedge {

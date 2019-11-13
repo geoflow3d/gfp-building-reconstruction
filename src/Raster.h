@@ -25,6 +25,7 @@
 #include <cfloat>
 #include <fstream>
 #include <array>
+#include <vector>
 
 // #include <gdal_priv.h>
 // #include <cpl_string.h>
@@ -35,25 +36,31 @@ namespace RasterTools {
     class Raster
     {
     public:
+        typedef std::array<float,3> point3d;
         Raster(double cellsize, double min_x, double max_x, double min_y, double max_y);
         ~Raster();
         void prefill_arrays(alg a);
         void add_point(double x, double y, double z, alg a);
         size_t getLinearCoord(double &x, double &y);
-        std::array<float,3> getPointFromRasterCoords(size_t col, size_t row);
+        inline std::array<double,2> getColRowCoord(double x, double y);
+        point3d getPointFromRasterCoords(size_t col, size_t row);
         double sample(double &x, double &y);
         // void write(const char* WKGCS, alg a, void * dataPtr, const char* outFile);
 
-        double cellSize, minx, miny, maxx, maxy;
-        int dimx, dimy;
+        // rasterise a polygon and return a list with points - one in the center of each pixel inside the polygon
+        // in the polygon first point is *not* repeated as last
+        std::vector<point3d> rasterise_polygon(std::vector<point3d>& polygon);
+
+        double cellSize_, minx_, miny_, maxx_, maxy_;
+        int dimx_, dimy_;
     private:
         void avg(double &x, double &y, double &val);
         void min(double &x, double &y, double &val);
         void max(double &x, double &y, double &val);
         void cnt(double &x, double &y);
         // OGRSpatialReference oSRS;
-        double noDataVal;
-        int16_t *counts;
-        double *vals;
+        double noDataVal_;
+        int16_t *counts_;
+        double *vals_;
     };
 }

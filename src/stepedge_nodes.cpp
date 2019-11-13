@@ -17,6 +17,9 @@
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
 
+// 2d union
+#include <CGAL/Boolean_set_operations_2.h>
+
 #include "stepedge_nodes.hpp"
 #include "plane_detect.hpp"
 #include "ptinpoly.h"
@@ -34,13 +37,6 @@ vertex get_normal(vertex v0, vertex v1, vertex v2) {
     return {n.x,n.y,n.z};
 }
 
-// 2D alpha shapes
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/Alpha_shape_2.h>
-#include <CGAL/Alpha_shape_vertex_base_2.h>
-#include <CGAL/Alpha_shape_face_base_2.h>
-#include <CGAL/Projection_traits_xy_3.h>
-
 // interval list
 #include "interval.hpp"
 
@@ -49,28 +45,6 @@ vertex get_normal(vertex v0, vertex v1, vertex v2) {
 #include <utility>
 
 namespace as {
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-  typedef CGAL::Projection_traits_xy_3<K>								       Gt;
-  typedef K::FT                                                FT;
-  // typedef K::Point_2                                           Point;
-  // typedef K::Segment_2                                         Segment;
-  typedef CGAL::Alpha_shape_vertex_base_2<Gt>                  Vb;
-  typedef CGAL::Alpha_shape_face_base_2<Gt>                    Fb;
-  // class AlphaShapeFaceWithLabel : public Fb {
-  //   public: 
-  //   int label = 0;
-  //   bool visited = false;
-  //   // using Fb::Fb;
-  // };
-  typedef CGAL::Triangulation_data_structure_2<Vb,Fb>          Tds;
-  typedef CGAL::Delaunay_triangulation_2<Gt,Tds>               Triangulation_2;
-  typedef CGAL::Alpha_shape_2<Triangulation_2>                 Alpha_shape_2;
-  typedef Alpha_shape_2::Vertex_handle                        Vertex_handle;
-  typedef Alpha_shape_2::Edge                                 Edge;
-  typedef Alpha_shape_2::Face_handle                          Face_handle;
-  typedef Alpha_shape_2::Vertex_circulator                    Vertex_circulator;
-  typedef Alpha_shape_2::Edge_circulator                      Edge_circulator;
-
 
   class AlphaShapeRegionGrower {
     Alpha_shape_2 &A;
@@ -151,6 +125,7 @@ void AlphaShapeNode::process(){
   LineStringCollection alpha_edges;
   LinearRingCollection alpha_rings;
   TriangleCollection alpha_triangles;
+  std::vector<as::Triangulation_2> alpha_dts;
   vec1i segment_ids, plane_idx;
   for (auto& it : points_per_segment ) {
     if (it.first == -1) continue; // skip points if they put at index -1 (eg if we care not about slanted surfaces for ring extraction)
@@ -239,12 +214,14 @@ void AlphaShapeNode::process(){
       // finally, store the ring 
       alpha_rings.push_back(ring);
       plane_idx.push_back(it.first);
+      alpha_dts.push_back(T);
     }
   }
   
   output("alpha_rings").set(alpha_rings);
   output("alpha_edges").set(alpha_edges);
   output("alpha_triangles").set(alpha_triangles);
+  output("alpha_dts").set(alpha_dts);
   output("segment_ids").set(segment_ids);
   output("edge_points").set(edge_points);
   output("boundary_points").set(boundary_points);
@@ -2288,8 +2265,8 @@ void PCRasteriseNode::process() {
   }
   PointCollection grid_points;
   vec1f values;
-  for(size_t i=0; i<r.dimx ; ++i) {
-    for(size_t j=0; j<r.dimy ; ++j) {
+  for(size_t i=0; i<r.dimx_ ; ++i) {
+    for(size_t j=0; j<r.dimy_ ; ++j) {
       auto p = r.getPointFromRasterCoords(i,j);
       grid_points.push_back(p);
       values.push_back(p[2]);
@@ -2297,6 +2274,103 @@ void PCRasteriseNode::process() {
   }
   output("values").set(values);
   output("grid_points").set(grid_points);
+}
+
+void SegmentRasteriseNode::process() {
+  auto& alpha_rings = input("alpha_rings").get<LinearRingCollection&>();
+  auto& alpha_dts = input("alpha_dts").get<std::vector<as::Triangulation_2>&>();
+  auto& roofplane_ids = input("roofplane_ids").get<vec1i&>();
+  auto& pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints&>();
+  auto box = alpha_rings.box();
+  auto boxmin = box.min();
+  auto boxmax = box.max();
+
+  RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+  r.prefill_arrays(RasterTools::MAX);
+
+  PointCollection grid_points;
+  size_t ring_cntr=0;
+  for(auto& polygon : alpha_rings) {
+    auto points_inside = r.rasterise_polygon(polygon);
+    for (auto& p : points_inside) {
+      // grid_points.push_back(p);
+      
+      // do linear TIN interpolation
+      // auto& dt = alpha_dts[ring_cntr];
+      // auto face = dt.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
+      // if (face==nullptr) {
+      //   continue;
+      // } else {
+      //   CGAL::Plane_3<as::K> plane(
+      //     face->vertex(0)->point(),
+      //     face->vertex(1)->point(),
+      //     face->vertex(2)->point()
+      //   );
+      //   double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+      //   std::cerr << z_interpolate << "\n";
+      //   r.add_point(p[0], p[1], -z_interpolate, RasterTools::MAX);
+      // }
+
+      // do plane projection
+      auto& plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
+      double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+      r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
+    }
+    ++ring_cntr;
+  }
+  vec1f values;
+  for(size_t i=0; i<r.dimx_ ; ++i) {
+    for(size_t j=0; j<r.dimy_ ; ++j) {
+      auto p = r.getPointFromRasterCoords(i,j);
+      grid_points.push_back(p);
+      values.push_back(p[2]);
+    }
+  }
+  output("values").set(values);
+  output("grid_points").set(grid_points);
+}
+
+//this one is not working properly yet
+void PolygonUnionNode::process() {
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
+  typedef Kernel::Point_2 Point;
+  typedef CGAL::Polygon_2<Kernel> Polygon_2;
+  typedef CGAL::Polygon_with_holes_2<Kernel> Polygon_with_holes_2;
+
+  auto& polygons = vector_input("polygons");
+
+  // use create_interior_skeleton_and_offset_polygons_2 to buffer input?
+
+  std::vector<Polygon_2> cgal_polygons;
+  for (size_t i=0; i<polygons.size(); ++i) {
+    auto& polygon = polygons.get<LinearRing&>(i);
+    Polygon_2 cgal_poly;
+    for (auto& p : polygon) {
+      cgal_poly.push_back(Point(p[0], p[1]));
+    }
+    cgal_polygons.push_back(cgal_poly);
+  }
+  std::vector<Polygon_with_holes_2> res;
+  CGAL::join(cgal_polygons.begin(), cgal_polygons.end(), std::back_inserter (res));
+
+  auto& polygons_outer = vector_output("polygons");
+  auto& holes = vector_output("holes");
+  // polygons_outer.resize<PointCollection>(polygons.size());
+  for (auto it = res.begin(); it!=res.end(); ++it) {
+    LinearRing l;
+    auto& outer_bound = it->outer_boundary();
+    for(auto vit = outer_bound.vertices_begin(); vit!=outer_bound.vertices_end(); ++vit) {
+      l.push_back({float(vit->x()), float(vit->y()), 0});
+    }
+    polygons_outer.push_back(l);
+    for(auto hole = it->holes_begin(); hole!=it->holes_end(); ++hole) {
+      LinearRing h;
+      for(auto vit = hole->vertices_begin(); vit!=hole->vertices_end(); ++vit) {
+        l.push_back({float(vit->x()), float(vit->y()), 0});
+      }
+      holes.push_back(h);
+    }
+  }
 }
 
 // void PlaneDetectorNode::process() {
