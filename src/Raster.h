@@ -37,19 +37,78 @@ namespace RasterTools {
     {
     public:
         typedef std::array<float,3> point3d;
+        typedef std::array<float,2> point2d;
         Raster(double cellsize, double min_x, double max_x, double min_y, double max_y);
-        ~Raster();
+        ~Raster(){};
         void prefill_arrays(alg a);
         void add_point(double x, double y, double z, alg a);
-        size_t getLinearCoord(double &x, double &y);
-        inline std::array<double,2> getColRowCoord(double x, double y);
-        point3d getPointFromRasterCoords(size_t col, size_t row);
+        size_t getLinearCoord(double &x, double &y) const;
+        std::array<double,2> getColRowCoord(double x, double y) const;
+        point3d getPointFromRasterCoords(size_t col, size_t row) const;
         double sample(double &x, double &y);
         // void write(const char* WKGCS, alg a, void * dataPtr, const char* outFile);
 
         // rasterise a polygon and return a list with points - one in the center of each pixel inside the polygon
         // in the polygon first point is *not* repeated as last
-        std::vector<point3d> rasterise_polygon(std::vector<point3d>& polygon);
+        // T should be a vector of arr<float,2> or arr<float,3>
+        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon) const {
+          // code adapted from http://alienryderflex.com/polygon_fill/
+          int n_nodes, pixelX, pixelY, i, j, swap ;
+          int n_vertices = polygon.size();
+          std::vector<point3d> result;
+
+          // perhaps we can specialise these to the bounding box of the polygon
+          int IMAGE_TOP = 0, IMAGE_BOT = dimy_, IMAGE_LEFT = 0, IMAGE_RIGHT=dimx_;
+
+          // Loop through the rows of the image.
+          for (pixelY=IMAGE_TOP; pixelY<IMAGE_BOT; pixelY++) {
+            std::vector<int> intersect_x; // vector to hold the x-coordinates where the scanline intersects the polygon
+
+            // Build a list of nodes.
+            n_nodes=0; j=n_vertices-1;
+            for (i=0; i<n_vertices; i++) {
+              auto pi = getColRowCoord((double)polygon[i][0], (double)polygon[i][1]);
+              auto pj = getColRowCoord((double)polygon[j][0], (double)polygon[j][1]);
+              // std::cerr << pi[0] << " " << pi[1] << "\n";
+              // std::cerr << pj[0] << " " << pj[1] << "\n";
+              if ( (pi[1]<(double) pixelY && pj[1]>=(double) pixelY)
+              || (pj[1]<(double) pixelY && pi[1]>=(double) pixelY)) {
+                intersect_x.push_back((int) (pi[0]+(pixelY-pi[1])/(pj[1]-pi[1])
+                *(pj[0]-pi[0])));
+                ++n_nodes;
+              }
+              j=i; 
+            }
+
+            // Sort the nodes, via a simple “Bubble” sort.
+            i=0;
+            while (i<n_nodes-1) {
+              if (intersect_x[i]>intersect_x[i+1]) {
+                swap=intersect_x[i]; intersect_x[i]=intersect_x[i+1]; intersect_x[i+1]=swap; if (i) i--; 
+              } else {
+                i++; 
+              }
+            }
+
+            // Fill the pixels between node pairs.
+            for (i=0; i<n_nodes; i+=2) {
+              if  (intersect_x[i ]>=IMAGE_RIGHT) 
+                break;
+              if  (intersect_x[i+1]> IMAGE_LEFT ) {
+                if (intersect_x[i ]< IMAGE_LEFT ) 
+                  intersect_x[i ]=IMAGE_LEFT ;
+                if (intersect_x[i+1]> IMAGE_RIGHT) 
+                  intersect_x[i+1]=IMAGE_RIGHT;
+                for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) 
+                  result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
+              }
+            }
+          }
+
+          return result;
+        };
+        // template<> std::vector<point3d> rasterise_polygon(std::vector<point2d>& polygon) const;
+        // template<> std::vector<point3d> rasterise_polygon(std::vector<point3d>& polygon) const;
 
         double cellSize_, minx_, miny_, maxx_, maxy_;
         int dimx_, dimy_;
@@ -60,7 +119,7 @@ namespace RasterTools {
         void cnt(double &x, double &y);
         // OGRSpatialReference oSRS;
         double noDataVal_;
-        int16_t *counts_;
-        double *vals_;
+        std::vector<int16_t> counts_;
+        std::vector<double> vals_;
     };
 }

@@ -26,14 +26,8 @@ namespace RasterTools {
   {  
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
-    vals_ = new double[dimx_*dimy_];
-    counts_ = new int16_t[dimx_*dimy_];
-  }
-
-  Raster::~Raster()
-  {
-    delete[] vals_;
-    delete[] counts_;
+    vals_.resize(dimx_*dimy_);
+    counts_.resize(dimx_*dimy_);
   }
 
   void Raster::prefill_arrays(alg a){
@@ -44,8 +38,8 @@ namespace RasterTools {
   else
     noDataVal_ = -99999;
     
-  std::fill(vals_+0, vals_+dimx_*dimy_, noDataVal_);
-  std::fill(counts_+0, counts_+dimx_*dimy_, 0);
+  std::fill(vals_.begin(), vals_.end(), noDataVal_);
+  std::fill(counts_.begin(), counts_.end(), 0);
   }
 
   void Raster::add_point(double x, double y, double z, alg a)
@@ -86,7 +80,7 @@ namespace RasterTools {
     ++counts_[c];
   }
 
-  inline std::array<double,2> Raster::getColRowCoord(double x, double y)
+  std::array<double,2> Raster::getColRowCoord(double x, double y) const
   {
     double r = (y-miny_) / cellSize_;
     double c = (x-minx_) / cellSize_;
@@ -94,7 +88,7 @@ namespace RasterTools {
     return {c,r};
   }
 
-  size_t Raster::getLinearCoord(double &x, double &y)
+  size_t Raster::getLinearCoord(double &x, double &y) const
   {
     size_t r = static_cast<size_t>( floor((y-miny_) / cellSize_) );
     size_t c = static_cast<size_t>( floor((x-minx_) / cellSize_) );
@@ -102,7 +96,7 @@ namespace RasterTools {
     return r * dimx_ + c;
   }
 
-  std::array<float,3> Raster::getPointFromRasterCoords(size_t col, size_t row) 
+  std::array<float,3> Raster::getPointFromRasterCoords(size_t col, size_t row) const
   {
     std::array<float,3> p;
     p[0] = minx_ + col*cellSize_ + cellSize_/2;
@@ -118,63 +112,6 @@ namespace RasterTools {
   double Raster::sample(double &x, double &y)
   {
     return vals_[getLinearCoord(x,y)];
-  }
-
-  std::vector<Raster::point3d> Raster::rasterise_polygon(std::vector<point3d>& polygon) {
-    // code adapted from http://alienryderflex.com/polygon_fill/
-    int n_nodes, pixelX, pixelY, i, j, swap ;
-    int n_vertices = polygon.size();
-    std::vector<point3d> result;
-
-    // perhaps we can specialise these to the bounding box of the polygon
-    int IMAGE_TOP = 0, IMAGE_BOT = dimy_, IMAGE_LEFT = 0, IMAGE_RIGHT=dimx_;
-
-    // Loop through the rows of the image.
-    for (pixelY=IMAGE_TOP; pixelY<IMAGE_BOT; pixelY++) {
-      std::vector<int> intersect_x; // vector to hold the x-coordinates where the scanline intersects the polygon
-
-      // Build a list of nodes.
-      n_nodes=0; j=n_vertices-1;
-      for (i=0; i<n_vertices; i++) {
-        auto pi = getColRowCoord((double)polygon[i][0], (double)polygon[i][1]);
-        auto pj = getColRowCoord((double)polygon[j][0], (double)polygon[j][1]);
-        // std::cerr << pi[0] << " " << pi[1] << "\n";
-        // std::cerr << pj[0] << " " << pj[1] << "\n";
-        if ( (pi[1]<(double) pixelY && pj[1]>=(double) pixelY)
-        || (pj[1]<(double) pixelY && pi[1]>=(double) pixelY)) {
-          intersect_x.push_back((int) (pi[0]+(pixelY-pi[1])/(pj[1]-pi[1])
-          *(pj[0]-pi[0])));
-          ++n_nodes;
-        }
-        j=i; 
-      }
-
-      // Sort the nodes, via a simple “Bubble” sort.
-      i=0;
-      while (i<n_nodes-1) {
-        if (intersect_x[i]>intersect_x[i+1]) {
-          swap=intersect_x[i]; intersect_x[i]=intersect_x[i+1]; intersect_x[i+1]=swap; if (i) i--; 
-        } else {
-          i++; 
-        }
-      }
-
-      // Fill the pixels between node pairs.
-      for (i=0; i<n_nodes; i+=2) {
-        if  (intersect_x[i ]>=IMAGE_RIGHT) 
-          break;
-        if  (intersect_x[i+1]> IMAGE_LEFT ) {
-          if (intersect_x[i ]< IMAGE_LEFT ) 
-            intersect_x[i ]=IMAGE_LEFT ;
-          if (intersect_x[i+1]> IMAGE_RIGHT) 
-            intersect_x[i+1]=IMAGE_RIGHT;
-          for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) 
-            result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
-        }
-      }
-    }
-
-    return result;
   }
 
   // void Raster::write(const char* WKGCS, alg a, void * dataPtr, const char* outFile)

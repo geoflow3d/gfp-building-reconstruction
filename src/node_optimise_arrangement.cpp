@@ -143,6 +143,13 @@ inline double rmse_plane_points(Plane& plane, std::vector<Point>& points) {
   }
   return CGAL::sqrt(dist_sum/points.size());
 }
+inline double volume_to_plane(Plane& plane, vec3f& points) {
+  double volume = 0;
+  for (auto& p : points) {
+    volume += -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();;
+  }
+  return std::abs(volume);
+}
 
 struct InFootprintFaceFilter {
   InFootprintFaceFilter() {}
@@ -163,6 +170,139 @@ struct InFootprintEdgeFilter {
   }
 };
 
+void OptimiseArrangmentGridNode::process() {
+
+  auto arr = input("arrangement").get<Arrangement_2>();
+  auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
+  auto& heightfield = input("heightfield").get<RasterTools::Raster>();
+
+  std::vector<std::tuple<Plane, std::vector<Point>, size_t, float>> points_per_plane; // plane, points, seg_id, average elevation
+  for (auto& [plane_id, plane_pts] : planes) {
+    if (plane_id<1) continue; // ignore unclassified points
+    // also calculate percentile elevation for all inliers of this plane
+    auto points = plane_pts.second;
+    std::sort(points.begin(), points.end(), [](auto& p1, auto& p2) {
+      return p1.z() < p2.z();
+    });
+    int elevation_id = std::floor(z_percentile*float(points.size()-1));
+
+    points_per_plane.push_back(std::make_tuple(plane_pts.first, points, plane_id, points[elevation_id].z()));
+  }
+
+  // compute vertex_label_cost (data term)
+  // 1 compute for each face the error to each plane
+  double max_cost = 0;
+  size_t face_i=0;
+  size_t label = 0;
+  std::vector<Face_handle> faces;
+  for (auto face: arr.face_handles()) {
+    if(face->data().in_footprint) {
+      vec2f polygon;
+      arrangementface_to_polygon(face, polygon);
+      auto height_points = heightfield.rasterise_polygon(polygon);
+      for (auto& [plane, pts, plane_id, elevation_avg] : points_per_plane) {
+        double volume = data_multiplier * volume_to_plane(plane, height_points);
+        face->data().vertex_label_cost.push_back(volume);
+        max_cost = std::max(max_cost, volume);
+      }
+      face->data().v_index = face_i++;
+      faces.push_back(face);
+      if(preset_labels)
+        face->data().label = label; //assign an initial label
+      // also compute average elevation for all inliers (needed for LoD1.3 later)
+    }
+    ++label;
+  }
+  // normalise
+  if(do_normalise) {
+    for (auto face : faces) {
+      for (auto& c : face->data().vertex_label_cost) {
+        c = (c/max_cost);
+      }
+    }
+  }
+
+  // compute edge_weights (smoothness term)
+  double max_weight = 0;
+  std::vector<Halfedge_handle> edges;
+  for (auto edge : arr.edge_handles()) {
+    bool fp_u = edge->twin()->face()->data().in_footprint;
+    bool fp_l = edge->face()->data().in_footprint;
+    if (fp_u && fp_l) { // only edges with both neighbour faces inside the footprint
+      double l = smoothness_multiplier * edge_length(edge);
+      edge->data().edge_weight = l;
+      edge->twin()->data().edge_weight = l;
+      max_weight = std::max(max_weight, l);
+      edges.push_back(edge);
+      edges.push_back(edge->twin());
+    }
+  }
+  // normalise
+  if(do_normalise) {
+    for (auto edge : edges) {
+      bool fp_l = edge->face()->data().in_footprint;
+      double n_w =  edge->data().edge_weight/max_weight;
+      edge->data().edge_weight = n_w;
+    }
+  }
+  
+  FootprintGraph graph(faces, edges);
+  
+  // assign initial labels?
+  // auto graph = Dual_arrangement(arr);
+  // InFootprintFaceFilter face_filter;
+  // InFootprintEdgeFilter edge_filter;
+  // boost::filtered_graph<Dual_arrangement, InFootprintEdgeFilter, InFootprintFaceFilter >
+  //   filtered_graph(graph, edge_filter, face_filter);
+
+  // boost::adjacency_list<> g(N);
+
+  double result;
+
+  if (graph_cut_impl==0) {
+    result = CGAL::alpha_expansion_graphcut(
+      graph, 
+      Edge_weight_property_map(),
+      Vertex_index_map(),
+      Vertex_label_cost_property_map(),
+      Vertex_label_property_map(),
+      CGAL::Alpha_expansion_boost_adjacency_list_tag(),
+      n_iterations
+    );
+  } else if (graph_cut_impl==1) {
+    result = CGAL::alpha_expansion_graphcut(
+      graph, 
+      Edge_weight_property_map(),
+      Vertex_index_map(),
+      Vertex_label_cost_property_map(),
+      Vertex_label_property_map(),
+      CGAL::Alpha_expansion_boost_compressed_sparse_row_tag(),
+      n_iterations
+    );
+  } else if (graph_cut_impl==2) {
+    result = CGAL::alpha_expansion_graphcut(
+      graph, 
+      Edge_weight_property_map(),
+      Vertex_index_map(),
+      Vertex_label_cost_property_map(),
+      Vertex_label_property_map(),
+      CGAL::Alpha_expansion_MaxFlow_tag(),
+      n_iterations
+    );
+  }
+
+  //  assign planes from label map to arrangement faces
+  for (auto& face : faces) {
+    size_t i = face->data().label;
+    face->data().plane = std::get<0>(points_per_plane[i]);
+    face->data().segid = std::get<2>(points_per_plane[i]);
+    face->data().elevation_avg = std::get<3>(points_per_plane[i]);
+    face->data().inlier_count = std::get<1>(points_per_plane[i]).size();
+    face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
+  }
+
+  output("arrangement").set(arr);
+}
 void OptimiseArrangmentNode::process() {
 
   auto arr = input("arrangement").get<Arrangement_2>();

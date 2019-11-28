@@ -2275,6 +2275,7 @@ void PCRasteriseNode::process() {
       values.push_back(p[2]);
     }
   }
+  output("heightfield").set(r);
   output("values").set(values);
   output("grid_points").set(grid_points);
 }
@@ -2329,6 +2330,7 @@ void SegmentRasteriseNode::process() {
       values.push_back(p[2]);
     }
   }
+  output("heightfield").set(r);
   output("values").set(values);
   output("grid_points").set(grid_points);
 }

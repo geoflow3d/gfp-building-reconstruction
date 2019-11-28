@@ -22,6 +22,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<PolygonGrowerNode>("PolygonGrower");
     node_register.register_node<PlaneIntersectNode>("PlaneIntersect");
     node_register.register_node<OptimiseArrangmentNode>("OptimiseArrangment");
+    node_register.register_node<OptimiseArrangmentGridNode>("OptimiseArrangmentGrid");
     node_register.register_node<ArrDissolveNode>("ArrDissolve");
     node_register.register_node<PC2MeshQualityNode>("PC2MeshQuality");
     node_register.register_node<PCRasteriseNode>("PCRasterise");

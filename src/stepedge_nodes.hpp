@@ -237,6 +237,34 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class OptimiseArrangmentGridNode:public Node {
+    float data_multiplier = 50.0;
+    float smoothness_multiplier = 1.0;
+    bool preset_labels = false;
+    bool do_normalise = true;
+    int n_iterations = 3;
+    int graph_cut_impl = 2;
+
+    float z_percentile = 0.9;
+
+    public:
+    using Node::Node;
+    void init() {
+      add_input("arrangement", typeid(Arrangement_2));
+      add_input("heightfield", typeid(RasterTools::Raster));
+      add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+      add_output("arrangement", typeid(Arrangement_2));
+
+      add_param("graph_cut_impl", ParamBoundedInt(graph_cut_impl, 0, 2, "Graph cut implementation"));
+      add_param("n_iterations", ParamBoundedInt(n_iterations, 0, 100, "Number of iterations"));
+      add_param("data_multiplier", ParamBoundedFloat(data_multiplier, 0.001, 100, "Multiplier on data term"));
+      add_param("smoothness_multiplier", ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "Multiplier on smoothness term"));
+      add_param("preset_labels", ParamBool(preset_labels, "Preset face labels"));
+      add_param("do_normalise", ParamBool(do_normalise, "Normalise weights"));
+      add_param("z_percentile", ParamBoundedFloat(z_percentile, 0, 1, "Elevation percentile"));
+    }
+    void process();
+  };
   class OptimiseArrangmentNode:public Node {
     float data_multiplier = 50.0;
     float smoothness_multiplier = 1.0;
@@ -608,7 +636,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_input("points", typeid(PointCollection));
       
-      add_output("grid", typeid(RasterTools::Raster));
+      add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
 
@@ -627,7 +655,7 @@ namespace geoflow::nodes::stepedge {
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       
-      add_output("grid", typeid(RasterTools::Raster));
+      add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
 
