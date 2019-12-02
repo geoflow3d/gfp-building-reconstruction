@@ -39,19 +39,23 @@ namespace RasterTools {
         typedef std::array<float,3> point3d;
         typedef std::array<float,2> point2d;
         Raster(double cellsize, double min_x, double max_x, double min_y, double max_y);
+        Raster(){};
         ~Raster(){};
         void prefill_arrays(alg a);
         void add_point(double x, double y, double z, alg a);
-        size_t getLinearCoord(double &x, double &y) const;
+        void add_raster(double x, double y, double z, alg a);
+        size_t getLinearCoord(double x, double y) const;
         std::array<double,2> getColRowCoord(double x, double y) const;
         point3d getPointFromRasterCoords(size_t col, size_t row) const;
+        double getNoDataVal() {return noDataVal_;};
         double sample(double &x, double &y);
+        void set_val(size_t col, size_t row, double val);
         // void write(const char* WKGCS, alg a, void * dataPtr, const char* outFile);
 
         // rasterise a polygon and return a list with points - one in the center of each pixel inside the polygon
         // in the polygon first point is *not* repeated as last
         // T should be a vector of arr<float,2> or arr<float,3>
-        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon) const {
+        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon, bool returnNoData=true) const {
           // code adapted from http://alienryderflex.com/polygon_fill/
           int n_nodes, pixelX, pixelY, i, j, swap ;
           int n_vertices = polygon.size();
@@ -100,7 +104,11 @@ namespace RasterTools {
                 if (intersect_x[i+1]> IMAGE_RIGHT) 
                   intersect_x[i+1]=IMAGE_RIGHT;
                 for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) 
-                  result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
+                  if (returnNoData) {
+                    result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
+                  } else if((vals_[pixelX+pixelY*dimx_] != noDataVal_) ) {
+                    result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
+                  }
               }
             }
           }
@@ -112,14 +120,14 @@ namespace RasterTools {
 
         double cellSize_, minx_, miny_, maxx_, maxy_;
         int dimx_, dimy_;
+        double noDataVal_;
+        std::vector<int16_t> counts_;
+        std::vector<double> vals_;
     private:
         void avg(double &x, double &y, double &val);
         void min(double &x, double &y, double &val);
         void max(double &x, double &y, double &val);
         void cnt(double &x, double &y);
         // OGRSpatialReference oSRS;
-        double noDataVal_;
-        std::vector<int16_t> counts_;
-        std::vector<double> vals_;
     };
 }

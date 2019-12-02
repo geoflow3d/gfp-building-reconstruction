@@ -342,7 +342,9 @@ void Arr2LinearRingsNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
   LinearRingCollection linear_rings;
+  auto& lrv_out = vector_output("linear_rings_v");
   AttributeMap attributes;
+  vec1f arr_errors;
   for (auto face: arr.face_handles()){
     if(
       !(only_in_footprint && !face->data().in_footprint)
@@ -351,21 +353,29 @@ void Arr2LinearRingsNode::process(){
       ) {
       vec2f polygon;
       arrangementface_to_polygon(face, polygon);
-      vec3f polygon3d;
+      LinearRing polygon3d;
       for (auto& p : polygon) {
         polygon3d.push_back({p[0],p[1],0});
       }
       linear_rings.push_back(polygon3d);
+      lrv_out.push_back(polygon3d);
       attributes["height"].push_back(face->data().elevation_avg);
       // attributes["rms_error"].push_back(face->data().rms_error_to_avg);
       // attributes["max_error"].push_back(face->data().max_error);
       // attributes["coverage"].push_back(face->data().segid_coverage);
       attributes["count"].push_back(face->data().inlier_count);
       attributes["segid"].push_back(face->data().segid);
+      if(plane_id >= 0 && plane_id < face->data().vertex_label_cost.size()) {
+        arr_errors.push_back(face->data().vertex_label_cost[plane_id]);
+      } else {
+        std::cout << "Plane id out of range!\n";
+        arr_errors.push_back(-1000);
+      }
     }
   }
   output("linear_rings").set(linear_rings);
   output("attributes").set(attributes);
+  output("arr_errors").set(arr_errors);
 }
 
 void ExtruderNode::process(){
@@ -2254,86 +2264,6 @@ void ArrDissolveNode::process() {
   output("arrangement").set(arr);
 }
 
-void PCRasteriseNode::process() {
-  auto& points = input("points").get<PointCollection&>();
-  auto box = points.box();
-  auto boxmin = box.min();
-  auto boxmax = box.max();
-
-  RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
-  r.prefill_arrays(RasterTools::MAX);
-
-  for(auto& p : points) {
-    r.add_point(p[0], p[1], p[2], RasterTools::MAX);
-  }
-  PointCollection grid_points;
-  vec1f values;
-  for(size_t i=0; i<r.dimx_ ; ++i) {
-    for(size_t j=0; j<r.dimy_ ; ++j) {
-      auto p = r.getPointFromRasterCoords(i,j);
-      grid_points.push_back(p);
-      values.push_back(p[2]);
-    }
-  }
-  output("heightfield").set(r);
-  output("values").set(values);
-  output("grid_points").set(grid_points);
-}
-
-void SegmentRasteriseNode::process() {
-  auto& alpha_rings = input("alpha_rings").get<LinearRingCollection&>();
-  auto& alpha_dts = input("alpha_dts").get<std::vector<as::Triangulation_2>&>();
-  auto& roofplane_ids = input("roofplane_ids").get<vec1i&>();
-  auto& pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints&>();
-  auto box = alpha_rings.box();
-  auto boxmin = box.min();
-  auto boxmax = box.max();
-
-  RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
-  r.prefill_arrays(RasterTools::MAX);
-
-  PointCollection grid_points;
-  size_t ring_cntr=0;
-  for(auto& polygon : alpha_rings) {
-    auto points_inside = r.rasterise_polygon(polygon);
-    for (auto& p : points_inside) {
-      // grid_points.push_back(p);
-      
-      // do linear TIN interpolation
-      // auto& dt = alpha_dts[ring_cntr];
-      // auto face = dt.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
-      // if (face==nullptr) {
-      //   continue;
-      // } else {
-      //   CGAL::Plane_3<as::K> plane(
-      //     face->vertex(0)->point(),
-      //     face->vertex(1)->point(),
-      //     face->vertex(2)->point()
-      //   );
-      //   double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-      //   std::cerr << z_interpolate << "\n";
-      //   r.add_point(p[0], p[1], -z_interpolate, RasterTools::MAX);
-      // }
-
-      // do plane projection
-      auto& plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
-      double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-      r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
-    }
-    ++ring_cntr;
-  }
-  vec1f values;
-  for(size_t i=0; i<r.dimx_ ; ++i) {
-    for(size_t j=0; j<r.dimy_ ; ++j) {
-      auto p = r.getPointFromRasterCoords(i,j);
-      grid_points.push_back(p);
-      values.push_back(p[2]);
-    }
-  }
-  output("heightfield").set(r);
-  output("values").set(values);
-  output("grid_points").set(grid_points);
-}
 
 //this one is not working properly yet
 void PolygonUnionNode::process() {
@@ -2377,6 +2307,7 @@ void PolygonUnionNode::process() {
     }
   }
 }
+
 
 // void PlaneDetectorNode::process() {
 //   auto points = input("point_clouds").get<Feature>();

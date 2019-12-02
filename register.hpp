@@ -28,6 +28,8 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<PCRasteriseNode>("PCRasterise");
     node_register.register_node<SegmentRasteriseNode>("SegmentRasterise");
     node_register.register_node<PolygonUnionNode>("PolygonUnion");
+    node_register.register_node<Filter25DNode>("Filter25D");
+    // node_register.register_node<GridMaxNode>("GridMax");
 }
 
 namespace geoflow::nodes::stepedge {

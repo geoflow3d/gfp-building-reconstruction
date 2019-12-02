@@ -88,7 +88,7 @@ namespace RasterTools {
     return {c,r};
   }
 
-  size_t Raster::getLinearCoord(double &x, double &y) const
+  size_t Raster::getLinearCoord(double x, double y) const
   {
     size_t r = static_cast<size_t>( floor((y-miny_) / cellSize_) );
     size_t c = static_cast<size_t>( floor((x-minx_) / cellSize_) );
@@ -101,17 +101,17 @@ namespace RasterTools {
     std::array<float,3> p;
     p[0] = minx_ + col*cellSize_ + cellSize_/2;
     p[1] = miny_ + row*cellSize_ + cellSize_/2;
-    double v = vals_[col+row*dimx_];
-    if (v==noDataVal_)
-      p[2] = 0;
-    else
-      p[2] = v;
+    p[2] = vals_[col+row*dimx_];
     return p;
   }
 
   double Raster::sample(double &x, double &y)
   {
     return vals_[getLinearCoord(x,y)];
+  }
+
+  void Raster::set_val(size_t col, size_t row, double val) {
+    vals_[col+row*dimx_] = val;
   }
 
   // void Raster::write(const char* WKGCS, alg a, void * dataPtr, const char* outFile)

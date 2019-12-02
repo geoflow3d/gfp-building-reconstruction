@@ -35,6 +35,7 @@ add_library(gfp_stepedge MODULE
   src/region_growing.cpp
   src/node_pcmesh_quality.cpp
   src/Raster.cpp
+  src/heightfield_nodes.cpp
 )
 target_link_libraries( gfp_stepedge
   geoflow-core

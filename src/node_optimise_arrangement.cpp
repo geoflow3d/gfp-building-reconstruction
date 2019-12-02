@@ -146,9 +146,10 @@ inline double rmse_plane_points(Plane& plane, std::vector<Point>& points) {
 inline double volume_to_plane(Plane& plane, vec3f& points) {
   double volume = 0;
   for (auto& p : points) {
-    volume += -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();;
+    volume += 
+    std::abs( p[2] - (-plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c()) );
   }
-  return std::abs(volume);
+  return volume;
 }
 
 struct InFootprintFaceFilter {
@@ -199,7 +200,7 @@ void OptimiseArrangmentGridNode::process() {
     if(face->data().in_footprint) {
       vec2f polygon;
       arrangementface_to_polygon(face, polygon);
-      auto height_points = heightfield.rasterise_polygon(polygon);
+      auto height_points = heightfield.rasterise_polygon(polygon, false);
       for (auto& [plane, pts, plane_id, elevation_avg] : points_per_plane) {
         double volume = data_multiplier * volume_to_plane(plane, height_points);
         face->data().vertex_label_cost.push_back(volume);
