@@ -130,13 +130,15 @@ namespace geoflow::nodes::stepedge {
     bool in_footprint = false;
     bool LoD2 = false;
     float base_elevation = 0;
+    float nodata_elevation = 3;
+
     public:
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
       add_output("cell_id_vec1i", typeid(vec1i));
       add_output("plane_id", typeid(vec1i));
-      add_output("rms_errors", typeid(vec1f), true);
+      add_output("rms_errors", typeid(vec1f));
       add_output("max_errors", typeid(vec1f));
       add_output("elevations", typeid(vec1f));
       add_output("segment_coverages", typeid(vec1f));
@@ -144,13 +146,13 @@ namespace geoflow::nodes::stepedge {
       add_output("normals_vec3f", typeid(vec3f), true);
       add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
-      add_output("roof_lines", typeid(LinearRingCollection), true);
 
       add_param("do_walls", ParamBool(do_walls, "Do walls"));
       add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
       add_param("in_footprint", ParamBool(in_footprint, "in_footprint"));
       add_param("LoD2", ParamBool(LoD2, "LoD2"));
       add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
+      add_param("nodata_elevation", ParamFloat(nodata_elevation, "Nodata elevation"));
     }
     void process();
   };
@@ -620,14 +622,14 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() {
-      add_input("points", typeid(PointCollection));
+      add_input("ipoints", typeid(PointCollection));
       add_input("triangles", typeid(TriangleCollection));
       add_input("face_ids", typeid(vec1i));
       
-      add_output("point_errors", typeid(vec1f));
-      add_output("face_errors", typeid(vec1f));
+      add_output("point_errors", typeid(vec1f), true);
+      add_output("face_errors", typeid(vec1f), true);
       add_output("mesh_error_f", typeid(float));
-      add_output("mesh_error", typeid(vec1f));
+      add_output("mesh_error", typeid(vec1f), true);
 
     }
     void process();

@@ -20,6 +20,8 @@
 // 2d union
 #include <CGAL/Boolean_set_operations_2.h>
 
+#include <CGAL/Direction_3.h>
+
 #include "stepedge_nodes.hpp"
 #include "plane_detect.hpp"
 #include "ptinpoly.h"
@@ -386,7 +388,6 @@ void ExtruderNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
   TriangleCollection triangles;
-  LinearRingCollection roof_lines;
   vec3f normals;
   vec1i cell_id_vec1i, plane_id, face_ids;
   vec1i labels;
@@ -404,6 +405,10 @@ void ExtruderNode::process(){
       max_error = face->data().max_error;
       segment_coverage = face->data().segid_coverage;
       pid = face->data().segid;
+      if (pid==0) {
+        face->data().plane = Plane(Kernel::Point_3(0,0,nodata_elevation), Kernel::Direction_3(0,0,1));
+      }
+
       vec2f polygon, vertices;
       arrangementface_to_polygon(face, polygon);
       std::vector<N> indices = mapbox::earcut<N>(std::vector<vec2f>({polygon}));
@@ -1707,6 +1712,9 @@ void LASInPolygonsNode::process() {
   LASreadOpener lasreadopener;
   lasreadopener.set_file_name(filepath.c_str());
   LASreader* lasreader = lasreadopener.open();
+  
+  if (!lasreader)
+    return;
 
   while (lasreader->read_point()) {
     if (do_filter && lasreader->point.get_classification() != filter_class) {

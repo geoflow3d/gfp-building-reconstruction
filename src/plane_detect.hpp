@@ -9,6 +9,8 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Plane_3.h>
 
+#include <deque>
+
 namespace planedect {
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel cgal_kernel;
@@ -24,33 +26,34 @@ class PlaneDS : public regiongrower::CGAL_RegionGrowerDS {
   PlaneDS(geoflow::PointCollection& points, geoflow::vec3f& normals, size_t N=15) 
     : CGAL_RegionGrowerDS(points, N), normals(normals) {};
 
-  inline Plane fit_plane(std::vector<size_t>& idx){
+  inline double fit_plane(std::vector<size_t>& idx, Plane& plane){
     std::vector<Point> neighbor_points;
     for (auto i: idx)
       neighbor_points.push_back(Point(points[i][0], points[i][1], points[i][2]));
-    Plane plane;
-    auto quality = linear_least_squares_fitting_3(neighbor_points.begin(),neighbor_points.end(),plane,CGAL::Dimension_tag<0>());
-    return plane;
+    double quality = linear_least_squares_fitting_3(neighbor_points.begin(),neighbor_points.end(),plane,CGAL::Dimension_tag<0>());
+    return quality;
   }
 
-  // virtual deque<size_t> get_seeds() {
-  //   // seed generation
-  //   typedef pair<size_t,double> index_dist_pair;
-  //   auto cmp = [](index_dist_pair left, index_dist_pair right) {return left.second < right.second;};
-  //   priority_queue<index_dist_pair, std::vector<index_dist_pair>, decltype(cmp)> pq(cmp);
+  virtual std::deque<size_t> get_seeds() override {
+    // seed generation
+    typedef std::pair<size_t,double> index_dist_pair;
+    auto cmp = [](index_dist_pair left, index_dist_pair right) {return left.second < right.second;};
+    std::priority_queue<index_dist_pair, std::vector<index_dist_pair>, decltype(cmp)> pq(cmp);
 
-  //   size_t i=0;
-  //   for(size_t pi=0; pi<size; ++pi){
-  //     auto neighbours = get_neighbours(pi)
-  //     auto plane = fit_plane(neighbours);
-  //     auto plane_dist = CGAL::squared_distance(plane, p);
-  //     pq.push(index_dist_pair(i++, plane_dist));
-  //   }
+    size_t i=0;
+    Plane plane;
+    for(size_t pi=0; pi<size; ++pi){
+      auto neighbours = get_neighbours(pi);
+      auto quality = fit_plane(neighbours, plane);
+      pq.push(index_dist_pair(i++, quality));
+    }
 
-  //   deque seed_order;
-  //   for (auto& ip : pq)
-  //   ...
-  // }
+    std::deque<size_t> seed_order;
+    while (pq.size()>0) {
+      seed_order.push_back(pq.top().first); pq.pop();
+    }
+    return seed_order;
+  }
 };
 
 class PlaneRegion : public regiongrower::Region {
@@ -84,7 +87,7 @@ class DistAndNormalTester {
     if (valid) {
       shape.inliers.push_back(neighbour);
       if (shape.inliers.size() % n_refit ==0) {
-        shape.plane = cds.fit_plane(shape.inliers);
+        cds.fit_plane(shape.inliers, shape.plane);
       }
     }
     return valid;

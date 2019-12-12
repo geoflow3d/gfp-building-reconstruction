@@ -63,7 +63,7 @@ namespace geoflow::nodes::stepedge {
     typedef CGAL::AABB_traits<K, My_triangle_primitive> My_AABB_traits;
     typedef CGAL::AABB_tree<My_AABB_traits> Tree;
 
-    auto& points = input("points").get<PointCollection>();
+    auto& points = input("ipoints").get<PointCollection>();
     auto& trin = input("triangles").get<TriangleCollection>();
     auto& face_ids = input("face_ids").get<vec1i>();
     std::list<My_triangle> triangles;

@@ -177,6 +177,12 @@ void OptimiseArrangmentGridNode::process() {
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
 
+  // don't bother if there are no planes
+  if (planes.size() == 0) {
+    output("arrangement").set(arr);
+    return;
+  }
+
   std::vector<std::tuple<Plane, std::vector<Point>, size_t, float>> points_per_plane; // plane, points, seg_id, average elevation
   for (auto& [plane_id, plane_pts] : planes) {
     if (plane_id<1) continue; // ignore unclassified points

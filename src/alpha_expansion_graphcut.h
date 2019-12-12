@@ -659,7 +659,7 @@ double alpha_expansion_graphcut (const InputGraph& input_graph,
       cut_time += timer.time();
 #endif
 
-      std::cerr<< "min_cut: " << min_cut << ", flow: " << flow << " [a=" << alpha << "]\n";
+      // std::cerr<< "min_cut: " << min_cut << ", flow: " << flow << " [a=" << alpha << "]\n";
       if(min_cut - flow <= flow * tolerance) {
         continue;
       }
