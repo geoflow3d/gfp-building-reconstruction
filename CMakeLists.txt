@@ -8,8 +8,9 @@ find_package(geoflow REQUIRED)
 # ptinpoly
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
 set_target_properties(
-  ptinpoly
-  PROPERTIES C_STANDARD 11
+  ptinpoly PROPERTIES 
+  C_STANDARD 11
+  POSITION_INDEPENDENT_CODE ON
 )
 
 find_package(glm)
