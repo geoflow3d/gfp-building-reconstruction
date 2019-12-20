@@ -380,6 +380,64 @@ void Arr2LinearRingsNode::process(){
   output("arr_errors").set(arr_errors);
 }
 
+void VecArr2LinearRingsNode::process(){
+  auto& arrs = vector_input("arrangement");
+  auto& mesh_errors = vector_input("mesh_error");
+  auto& roof_types = vector_input("roof_type");
+  auto& attributes_in = poly_input("attributes");
+
+  auto& linear_rings = vector_output("linear_rings");
+
+  // create output attributes fields
+  vec1f attr_error;
+  vec1i attr_rooftype;
+  vec1f attr_elevation;
+  vec1i attr_roofid;
+  vec1i attr_objectid;
+  
+  // for (auto &term : poly_input("attributes").basic_terminals()) {
+  //   poly_output("attributes").add(term->get_name(), term->get_type());
+  // }
+
+  for (size_t i=0; i<arrs.size(); ++i) {
+    auto& arr = arrs.get<Arrangement_2&>(i);
+    // auto& arr = attributes_in.get<Arrangement_2&>(i);
+    size_t j=0;
+    for (auto face: arr.face_handles()){
+      if(
+        face->data().in_footprint
+        &&
+        !(face->is_fictitious() || face->is_unbounded())
+        ) 
+      {
+        vec2f polygon;
+        arrangementface_to_polygon(face, polygon);
+        LinearRing polygon3d;
+        for (auto& p : polygon) {
+          polygon3d.push_back({p[0],p[1],0});
+        }
+        linear_rings.push_back(polygon3d);
+
+        attr_elevation.push_back(face->data().elevation_avg);
+        attr_error.push_back(mesh_errors.get<float>(i));
+        attr_rooftype.push_back(roof_types.get<int>(i));
+        attr_roofid.push_back(++j);
+        attr_objectid.push_back(i+1);
+      }
+    }
+  }
+  auto &attr_error_term = poly_output("attributes").add("rmse", typeid(vec1f));
+  attr_error_term.set(attr_error);
+  auto &attr_rooftype_term = poly_output("attributes").add("dak_type", typeid(vec1i));
+  attr_rooftype_term.set(attr_rooftype);
+  auto &attr_elevation_term = poly_output("attributes").add("hoogte_abs", typeid(vec1f));
+  attr_elevation_term.set(attr_elevation);
+  auto &attr_roofid_term = poly_output("attributes").add("dak_id", typeid(vec1i));
+  attr_roofid_term.set(attr_roofid);
+  auto &attr_objectid_term = poly_output("attributes").add("building_id", typeid(vec1i));
+  attr_objectid_term.set(attr_objectid);
+}
+
 void ExtruderNode::process(){
   // if (!(do_walls || do_roofs)) return;
   // Set up vertex data (and buffer(s)) and attribute pointers
@@ -2246,6 +2304,17 @@ void ArrDissolveNode::process() {
     arr_dissolve_step_edges(arr, step_height_threshold);
   }
 
+  // remove any dangling edges
+  {
+    std::vector<Arrangement_2::Halfedge_handle> to_remove;
+    for (auto he : arr.edge_handles()) {
+      if (he->face()==he->twin()->face())
+        to_remove.push_back(he);
+    }
+    for (auto he : to_remove) {
+      arr.remove_edge(he);
+    }
+  }
   // remove all lines not inside footprint
   if (dissolve_outside_fp) {
     {

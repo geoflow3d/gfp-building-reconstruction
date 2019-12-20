@@ -125,6 +125,20 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+    class VecArr2LinearRingsNode:public Node {
+    public:
+    using Node::Node;
+    void init() {
+      add_vector_input("arrangement", typeid(Arrangement_2));
+      add_vector_input("mesh_error", typeid(float));
+      add_vector_input("roof_type", typeid(int));
+      add_poly_input("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
+      add_poly_output("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
+      add_vector_output("linear_rings", typeid(LinearRing));
+    }
+    void process();
+  };
+
   class ExtruderNode:public Node {
     bool do_walls=true, do_roofs=true;
     bool in_footprint = false;
@@ -306,7 +320,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
-      add_output("arrangement", typeid(Arrangement_2));
+      add_output("arrangement", typeid(Arrangement_2), true);
 
       add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
       add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
@@ -417,7 +431,7 @@ namespace geoflow::nodes::stepedge {
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_output("roof_pt_cnt", typeid(int));
-      add_output("class", typeid(int));
+      add_output("class", typeid(int), true);
       add_output("classf", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
       add_output("slant_roofplane_cnt", typeid(float));
@@ -628,7 +642,7 @@ namespace geoflow::nodes::stepedge {
       
       add_output("point_errors", typeid(vec1f), true);
       add_output("face_errors", typeid(vec1f), true);
-      add_output("mesh_error_f", typeid(float));
+      add_output("mesh_error_f", typeid(float), true);
       add_output("mesh_error", typeid(vec1f), true);
 
     }
