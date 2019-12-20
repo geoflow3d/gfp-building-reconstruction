@@ -1683,13 +1683,15 @@ void DetectPlanesNode::process() {
           (only_horizontal && is_horizontal)) {
         pts_per_roofplane[region.get_region_id()].second = segpts;
         pts_per_roofplane[region.get_region_id()].first = plane;
-        horiz_pt_cnt += segpts.size();
       } else if (!is_horizontal) {
         pts_per_roofplane[-1].second.insert(
           pts_per_roofplane[-1].second.end(),
           segpts.begin(),
           segpts.end()
         );
+      } 
+      if (is_horizontal) {
+        horiz_pt_cnt += segpts.size();
       }
     }
     if (is_horizontal)
