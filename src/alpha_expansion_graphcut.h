@@ -26,7 +26,6 @@
 #ifdef CGAL_SEGMENTATION_BENCH_GRAPHCUT
 #include <CGAL/Timer.h>
 #endif
-#include <CGAL/IO/trace.h>
 
 #include <CGAL/boost/graph/Named_function_parameters.h>
 
