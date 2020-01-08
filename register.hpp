@@ -31,11 +31,3 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<Filter25DNode>("Filter25D");
     node_register.register_node<VecArr2LinearRingsNode>("VecArr2LinearRings");
 }
-
-namespace geoflow::nodes::stepedge {
-  NodeRegisterHandle create_register() {
-    auto R = NodeRegister::create(GF_PLUGIN_NAME);
-    register_nodes(*R);
-    return R;
-  }
-}

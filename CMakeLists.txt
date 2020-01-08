@@ -28,8 +28,10 @@ if (MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:precise")
 endif()
 
-add_library(gfp_stepedge MODULE
-  plugin.cpp
+set(GF_PLUGIN_NAME ${PROJECT_NAME})
+set(GF_PLUGIN_TARGET_NAME "gfp_stepedge")
+set(GF_PLUGIN_REGISTER ${PROJECT_SOURCE_DIR}/register.hpp)
+geoflow_create_plugin(
   src/stepedge_nodes.cpp
   src/node_optimise_arrangement.cpp
   src/point_edge.cpp
@@ -38,6 +40,7 @@ add_library(gfp_stepedge MODULE
   src/Raster.cpp
   src/heightfield_nodes.cpp
 )
+
 target_link_libraries( gfp_stepedge
   geoflow-core
   ptinpoly
@@ -45,8 +48,3 @@ target_link_libraries( gfp_stepedge
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
 )
-set_target_properties(
-  gfp_stepedge
-  PROPERTIES CXX_STANDARD 17
-)
-install(TARGETS gfp_stepedge DESTINATION ${geoflow_PLUGIN_FOLDER})
