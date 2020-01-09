@@ -541,6 +541,7 @@ namespace geoflow::nodes::stepedge {
     bool weighted_avg = false;
     bool angle_per_distcluster = false;
     bool regularise_fp = false;
+    bool recompute_rings = false;
     float fp_offset = 0.01;
 
     public:
@@ -570,6 +571,7 @@ namespace geoflow::nodes::stepedge {
       add_param("weighted_avg", ParamBool(weighted_avg, "weighted_avg"));
       add_param("angle_per_distcluster", ParamBool(angle_per_distcluster, "angle_per_distcluster"));
       add_param("regularise_fp", ParamBool(regularise_fp, "regularise_fp"));
+      add_param("recompute_rings", ParamBool(recompute_rings, "recompute_rings"));
       add_param("fp_offset", ParamBoundedFloat(fp_offset, 0.01, 10, "fp_offset"));
     }
     void process();

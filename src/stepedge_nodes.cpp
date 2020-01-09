@@ -2108,15 +2108,6 @@ void RegulariseRingsNode::process(){
   LR.angle_threshold = angle_threshold;
   LR.cluster(weighted_avg, angle_per_distcluster);
 
-  std::unordered_map<size_t, linereg::Polygon_2> exact_polygons;
-  for (auto& idx : ring_idx) {
-    exact_polygons[idx.first] = 
-      linereg::chain_ring<linereg::EK>(idx.second, LR.get_segments(0), snap_threshold);
-    // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
-  }
-  // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
-  output("exact_rings_out").set(exact_polygons);
-
   if (regularise_fp) {
     std::vector<size_t> fp_idx;
     for (size_t i=0; i < LR.get_segments(1).size(); ++i) {
@@ -2128,23 +2119,35 @@ void RegulariseRingsNode::process(){
     output("exact_footprint_out").set(ek_footprint);
   }
 
-  LinearRingCollection lrc;
-  vec1i plane_ids;
-  for (auto& poly : exact_polygons) {
-    LinearRing lr;
-    for (auto p=poly.second.vertices_begin(); p!=poly.second.vertices_end(); ++p) {
-      lr.push_back({
-        float(CGAL::to_double(p->x())),
-        float(CGAL::to_double(p->y())),
-        0
-      });
-      plane_ids.push_back(poly.first);
+  if (recompute_rings) {
+    std::unordered_map<size_t, linereg::Polygon_2> exact_polygons;
+    for (auto& idx : ring_idx) {
+      exact_polygons[idx.first] = 
+        linereg::chain_ring<linereg::EK>(idx.second, LR.get_segments(0), snap_threshold);
+      // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
     }
-    lrc.push_back(lr);
-  }
-  output("rings_out").set(lrc);
-  output("plane_id").set(plane_ids);
+    // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
+    output("exact_rings_out").set(exact_polygons);
 
+
+    LinearRingCollection lrc;
+    vec1i plane_ids;
+    for (auto& poly : exact_polygons) {
+      LinearRing lr;
+      for (auto p=poly.second.vertices_begin(); p!=poly.second.vertices_end(); ++p) {
+        lr.push_back({
+          float(CGAL::to_double(p->x())),
+          float(CGAL::to_double(p->y())),
+          0
+        });
+        plane_ids.push_back(poly.first);
+      }
+      lrc.push_back(lr);
+    }
+    output("rings_out").set(lrc);
+    output("plane_id").set(plane_ids);
+
+  }
   auto& new_segments = vector_output("edges_out");
   vec1i priorities;
   for(auto& kv : LR.segments) {
