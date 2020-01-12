@@ -384,6 +384,7 @@ void VecArr2LinearRingsNode::process(){
   auto& arrs = vector_input("arrangement");
   auto& mesh_errors = vector_input("mesh_error");
   auto& roof_types = vector_input("roof_type");
+  auto& arr_complexity = vector_input("arr_complexity");
   auto& attributes_in = poly_input("attributes");
 
   auto& linear_rings = vector_output("linear_rings");
@@ -394,6 +395,7 @@ void VecArr2LinearRingsNode::process(){
   vec1f attr_elevation;
   vec1i attr_roofid;
   vec1i attr_objectid;
+  vec1i attr_arr_complexity;
   
   // for (auto &term : poly_input("attributes").basic_terminals()) {
   //   poly_output("attributes").add(term->get_name(), term->get_type());
@@ -423,6 +425,7 @@ void VecArr2LinearRingsNode::process(){
         attr_rooftype.push_back(roof_types.get<int>(i));
         attr_roofid.push_back(++j);
         attr_objectid.push_back(i+1);
+        attr_arr_complexity.push_back(arr_complexity.get<int>(i));
       }
     }
   }
@@ -436,6 +439,8 @@ void VecArr2LinearRingsNode::process(){
   attr_roofid_term.set(attr_roofid);
   auto &attr_objectid_term = poly_output("attributes").add("building_id", typeid(vec1i));
   attr_objectid_term.set(attr_objectid);
+  auto &attr_arr_complexity_term = poly_output("attributes").add("arr_complexity", typeid(vec1i));
+  attr_arr_complexity_term.set(attr_arr_complexity);
 }
 
 void ExtruderNode::process(){
@@ -1298,7 +1303,16 @@ void BuildArrFromLinesNode::process() {
     }
   }
 
+  // output only empty footprint if there are too many lines/faces (makes the graph-cut optimisation too slow)
   auto& lines_term = vector_input("lines");
+  
+  int arr_complexity = lines_term.size();
+  output("arr_complexity").set(arr_complexity);
+  if (arr_complexity > max_arr_complexity) {
+    output("arrangement").set(arr_base);
+    return;
+  }
+
   {
     std::vector<X_monotone_curve_2> lines;
     for(size_t i=0; i<lines_term.size(); ++i) {

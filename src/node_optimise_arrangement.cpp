@@ -229,6 +229,8 @@ void OptimiseArrangmentGridNode::process() {
     }
   }
 
+  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+
   // compute edge_weights (smoothness term)
   double max_weight = 0;
   std::vector<Halfedge_handle> edges;
@@ -366,7 +368,7 @@ void OptimiseArrangmentNode::process() {
       // also compute average elevation for all inliers (needed for LoD1.3 later)
     }
   }
-  std::err << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // if (faces.size() > max_face_complexity) {
 
   //   return

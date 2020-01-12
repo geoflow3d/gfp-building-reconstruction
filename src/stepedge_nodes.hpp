@@ -132,6 +132,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("arrangement", typeid(Arrangement_2));
       add_vector_input("mesh_error", typeid(float));
       add_vector_input("roof_type", typeid(int));
+      add_vector_input("arr_complexity", typeid(int));
       add_poly_input("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
       add_poly_output("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
       add_vector_output("linear_rings", typeid(LinearRing));
@@ -244,6 +245,7 @@ namespace geoflow::nodes::stepedge {
 
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
+    int max_arr_complexity = 400;
     public:
 
     using Node::Node;
@@ -251,8 +253,10 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("lines", typeid(Segment));
       add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
+      add_output("arr_complexity", typeid(int), true);
 
       add_param("rel_area_thres", ParamBoundedFloat(rel_area_thres, 0.01, 1, "Preserve split ring area"));
+      add_param("max_arr_complexity", ParamInt(max_arr_complexity, "Maximum nr of lines"));
     }
     void process();
   };
