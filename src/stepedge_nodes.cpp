@@ -1305,7 +1305,8 @@ void BuildArrFromLinesNode::process() {
       auto& s = lines_term.get<Segment>(i);
       const Point_2 a(s[0][0],s[0][1]);
       const Point_2 b(s[1][0],s[1][1]);
-      lines.push_back(Line_2(a, b));
+      if (CGAL::squared_distance(a,b) > 0.001)
+        lines.push_back(Line_2(a, b));
     }
     insert(arr_base, lines.begin(), lines.end());
   }
