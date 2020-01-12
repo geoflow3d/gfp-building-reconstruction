@@ -2264,17 +2264,23 @@ void PlaneIntersectNode::process() {
           
           // auto ppmin = l->projection(Point(-100,-100,-100));
           // auto ppmax = l->projection(Point(100,100,100));
-          arr3f source = {
-            float(CGAL::to_double(ppmin.x())),
-            float(CGAL::to_double(ppmin.y())),
-            float(CGAL::to_double(ppmin.z()))
-          };
-          arr3f target = {
-            float(CGAL::to_double(ppmax.x())),
-            float(CGAL::to_double(ppmax.y())),
-            float(CGAL::to_double(ppmax.z()))
-          };
-          lines.push_back({source,target});
+          auto sx = float(CGAL::to_double(ppmin.x()));
+          auto sy = float(CGAL::to_double(ppmin.y()));
+          auto tx = float(CGAL::to_double(ppmax.x()));
+          auto ty = float(CGAL::to_double(ppmax.y()));
+          if (!((std::isinf(sx) || std::isinf(sy)) || (std::isinf(tx) || std::isinf(ty)))) {
+            arr3f source = {
+              sx,
+              sy,
+              float(CGAL::to_double(ppmin.z()))
+            };
+            arr3f target = {
+              tx,
+              ty,
+              float(CGAL::to_double(ppmax.z()))
+            };
+            lines.push_back({source,target});
+          }
         }
       }
     }

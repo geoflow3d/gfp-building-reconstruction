@@ -366,6 +366,11 @@ void OptimiseArrangmentNode::process() {
       // also compute average elevation for all inliers (needed for LoD1.3 later)
     }
   }
+
+  // if (faces.size() > max_face_complexity) {
+
+  //   return
+  // }
   // normalise
   for (auto face : faces) {
     for (auto& c : face->data().vertex_label_cost) {
