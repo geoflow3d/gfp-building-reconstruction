@@ -1046,7 +1046,7 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
   {
     Face_merge_observer obs(arr);
     if (dissolve_stepedges) {
-      arr_dissolve_step_edges(arr, step_height_threshold);
+      arr_dissolve_step_edges(arr, step_height_threshold, false);
     }
     //remove edges that have the same segid on both sides
     if (dissolve_edges) {
@@ -2327,7 +2327,7 @@ void ArrDissolveNode::process() {
   if(dissolve_seg_edges)
     arr_dissolve_seg_edges(arr);
   if (dissolve_step_edges) {
-    arr_dissolve_step_edges(arr, step_height_threshold);
+    arr_dissolve_step_edges(arr, step_height_threshold, compute_on_edge);
   }
 
   // remove any dangling edges
