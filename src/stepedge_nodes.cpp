@@ -1302,6 +1302,7 @@ void BuildArrFromLinesNode::process() {
   {
     std::vector<X_monotone_curve_2> lines;
     for(size_t i=0; i<lines_term.size(); ++i) {
+      // Check for 0 segment length (quick fix for linux crash)
       auto& s = lines_term.get<Segment>(i);
       const Point_2 a(s[0][0],s[0][1]);
       const Point_2 b(s[1][0],s[1][1]);
@@ -2262,19 +2263,24 @@ void PlaneIntersectNode::process() {
           auto ppmin = l->projection(pmin);
           auto ppmax = l->projection(pmax);
           
-          // auto ppmin = l->projection(Point(-100,-100,-100));
-          // auto ppmax = l->projection(Point(100,100,100));
-          arr3f source = {
-            float(CGAL::to_double(ppmin.x())),
-            float(CGAL::to_double(ppmin.y())),
-            float(CGAL::to_double(ppmin.z()))
-          };
-          arr3f target = {
-            float(CGAL::to_double(ppmax.x())),
-            float(CGAL::to_double(ppmax.y())),
-            float(CGAL::to_double(ppmax.z()))
-          };
-          lines.push_back({source,target});
+          // Check for infinity (quick fix for linux crash)
+          auto sx = float(CGAL::to_double(ppmin.x()));
+          auto sy = float(CGAL::to_double(ppmin.y()));
+          auto tx = float(CGAL::to_double(ppmax.x()));
+          auto ty = float(CGAL::to_double(ppmax.y()));
+          if (!((std::isinf(sx) || std::isinf(sy)) || (std::isinf(tx) || std::isinf(ty)))) {
+            arr3f source = {
+              sx,
+              sy,
+              float(CGAL::to_double(ppmin.z()))
+            };
+            arr3f target = {
+              tx,
+              ty,
+              float(CGAL::to_double(ppmax.z()))
+            };
+            lines.push_back({source,target});
+          }
         }
       }
     }
