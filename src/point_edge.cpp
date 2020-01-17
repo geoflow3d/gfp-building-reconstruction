@@ -45,7 +45,7 @@ void arr_dissolve_seg_edges(Arrangement_2& arr)
   }
 }
 
-void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
+void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge)
 {
   std::vector<Arrangement_2::Halfedge_handle> to_remove;
   for (auto& edge : arr.edge_handles()) {
@@ -53,7 +53,21 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
     auto f2 = edge->twin()->face();
 
     if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
-      if(std::abs(f1->data().elevation_avg - f2->data().elevation_avg) < step_height_threshold){
+      double d;
+      if (compute_on_edge) {
+        auto& s = edge->source()->point();
+        auto& t = edge->target()->point();
+        auto& pl1 = f1->data().plane;
+        auto& pl2 = f2->data().plane;
+        double h1_pl1 = CGAL::to_double((pl1.a()*s.x() + pl1.b()*s.y() + pl1.d()) / (-pl1.c()));
+        double h2_pl1 = CGAL::to_double((pl1.a()*t.x() + pl1.b()*t.y() + pl1.d()) / (-pl1.c()));
+        double h1_pl2 = CGAL::to_double((pl2.a()*s.x() + pl2.b()*s.y() + pl2.d()) / (-pl2.c()));
+        double h2_pl2 = CGAL::to_double((pl2.a()*t.x() + pl2.b()*t.y() + pl2.d()) / (-pl2.c()));
+        d = std::max(std::abs(h1_pl1-h1_pl2), std::abs(h2_pl1-h2_pl2));
+      } else {
+        d = std::abs(f1->data().elevation_avg - f2->data().elevation_avg);
+      }
+      if(d < step_height_threshold){
         // Face_merge_observer takes care of data merge
         // if (f2->data().elevation_avg < f1->data().elevation_avg) {
         //   f2->data()= f1->data();

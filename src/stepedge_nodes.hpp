@@ -132,6 +132,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("arrangement", typeid(Arrangement_2));
       add_vector_input("mesh_error", typeid(float));
       add_vector_input("roof_type", typeid(int));
+      add_vector_input("arr_complexity", typeid(int));
       add_poly_input("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
       add_poly_output("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
       add_vector_output("linear_rings", typeid(LinearRing));
@@ -244,6 +245,7 @@ namespace geoflow::nodes::stepedge {
 
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
+    int max_arr_complexity = 400;
     public:
 
     using Node::Node;
@@ -251,8 +253,10 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("lines", typeid(Segment));
       add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
+      add_output("arr_complexity", typeid(int), true);
 
       add_param("rel_area_thres", ParamBoundedFloat(rel_area_thres, 0.01, 1, "Preserve split ring area"));
+      add_param("max_arr_complexity", ParamInt(max_arr_complexity, "Maximum nr of lines"));
     }
     void process();
   };
@@ -315,6 +319,7 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
+    bool compute_on_edge = true;
     float step_height_threshold = 1.0;
     public:
     using Node::Node;
@@ -325,6 +330,7 @@ namespace geoflow::nodes::stepedge {
       add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
       add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
       add_param("dissolve_step_edges", ParamBool(dissolve_step_edges, "Dissolve step edges"));
+      add_param("compute_on_edge", ParamBool(compute_on_edge, "Compute step height on edge"));
       add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
     }
     void process();

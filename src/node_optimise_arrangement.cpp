@@ -183,17 +183,11 @@ void OptimiseArrangmentGridNode::process() {
     return;
   }
 
-  std::vector<std::tuple<Plane, std::vector<Point>, size_t, float>> points_per_plane; // plane, points, seg_id, average elevation
+  std::vector<std::tuple<Plane, std::vector<Point>, size_t>> points_per_plane; // plane, points, seg_id
   for (auto& [plane_id, plane_pts] : planes) {
     if (plane_id<1) continue; // ignore unclassified points
-    // also calculate percentile elevation for all inliers of this plane
-    auto points = plane_pts.second;
-    std::sort(points.begin(), points.end(), [](auto& p1, auto& p2) {
-      return p1.z() < p2.z();
-    });
-    int elevation_id = std::floor(z_percentile*float(points.size()-1));
 
-    points_per_plane.push_back(std::make_tuple(plane_pts.first, points, plane_id, points[elevation_id].z()));
+    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_pts.second, plane_id));
   }
 
   // compute vertex_label_cost (data term)
@@ -207,7 +201,20 @@ void OptimiseArrangmentGridNode::process() {
       vec2f polygon;
       arrangementface_to_polygon(face, polygon);
       auto height_points = heightfield.rasterise_polygon(polygon, false);
-      for (auto& [plane, pts, plane_id, elevation_avg] : points_per_plane) {
+      
+      // calculate percentile elevation
+      if (height_points.size()==0) {
+        face->data().elevation_avg = 0;
+      } else {
+        std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
+          return p1[2] < p2[2];
+        });
+        int elevation_id = std::floor(z_percentile*float(height_points.size()-1));
+        face->data().elevation_avg = height_points[elevation_id][2];
+      }
+      face->data().inlier_count = height_points.size();
+
+      for (auto& [plane, pts, plane_id] : points_per_plane) {
         double volume = data_multiplier * volume_to_plane(plane, height_points);
         face->data().vertex_label_cost.push_back(volume);
         max_cost = std::max(max_cost, volume);
@@ -228,6 +235,8 @@ void OptimiseArrangmentGridNode::process() {
       }
     }
   }
+
+  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
 
   // compute edge_weights (smoothness term)
   double max_weight = 0;
@@ -303,8 +312,6 @@ void OptimiseArrangmentGridNode::process() {
     size_t i = face->data().label;
     face->data().plane = std::get<0>(points_per_plane[i]);
     face->data().segid = std::get<2>(points_per_plane[i]);
-    face->data().elevation_avg = std::get<3>(points_per_plane[i]);
-    face->data().inlier_count = std::get<1>(points_per_plane[i]).size();
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
   }
 
@@ -366,6 +373,11 @@ void OptimiseArrangmentNode::process() {
       // also compute average elevation for all inliers (needed for LoD1.3 later)
     }
   }
+  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+  // if (faces.size() > max_face_complexity) {
+
+  //   return
+  // }
   // normalise
   for (auto face : faces) {
     for (auto& c : face->data().vertex_label_cost) {
