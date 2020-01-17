@@ -319,7 +319,7 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
-    bool compute_on_edge = true;
+    bool compute_on_edge = false;
     float step_height_threshold = 1.0;
     public:
     using Node::Node;
