@@ -47,7 +47,7 @@ void arr_dissolve_seg_edges(Arrangement_2& arr)
   }
 }
 
-void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge)
+void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge)
 {
   std::vector<Arrangement_2::Halfedge_handle> to_remove;
   for (auto& edge : arr.edge_handles()) {
@@ -85,15 +85,15 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold, bo
   }
 }
 
-void arr_dissolve_step_edges_ordered(Arrangement_2& arr, float step_height_threshold)
+auto HandleHash = CGAL::Handle_hash_function{};
+void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
 {
-  auto HandleHash = CGAL::Handle_hash_function();
   struct FacePair {
       Arrangement_2::Face_handle f_lo;
       Arrangement_2::Face_handle f_hi;
 
+      FacePair(){};
       FacePair(Arrangement_2::Face_handle f1, Arrangement_2::Face_handle f2) {
-        ()
         if (HandleHash(f1) < HandleHash(f1)) {
           f_lo = f1;
           f_hi = f2;
@@ -115,7 +115,7 @@ void arr_dissolve_step_edges_ordered(Arrangement_2& arr, float step_height_thres
     std::size_t operator()(FacePair const& p) const
     {
       std::size_t h1 = HandleHash(p.f_lo);
-      std::size_t h2 = HandleHash(p.f_hi;
+      std::size_t h2 = HandleHash(p.f_hi);
       return h1 ^ (h2 << 1); // or use boost::hash_combine (see Discussion)
     }
   };
@@ -127,16 +127,30 @@ void arr_dissolve_step_edges_ordered(Arrangement_2& arr, float step_height_thres
     KeyEqual
   > step_boundaries;
 
-  for (auto& edge : arr.edge_handles()) {
-    auto f1 = edge->face();
-    auto f2 = edge->twin()->face();
-    if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
-      step_boundaries[FacePair(f1,f2)].push_back(edge);
+  while (true) {
+    double d_min = step_height_threshold;
+    step_boundaries.clear();
+    for (auto& edge : arr.edge_handles()) {
+      auto f1 = edge->face();
+      auto f2 = edge->twin()->face();
+      if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
+        step_boundaries[FacePair(f1,f2)].push_back(edge);
+      }
+    }
+    FacePair facepair_min;
+    for (auto& [faces, edges] : step_boundaries) {
+      double d = std::abs(faces.f_hi->data().elevation_avg - faces.f_lo->data().elevation_avg);
+      if (d < d_min) {
+        d_min = d;
+        facepair_min = faces;
+      }
+    }
+    if (d_min == step_height_threshold) break;
+    std::vector<Halfedge_handle> to_remove;
+    for (auto& edge : step_boundaries[facepair_min]) {
+      arr.remove_edge(edge);
     }
   }
 
 
-  for (auto edge : to_remove) {
-    arr.remove_edge(edge);
-  }
 }

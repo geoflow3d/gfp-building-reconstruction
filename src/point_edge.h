@@ -307,4 +307,5 @@ Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring);
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons);
 
 void arr_dissolve_seg_edges(Arrangement_2& arr);
-void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge);
+void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge);
+void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold);

@@ -1046,7 +1046,7 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
   {
     Face_merge_observer obs(arr);
     if (dissolve_stepedges) {
-      arr_dissolve_step_edges(arr, step_height_threshold, false);
+      arr_dissolve_step_edges_naive(arr, step_height_threshold, false);
     }
     //remove edges that have the same segid on both sides
     if (dissolve_edges) {
@@ -1306,22 +1306,35 @@ void BuildArrFromLinesNode::process() {
   // output only empty footprint if there are too many lines/faces (makes the graph-cut optimisation too slow)
   auto& lines_term = vector_input("lines");
   
+  typedef std::pair<Point_2, Point_2> PointPair;
+
+  std::vector<PointPair> segments;
+  for(size_t i=0; i<lines_term.size(); ++i) {
+    auto& s = lines_term.get<Segment>(i);
+    Point_2 a(s[0][0],s[0][1]);
+    Point_2 b(s[1][0],s[1][1]);
+    segments.push_back(std::make_pair(a,b));
+  }
+
+  std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
+    return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
+  });
+  
   int arr_complexity = lines_term.size();
   output("arr_complexity").set(arr_complexity);
-  if (arr_complexity > max_arr_complexity) {
-    output("arrangement").set(arr_base);
-    return;
-  }
+  // if (arr_complexity > max_arr_complexity) {
+  //   output("arrangement").set(arr_base);
+  //   return;
+  // }
 
   {
     std::vector<X_monotone_curve_2> lines;
-    for(size_t i=0; i<lines_term.size(); ++i) {
+    size_t i=0;
+    for(auto& s : segments) {
       // Check for 0 segment length (quick fix for linux crash)
-      auto& s = lines_term.get<Segment>(i);
-      const Point_2 a(s[0][0],s[0][1]);
-      const Point_2 b(s[1][0],s[1][1]);
-      if (CGAL::squared_distance(a,b) > 0.001)
-        lines.push_back(Line_2(a, b));
+      if (i++ == max_arr_complexity) break;
+      if (CGAL::squared_distance(s.first,s.second) > 0.001)
+        lines.push_back(Line_2(s.first,s.second));
     }
     insert(arr_base, lines.begin(), lines.end());
   }
@@ -2327,7 +2340,7 @@ void ArrDissolveNode::process() {
   if(dissolve_seg_edges)
     arr_dissolve_seg_edges(arr);
   if (dissolve_step_edges) {
-    arr_dissolve_step_edges(arr, step_height_threshold, compute_on_edge);
+    arr_dissolve_step_edges(arr, step_height_threshold);
   }
 
   // remove any dangling edges

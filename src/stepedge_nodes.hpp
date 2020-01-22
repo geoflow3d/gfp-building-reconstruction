@@ -319,7 +319,6 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
-    bool compute_on_edge = false;
     float step_height_threshold = 1.0;
     public:
     using Node::Node;
@@ -330,7 +329,6 @@ namespace geoflow::nodes::stepedge {
       add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
       add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
       add_param("dissolve_step_edges", ParamBool(dissolve_step_edges, "Dissolve step edges"));
-      add_param("compute_on_edge", ParamBool(compute_on_edge, "Compute step height on edge"));
       add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
     }
     void process();
