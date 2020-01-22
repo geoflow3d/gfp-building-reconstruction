@@ -25,7 +25,7 @@
 
 /// \cond SKIP_IN_MANUAL
 
-#include <CGAL/boost/graph/alpha_expansion_graphcut.h>
+#include "alpha_expansion_graphcut.h"
 
 namespace MaxFlow
 {
