@@ -2,10 +2,9 @@
 #include "stepedge_nodes.hpp"
 // graph cut
 #include "alpha_expansion_graphcut.h"
-// #include <CGAL/boost/graph/alpha_expansion_graphcut.h>
 #include <CGAL/graph_traits_dual_arrangement_2.h>
 #include <CGAL/Arr_face_index_map.h>
-#include <CGAL/boost/graph/Alpha_expansion_MaxFlow_tag.h>
+#include "Alpha_expansion_MaxFlow_tag.h"
 
 #include <algorithm>
 
