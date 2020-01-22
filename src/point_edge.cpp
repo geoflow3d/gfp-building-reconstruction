@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <boost/tuple/tuple.hpp>
 
+#include <CGAL/Handle_hash_function.h>
+
 Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring) {
   std::vector<Point_2> footprint_pts;
   for (auto p : ring) {
@@ -78,6 +80,62 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold, bo
       }
     }
   }
+  for (auto edge : to_remove) {
+    arr.remove_edge(edge);
+  }
+}
+
+void arr_dissolve_step_edges_ordered(Arrangement_2& arr, float step_height_threshold)
+{
+  auto HandleHash = CGAL::Handle_hash_function();
+  struct FacePair {
+      Arrangement_2::Face_handle f_lo;
+      Arrangement_2::Face_handle f_hi;
+
+      FacePair(Arrangement_2::Face_handle f1, Arrangement_2::Face_handle f2) {
+        ()
+        if (HandleHash(f1) < HandleHash(f1)) {
+          f_lo = f1;
+          f_hi = f2;
+        } else {
+          f_lo = f2;
+          f_hi = f1;
+        }
+      };
+  };
+    
+  struct KeyEqual {
+    bool operator()(const FacePair& lhs, const FacePair& rhs) const
+    {
+      return lhs.f_hi == rhs.f_hi && lhs.f_lo == rhs.f_lo;
+    }
+  };
+  struct KeyHash
+  {
+    std::size_t operator()(FacePair const& p) const
+    {
+      std::size_t h1 = HandleHash(p.f_lo);
+      std::size_t h2 = HandleHash(p.f_hi;
+      return h1 ^ (h2 << 1); // or use boost::hash_combine (see Discussion)
+    }
+  };
+  
+  std::unordered_map<
+    FacePair, 
+    std::vector<Arrangement_2::Halfedge_handle>,
+    KeyHash, 
+    KeyEqual
+  > step_boundaries;
+
+  for (auto& edge : arr.edge_handles()) {
+    auto f1 = edge->face();
+    auto f2 = edge->twin()->face();
+    if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
+      step_boundaries[FacePair(f1,f2)].push_back(edge);
+    }
+  }
+
+
   for (auto edge : to_remove) {
     arr.remove_edge(edge);
   }

@@ -13,6 +13,13 @@ set_target_properties(
   POSITION_INDEPENDENT_CODE ON
 )
 
+if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
+  execute_process(
+    COMMAND             git submodule update --init region-grower
+    WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/thirdparty
+    )
+endif()  
+
 find_package(glm)
 find_package(LASlib)
 find_package(CGAL QUIET COMPONENTS Core)
