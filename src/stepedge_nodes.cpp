@@ -1316,16 +1316,14 @@ void BuildArrFromLinesNode::process() {
     segments.push_back(std::make_pair(a,b));
   }
 
-  std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
-    return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
-  });
-  
   int arr_complexity = lines_term.size();
   output("arr_complexity").set(arr_complexity);
-  // if (arr_complexity > max_arr_complexity) {
-  //   output("arrangement").set(arr_base);
-  //   return;
-  // }
+
+  if (arr_complexity > max_arr_complexity) {
+    std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
+      return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
+    });
+  }
 
   {
     std::vector<X_monotone_curve_2> lines;
