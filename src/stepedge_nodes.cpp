@@ -2200,39 +2200,56 @@ LinearRing simplify_footprint(const LinearRing& polygon, float& threshold_stop_c
   typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
   typedef K::Point_2 Point_2;
   typedef CGAL::Polygon_2<K>                   Polygon_2;
+  typedef CGAL::Polygon_with_holes_2<K>        Polygon_with_holes_2;
   typedef PS::Stop_below_count_ratio_threshold Stop_count_ratio;
   typedef PS::Stop_above_cost_threshold        Stop_cost;
   typedef PS::Squared_distance_cost            Cost;
 
   if (polygon.size()>2) {
-      Polygon_2 cgal_polygon;
+      Polygon_2 cgal_exterior;
       Cost cost;
 
       for (auto& p : polygon) {
-        cgal_polygon.push_back(Point_2(p[0], p[1]));
+        cgal_exterior.push_back(Point_2(p[0], p[1]));
+      }
+
+      std::vector<Polygon_2> cgal_holes;
+      for (auto& iring : polygon.interior_rings()) {
+        Polygon_2 hole;
+        for (auto& p : iring) {
+          hole.push_back(Point_2(p[0], p[1]));
+        }
+        cgal_holes.push_back(hole);
       }
       // cgal_polygon.erase(cgal_polygon.vertices_end()-1); // remove repeated point from the boost polygon
       
       // polygon = PS::simplify(polygon, cost, Stop_count_ratio(0.5));
 
-      cgal_polygon = PS::simplify(cgal_polygon, cost, Stop_cost(threshold_stop_cost));
+      auto cgal_polygon = PS::simplify(Polygon_with_holes_2(cgal_exterior, cgal_holes.begin(), cgal_holes.end()), cost, Stop_cost(threshold_stop_cost));
       
       LinearRing footprint_vec3f;
-      for (auto v = cgal_polygon.vertices_begin(); v!=cgal_polygon.vertices_end(); v++){
+      for (auto v = cgal_polygon.outer_boundary().vertices_begin(); v!=cgal_polygon.outer_boundary().vertices_end(); v++){
         footprint_vec3f.push_back({float(v->x()),float(v->y()),0});
+      }
+      for(auto hole = cgal_polygon.holes_begin(); hole!=cgal_polygon.holes_end(); ++hole) {
+        vec3f gf_hole;
+        for (auto v = hole->vertices_begin(); v!=hole->vertices_end(); v++){
+          gf_hole.push_back({float(v->x()),float(v->y()),0});
+        }
+        footprint_vec3f.interior_rings().push_back(gf_hole);
       }
 
       // HACK: CGAL does not seem to remove the first point of the input polygon in any case, so we need to check ourselves
-      auto p_0 = *(cgal_polygon.vertices_begin());
-      auto p_1 = *(cgal_polygon.vertices_begin()+1);
-      auto p_end = *(cgal_polygon.vertices_end()-1);
+      auto p_0 = *(cgal_polygon.outer_boundary().vertices_begin());
+      auto p_1 = *(cgal_polygon.outer_boundary().vertices_begin()+1);
+      auto p_end = *(cgal_polygon.outer_boundary().vertices_end()-1);
       // check the distance between the first vertex and the line between its 2 neighbours
       if (CGAL::squared_distance(Point_2(p_0), K::Segment_2(p_end, p_1)) < threshold_stop_cost) {
         footprint_vec3f.erase(footprint_vec3f.begin());
       }
 
       return footprint_vec3f;
-    } else 
+    } else
       return polygon;
 }
 
