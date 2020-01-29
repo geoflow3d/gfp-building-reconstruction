@@ -386,6 +386,7 @@ void VecArr2LinearRingsNode::process(){
   auto& roof_types = vector_input("roof_type");
   auto& arr_complexity = vector_input("arr_complexity");
   auto& attributes_in = poly_input("attributes");
+  auto& input_attr_terms = poly_output("attributes").get_terminals();
 
   auto& linear_rings = vector_output("linear_rings");
 
@@ -397,9 +398,23 @@ void VecArr2LinearRingsNode::process(){
   vec1i attr_objectid;
   vec1i attr_arr_complexity;
   
-  // for (auto &term : poly_input("attributes").basic_terminals()) {
-  //   poly_output("attributes").add(term->get_name(), term->get_type());
-  // }
+  std::unordered_map<std::string, gfBasicMonoOutputTerminal*> input_attr_map;
+  for (auto &iterm : poly_input("attributes").basic_terminals()) {
+    auto& oterm = poly_output("attributes").add(iterm->get_name(), iterm->get_type());
+    if(oterm.accepts_type(typeid(vec1b))){
+      input_attr_map[oterm.get_name()] = &oterm;
+      oterm.set(vec1b{});
+    } else if (oterm.accepts_type(typeid(vec1i))) {
+      input_attr_map[oterm.get_name()] = &oterm;
+      oterm.set(vec1i{});
+    } else if (oterm.accepts_type(typeid(vec1f))) {
+      input_attr_map[oterm.get_name()] = &oterm;
+      oterm.set(vec1f{});
+    } else if (oterm.accepts_type(typeid(vec1s))) {
+      input_attr_map[oterm.get_name()] = &oterm;
+      oterm.set(vec1s{});
+    }
+  }
 
   for (size_t i=0; i<arrs.size(); ++i) {
     auto& arr = arrs.get<Arrangement_2&>(i);
@@ -423,6 +438,22 @@ void VecArr2LinearRingsNode::process(){
         attr_roofid.push_back(++j);
         attr_objectid.push_back(i+1);
         attr_arr_complexity.push_back(arr_complexity.get<int>(i));
+
+        for (auto &term : poly_input("attributes").basic_terminals()) {
+          if(term->accepts_type(typeid(vec1b))){
+            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
+            input_attr_map[term->get_name()]->get<vec1b&>().push_back(term->get<vec1b>()[i]);
+          } else if (term->accepts_type(typeid(vec1i))) {
+            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
+            input_attr_map[term->get_name()]->get<vec1i&>().push_back(term->get<vec1i>()[i]);
+          } else if (term->accepts_type(typeid(vec1f))) {
+            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
+            input_attr_map[term->get_name()]->get<vec1f&>().push_back(term->get<vec1f>()[i]);
+          } else if (term->accepts_type(typeid(vec1s))) {
+            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
+            input_attr_map[term->get_name()]->get<vec1s&>().push_back(term->get<vec1s>()[i]);
+          }
+        }
       }
     }
   }
