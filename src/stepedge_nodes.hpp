@@ -251,7 +251,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("lines", typeid(Segment));
-      add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
+      add_input("footprint", {typeid(linereg::Polygon_with_holes_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
       add_output("arr_complexity", typeid(int), true);
 
@@ -565,7 +565,7 @@ namespace geoflow::nodes::stepedge {
       add_output("rings_out", typeid(LinearRingCollection));
       add_output("plane_id", typeid(vec1i));
       add_output("exact_rings_out", typeid(std::unordered_map<size_t, linereg::Polygon_2>));
-      add_output("exact_footprint_out", typeid(linereg::Polygon_2));
+      add_output("exact_footprint_out", typeid(linereg::Polygon_with_holes_2));
       // add_output("footprint_labels", typeid(vec1i));
       // add_output("line_clusters", TT_any); // ie a LineCluster
       // add_output("tmp_vec3f", typeid(vec3f));

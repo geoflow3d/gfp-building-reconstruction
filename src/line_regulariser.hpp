@@ -1,7 +1,8 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Polygon_2.h>
-#include<geoflow/geoflow.hpp>
+#include <CGAL/Polygon_with_holes_2.h>
+#include <geoflow/geoflow.hpp>
 
 namespace linereg {
   typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_2 Point_2;
@@ -10,6 +11,7 @@ namespace linereg {
 
   typedef CGAL::Exact_predicates_exact_constructions_kernel EK;
   typedef CGAL::Polygon_2<EK> Polygon_2;
+  typedef CGAL::Polygon_with_holes_2<EK> Polygon_with_holes_2;
   // typedef EK::Polygon_2 Polygon_2;
 
   class LineRegulariser {

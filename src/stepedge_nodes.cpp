@@ -412,13 +412,10 @@ void VecArr2LinearRingsNode::process(){
         !(face->is_fictitious() || face->is_unbounded())
         ) 
       {
-        vec2f polygon;
+        LinearRing polygon;
         arrangementface_to_polygon(face, polygon);
-        LinearRing polygon3d;
-        for (auto& p : polygon) {
-          polygon3d.push_back({p[0],p[1],0});
-        }
-        linear_rings.push_back(polygon3d);
+
+        linear_rings.push_back(polygon);
 
         attr_elevation.push_back(face->data().elevation_avg);
         attr_error.push_back(mesh_errors.get<float>(i));
@@ -1282,25 +1279,32 @@ void BuildArrFromRingsExactNode::process() {
 void BuildArrFromLinesNode::process() {
   
   auto fp_term = input("footprint");
-  linereg::Polygon_2 footprint;
-  if (fp_term.is_connected_type(typeid(linereg::Polygon_2)))
-    footprint = fp_term.get<linereg::Polygon_2>();
+  linereg::Polygon_with_holes_2 footprint;
+  if (fp_term.is_connected_type(typeid(linereg::Polygon_with_holes_2)))
+    footprint = fp_term.get<linereg::Polygon_with_holes_2>();
   else {
     auto& lr = fp_term.get<LinearRing&>();
+    linereg::Polygon_2 poly2;
     for (auto& p : lr) {
-      footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
+      poly2.push_back(linereg::EK::Point_2(p[0], p[1]));
     }
+    footprint = linereg::Polygon_with_holes_2(poly2);
   }
 
   Arrangement_2 arr_base;
   Face_split_observer obs (arr_base);
   {
-    insert(arr_base, footprint.edges_begin(), footprint.edges_end());
+    insert(arr_base, footprint.outer_boundary().edges_begin(), footprint.outer_boundary().edges_end());
     // arr_insert_polygon(arr_base, footprint);
     // insert_non_intersecting_curves(arr_base, footprint.edges_begin(), footprint.edges_end());
-    if (!footprint.is_simple()) {
+    if (!footprint.outer_boundary().is_simple()) {
       arr_filter_biggest_face(arr_base, rel_area_thres);
     }
+    obs.set_hole_mode(true);
+    for(auto hole = footprint.holes_begin(); hole != footprint.holes_end(); ++hole) {
+      insert(arr_base, hole->edges_begin(), hole->edges_end());
+    }
+    obs.set_hole_mode(false);
   }
 
   // output only empty footprint if there are too many lines/faces (makes the graph-cut optimisation too slow)
@@ -2121,8 +2125,16 @@ void RegulariseRingsNode::process(){
   //   Segment({footprint[footprint.size()-1], footprint[0]})
   // );
   linereg::Polygon_2 ek_footprint;
+  std::vector<linereg::Polygon_2> ek_holes;
   for (auto& p : footprint) {
     ek_footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
+  }
+  for (auto& ring : footprint.interior_rings()) {
+    linereg::Polygon_2 ek_hole;
+    for (auto& p : ring) {
+      ek_hole.push_back(linereg::EK::Point_2(p[0], p[1]));
+    }
+    ek_holes.push_back(ek_hole);
   }
   // size_t fpi_end = all_edges.size()-1;
 
@@ -2130,6 +2142,9 @@ void RegulariseRingsNode::process(){
   auto LR = linereg::LineRegulariser();
   LR.add_segments(0,edges);
   LR.add_segments(1,ek_footprint, (double) fp_offset);
+  for (auto& hole : ek_holes) {
+    LR.add_segments(1,hole, (double) fp_offset);
+  }
   LR.add_segments(2,ints_segments);
   LR.dist_threshold = dist_threshold;
   LR.angle_threshold = angle_threshold;
@@ -2141,9 +2156,9 @@ void RegulariseRingsNode::process(){
       fp_idx.push_back(i);
     }
     auto ek_reg_fp = linereg::chain_ring<linereg::EK>(fp_idx, LR.get_segments(1), snap_threshold);
-    output("exact_footprint_out").set(ek_reg_fp);
+    output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_reg_fp));
   } else {
-    output("exact_footprint_out").set(ek_footprint);
+    output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_footprint, ek_holes.begin(), ek_holes.end()));
   }
 
   if (recompute_rings) {

@@ -199,7 +199,8 @@ public:
 class Face_split_observer : public CGAL::Arr_observer<Arrangement_2>
 {
 private:
-  int     n_faces;          // The current number of faces.
+  int   n_faces;          // The current number of faces.
+  bool  hole_mode=false;
 public:
   Face_split_observer (Arrangement_2& arr) :
     CGAL::Arr_observer<Arrangement_2> (arr),
@@ -215,11 +216,15 @@ public:
     // Assign index to the new face.
     if(n_faces == 1)
       new_face->data().in_footprint = true;
-    else if(old_face->data().in_footprint)
-      new_face->data().in_footprint = true;
-    else
+    else if(old_face->data().in_footprint) {
+      new_face->data().in_footprint = !hole_mode;
+    } else {
       new_face->data().in_footprint = false;
+    }
     n_faces++;
+  }
+  void set_hole_mode(bool mode) {
+    hole_mode = mode;
   }
 };
 class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
@@ -305,6 +310,7 @@ typedef std::vector<std::array<float,2>> vec2f;
 Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring);
 
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons);
+void arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygons, double h=0);
 
 void arr_dissolve_seg_edges(Arrangement_2& arr);
 void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge);

@@ -13,7 +13,22 @@ Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring) {
   return Polygon_2(footprint_pts.begin(), footprint_pts.end());
 }
 
+template<typename E, typename P> void ccb_to_polygon_3(E he, P& polygon, double h=0) {
+  auto first = he;
 
+  while(true){
+    // if (!he->source()- at_infinity())
+      polygon.push_back({
+        float(CGAL::to_double(he->source()->point().x())),
+        float(CGAL::to_double(he->source()->point().y())),
+        float(h)
+      });
+
+    he = he->next();
+    if (he==first) break;
+  // }
+  }
+}
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
   // if(extract_face){ // ie it is a face on the interior of the footprint
   auto he = face->outer_ccb();
@@ -29,6 +44,17 @@ void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
     he = he->next();
     if (he==first) break;
   // }
+  }
+}
+void arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygon, double h){
+  // if(extract_face){ // ie it is a face on the interior of the footprint
+  auto he = face->outer_ccb();
+  ccb_to_polygon_3(he, polygon);
+
+  for (auto ccb = face->inner_ccbs_begin(); ccb != face->inner_ccbs_end(); ++ccb) {
+    geoflow::vec3f ring;
+    ccb_to_polygon_3(*ccb, ring, h);
+    polygon.interior_rings().push_back(ring);
   }
 }
 
