@@ -642,7 +642,7 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() {
-      add_input("ipoints", typeid(PointCollection));
+      add_input("ipoints", {typeid(PointCollection), typeid(IndexedPlanesWithPoints)});
       add_input("triangles", typeid(TriangleCollection));
       add_input("face_ids", typeid(vec1i));
       
