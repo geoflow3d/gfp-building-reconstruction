@@ -2294,7 +2294,11 @@ LinearRing simplify_footprint(const LinearRing& polygon, float& threshold_stop_c
         footprint_vec3f.erase(footprint_vec3f.begin());
       }
 
-      return footprint_vec3f;
+      if (footprint_vec3f.size()>2) {
+        return footprint_vec3f;
+      } else {
+        return polygon;
+      }
     } else
       return polygon;
 }
