@@ -498,6 +498,7 @@ void ExtruderNode::process(){
       pid = face->data().segid;
       if (pid==0) {
         face->data().plane = Plane(Kernel::Point_3(0,0,nodata_elevation), Kernel::Direction_3(0,0,1));
+        face->data().elevation_avg = nodata_elevation;
       }
 
       vec2f polygon, vertices;
