@@ -23,6 +23,9 @@ endif()
 find_package(glm)
 find_package(LASlib)
 find_package(CGAL QUIET COMPONENTS Core)
+# PDAL
+include_directories( ${PDAL_INCLUDE_DIRS} )
+link_directories( ${PDAL_LIBRARY_DIRS} )
 #earcut
 include_directories(
   src 
@@ -54,4 +57,5 @@ target_link_libraries( gfp_stepedge
   glm
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
+  pdalcpp
 )

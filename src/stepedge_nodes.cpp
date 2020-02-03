@@ -1876,6 +1876,23 @@ void LASInPolygonsNode::process() {
   // output("point_clouds").set(point_clouds);
 }
 
+void EptInPolygonsNode::process() {
+  auto& polygons = vector_input("polygons");
+
+  auto& point_clouds = vector_output("point_clouds");
+  point_clouds.resize<PointCollection>(polygons.size());
+  auto& color_clouds = vector_output("colors");
+  color_clouds.resize<vec3f>(polygons.size());
+
+  std::vector<pGridSet> poly_grids;
+
+  for (size_t i=0; i<polygons.size(); ++i) {
+    poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
+  }
+
+
+}
+
 void BuildingSelectorNode::process() {
   if ((building_id < vector_input("point_clouds").size()) && 
   (vector_input("point_clouds").size() == vector_input("polygons").size())) {

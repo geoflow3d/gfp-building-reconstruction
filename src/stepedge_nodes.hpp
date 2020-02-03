@@ -478,6 +478,22 @@ namespace geoflow::nodes::stepedge {
     }
     void process();
   };
+
+  class EptInPolygonsNode:public Node {
+    std::string dirpath = "";
+    std::string filter_limits = "Classification[0:18]";
+  public:
+    using Node::Node;
+    void init() {
+      add_vector_input("polygons", typeid(LinearRing));
+      add_vector_output("point_clouds", typeid(PointCollection));
+      add_vector_output("colors", typeid(vec3f));
+
+      add_param("dirpath", ParamPath(dirpath, "EPT directory"));
+      add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
+    }
+    void process();
+  };
   
   class BuildingSelectorNode:public Node {
     public:
