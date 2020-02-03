@@ -13,6 +13,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<DetectLinesNode>("DetectLines");
     node_register.register_node<DetectPlanesNode>("DetectPlanes");
     node_register.register_node<LASInPolygonsNode>("LASInPolygons");
+    node_register.register_node<EptInPolygonsNode>("EptInPolygons");
     node_register.register_node<BuildingSelectorNode>("BuildingSelector");
     node_register.register_node<RegulariseLinesNode>("RegulariseLines");
     node_register.register_node<RegulariseRingsNode>("RegulariseRings");

@@ -2,6 +2,12 @@
 
 #include <lasreader.hpp>
 
+#include <memory>
+#include <pdal/PointTable.hpp>
+#include <pdal/PointView.hpp>
+#include <pdal/Options.hpp>
+#include <pdal/io/EptReader.hpp>
+
 // #include "nlohmann/json.hpp"
 // using json = nlohmann::json;
 
@@ -1884,12 +1890,70 @@ void EptInPolygonsNode::process() {
   auto& color_clouds = vector_output("colors");
   color_clouds.resize<vec3f>(polygons.size());
 
-  std::vector<pGridSet> poly_grids;
+  // Init the reader
+  pdal::EptReader reader;
+  pdal::PointTable eptTable;
+  std::string eptpath = "ept://" + dirpath;
 
+  std::vector<pGridSet> poly_grids;
+  std::vector<pdal::BOX2D> poly_bboxes;
+
+  // make a vector of BOX2D for each polygon in the same order
+  float minx, miny, maxx, maxy;
   for (size_t i=0; i<polygons.size(); ++i) {
     poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
+    LinearRing ring = polygons.get<LinearRing>(i);
+    minx = ring.box().min()[0];
+    miny = ring.box().min()[1];
+    maxx = ring.box().max()[0];
+    maxy = ring.box().max()[1];
+    poly_bboxes.push_back(pdal::BOX2D(minx, miny, maxx, maxy));
   }
 
+
+  // this below should be called once the PC is limited to the BOX
+  int i=0;
+  for (auto& poly_grid:poly_grids) {
+    // TODO: This initiation of all the options for each polygon doesn't seem
+    //  like an efficient approach, but let's try.
+    pdal::Options options;
+    options.add("filename", eptpath);
+    options.add("bounds", poly_bboxes[i]);
+    // setOptions clears all previously set Options and sets the new ones
+    reader.setOptions(options);
+    reader.prepare(eptTable);
+    const auto set(reader.execute(eptTable));
+
+    for (const pdal::PointViewPtr& view : set) {
+      for (pdal::point_count_t p(0); p < view->size(); ++p) {
+
+        pPipoint point = new Pipoint{
+          view->getFieldAs<double>(pdal::Dimension::Id::X, p)-(*manager.data_offset)[0],
+          view->getFieldAs<double>(pdal::Dimension::Id::Y, p)-(*manager.data_offset)[1]
+        };
+
+        if (GridTest(poly_grid, point)) {
+          color_clouds.get<vec3f&>(i).push_back({
+            view->getFieldAs<float>(pdal::Dimension::Id::Red, p)/65535,
+            view->getFieldAs<float>(pdal::Dimension::Id::Green, p)/65535,
+            view->getFieldAs<float>(pdal::Dimension::Id::Blue, p)/65535
+          });
+          point_clouds.get<PointCollection&>(i).push_back({
+            float(view->getFieldAs<float>(pdal::Dimension::Id::X, p)-(*manager.data_offset)[0]),
+            float(view->getFieldAs<float>(pdal::Dimension::Id::Y, p)-(*manager.data_offset)[1]),
+            float(view->getFieldAs<float>(pdal::Dimension::Id::Z, p)-(*manager.data_offset)[2])
+          });
+
+          break;
+        }
+      }
+    }
+    i++;
+  }
+
+  for (int j=0; j<poly_grids.size(); j++) {
+    delete poly_grids[j];
+  }
 
 }
 
