@@ -7,7 +7,7 @@
 #include <pdal/PointView.hpp>
 #include <pdal/Options.hpp>
 #include <pdal/io/EptReader.hpp>
-#include <pdal/filters/CropFilter.hpp>
+#include <pdal/filters/RangeFilter.hpp>
 
 // #include "nlohmann/json.hpp"
 // using json = nlohmann::json;
@@ -1892,6 +1892,17 @@ void EptInPolygonsNode::process() {
   color_clouds.resize<vec3f>(polygons.size());
 
   std::string ept_path = "ept://" + dirpath;
+  {
+    // This scope is for debugging
+    pdal::EptReader reader;
+    pdal::Options options;
+    options.add("filename", ept_path);
+    reader.setOptions(options);
+    const pdal::QuickInfo qi(reader.preview());
+    std::cout << std::endl << "EPT Bounds:\t" << qi.m_bounds << std::endl;
+    std::cout << "EPT Point Count:\t" << qi.m_pointCount << std::endl;
+    std::cout << "EPT WKT:\t" << qi.m_srs.getWKT() << std::endl;
+  }
 
   std::vector<pGridSet> poly_grids;
   std::vector<pdal::BOX2D> poly_bboxes;
@@ -1901,51 +1912,48 @@ void EptInPolygonsNode::process() {
   for (size_t i=0; i<polygons.size(); ++i) {
     poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
     auto ring = polygons.get<LinearRing>(i);
-    minx = ring.box().min()[0];
-    miny = ring.box().min()[1];
-    maxx = ring.box().max()[0];
-    maxy = ring.box().max()[1];
+    minx = ring.box().min()[0]+(*manager.data_offset)[0];
+    miny = ring.box().min()[1]+(*manager.data_offset)[1];
+    maxx = ring.box().max()[0]+(*manager.data_offset)[0];
+    maxy = ring.box().max()[1]+(*manager.data_offset)[1];
     poly_bboxes.emplace_back(minx, miny, maxx, maxy);
   }
 
-  pdal::EptReader reader;
-  {
-    pdal::Options options;
-    options.add("filename", ept_path);
-    reader.setOptions(options);
-  }
-  // Init the CropFilter and add each BBOX as a bound to it. This gives us a
-  // PointViewSet, where each PointView references the points in the given BBOX.
-  // But are the PointViews returned in the same order as the "bounds" options
-  // are added?
-  // ref.: CropFilterTest.cpp -> TEST(CropFilterTest, multibounds), TEST(CropFilterTest, stream),
-  pdal::CropFilter crop;
-  {
-    pdal::Options options;
-    int i(0);
-    for (auto box2d : poly_bboxes) {
-      options.add("bounds", box2d);
-      std::cout << "added bound " << i << std::endl;
-      i++;
-    }
-    crop.setInput(reader);
-    crop.setOptions(options);
-  }
-  pdal::PointTable ept_table;
-  crop.prepare(ept_table);
-  // The alternative is to init the reader and options for each polygon in the
-  // loop below, but I'm really not liking that...
-
-  const pdal::PointViewSet pw_set(crop.execute(ept_table));
-  auto pw_iter = pw_set.begin();
-
   int i=0;
   for (auto& poly_grid:poly_grids) {
-    // TODO: I really don't like this initiation of the Reader and Options for
-    //  each polygon, but at this point I don't know how else to keep a reader
-    //  open and only reset the "bounds" for each polygon.
-    if (pw_iter != pw_set.end()) {
-      const pdal::PointViewPtr& view = *pw_iter;
+    std::cout << "polygon " << i << std::endl;
+    // For each polygon we need to re-init the reader and filters, according to
+    //  ppl on the PDAL mailing list. There is no other way to reset the
+    //  bounds on the reader.
+    pdal::EptReader reader;
+    {
+      pdal::Options options;
+      options.add("filename", ept_path);
+      std::cout << "bounds are valid " << poly_bboxes[i].valid() << std::endl;
+      std::cout << "bounds are " << poly_bboxes[i].toWKT() << std::endl;
+      options.add("bounds", poly_bboxes[i]);
+      reader.setOptions(options);
+    }
+    pdal::RangeFilter range;
+    {
+      pdal::Options options;
+      if (filter_limits.length() == 0) {
+        std::cout << "Uh oh, PDAL Range filter cannot be empty. GOING TO CRASH!" << std::endl;
+      }
+      options.add("limits", filter_limits);
+      range.setOptions(options);
+      range.setInput(reader);
+    }
+    pdal::PointTable ept_table;
+    range.prepare(ept_table);
+    const pdal::PointViewSet pw_set(range.execute(ept_table));
+
+    std::cout << "range executed" << std::endl;
+
+    for (const pdal::PointViewPtr& view : pw_set) {
+
+      std::cout << "view size " << view->size() << std::endl;
+
       for (pdal::point_count_t p(0); p < view->size(); ++p) {
 
         pPipoint point = new Pipoint{
@@ -1969,16 +1977,12 @@ void EptInPolygonsNode::process() {
         }
       }
     }
-    pw_iter++;
     i++;
   }
 
-  for (auto & poly_grid : poly_grids) {
-    delete poly_grid;
+  for (int j=0; j<poly_grids.size(); j++) {
+    delete poly_grids[j];
   }
-//  for (int j=0; j<poly_grids.size(); j++) {
-//    delete poly_grids[j];
-//  }
 
 }
 

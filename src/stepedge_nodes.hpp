@@ -481,7 +481,7 @@ namespace geoflow::nodes::stepedge {
 
   class EptInPolygonsNode:public Node {
     std::string dirpath = "";
-    std::string filter_limits = "Classification[0:18]";
+    std::string filter_limits = "Classification[6:6]";
   public:
     using Node::Node;
     void init() {
