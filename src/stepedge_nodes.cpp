@@ -7,6 +7,7 @@
 #include <pdal/PointView.hpp>
 #include <pdal/Options.hpp>
 #include <pdal/io/EptReader.hpp>
+#include <pdal/filters/CropFilter.hpp>
 
 // #include "nlohmann/json.hpp"
 // using json = nlohmann::json;
@@ -1890,10 +1891,7 @@ void EptInPolygonsNode::process() {
   auto& color_clouds = vector_output("colors");
   color_clouds.resize<vec3f>(polygons.size());
 
-  // Init the reader
-  pdal::EptReader reader;
-  pdal::PointTable eptTable;
-  std::string eptpath = "ept://" + dirpath;
+  std::string ept_path = "ept://" + dirpath;
 
   std::vector<pGridSet> poly_grids;
   std::vector<pdal::BOX2D> poly_bboxes;
@@ -1902,29 +1900,52 @@ void EptInPolygonsNode::process() {
   float minx, miny, maxx, maxy;
   for (size_t i=0; i<polygons.size(); ++i) {
     poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
-    LinearRing ring = polygons.get<LinearRing>(i);
+    auto ring = polygons.get<LinearRing>(i);
     minx = ring.box().min()[0];
     miny = ring.box().min()[1];
     maxx = ring.box().max()[0];
     maxy = ring.box().max()[1];
-    poly_bboxes.push_back(pdal::BOX2D(minx, miny, maxx, maxy));
+    poly_bboxes.emplace_back(minx, miny, maxx, maxy);
   }
 
+  pdal::EptReader reader;
+  {
+    pdal::Options options;
+    options.add("filename", ept_path);
+    reader.setOptions(options);
+  }
+  // Init the CropFilter and add each BBOX as a bound to it. This gives us a
+  // PointViewSet, where each PointView references the points in the given BBOX.
+  // But are the PointViews returned in the same order as the "bounds" options
+  // are added?
+  // ref.: CropFilterTest.cpp -> TEST(CropFilterTest, multibounds), TEST(CropFilterTest, stream),
+  pdal::CropFilter crop;
+  {
+    pdal::Options options;
+    int i(0);
+    for (auto box2d : poly_bboxes) {
+      options.add("bounds", box2d);
+      std::cout << "added bound " << i << std::endl;
+      i++;
+    }
+    crop.setInput(reader);
+    crop.setOptions(options);
+  }
+  pdal::PointTable ept_table;
+  crop.prepare(ept_table);
+  // The alternative is to init the reader and options for each polygon in the
+  // loop below, but I'm really not liking that...
 
-  // this below should be called once the PC is limited to the BOX
+  const pdal::PointViewSet pw_set(crop.execute(ept_table));
+  auto pw_iter = pw_set.begin();
+
   int i=0;
   for (auto& poly_grid:poly_grids) {
-    // TODO: This initiation of all the options for each polygon doesn't seem
-    //  like an efficient approach, but let's try.
-    pdal::Options options;
-    options.add("filename", eptpath);
-    options.add("bounds", poly_bboxes[i]);
-    // setOptions clears all previously set Options and sets the new ones
-    reader.setOptions(options);
-    reader.prepare(eptTable);
-    const auto set(reader.execute(eptTable));
-
-    for (const pdal::PointViewPtr& view : set) {
+    // TODO: I really don't like this initiation of the Reader and Options for
+    //  each polygon, but at this point I don't know how else to keep a reader
+    //  open and only reset the "bounds" for each polygon.
+    if (pw_iter != pw_set.end()) {
+      const pdal::PointViewPtr& view = *pw_iter;
       for (pdal::point_count_t p(0); p < view->size(); ++p) {
 
         pPipoint point = new Pipoint{
@@ -1948,12 +1969,16 @@ void EptInPolygonsNode::process() {
         }
       }
     }
+    pw_iter++;
     i++;
   }
 
-  for (int j=0; j<poly_grids.size(); j++) {
-    delete poly_grids[j];
+  for (auto & poly_grid : poly_grids) {
+    delete poly_grid;
   }
+//  for (int j=0; j<poly_grids.size(); j++) {
+//    delete poly_grids[j];
+//  }
 
 }
 
