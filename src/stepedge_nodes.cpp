@@ -2,12 +2,13 @@
 
 #include <lasreader.hpp>
 
-#include <memory>
+#include <sstream>
 #include <pdal/PointTable.hpp>
 #include <pdal/PointView.hpp>
 #include <pdal/Options.hpp>
 #include <pdal/io/EptReader.hpp>
 #include <pdal/filters/RangeFilter.hpp>
+#include <pdal/filters/CropFilter.hpp>
 
 // #include "nlohmann/json.hpp"
 // using json = nlohmann::json;
@@ -1883,7 +1884,8 @@ void LASInPolygonsNode::process() {
   // output("point_clouds").set(point_clouds);
 }
 
-void EptInPolygonsNode::process() {
+void EptInPolygonsNode::process()
+{
   auto& polygons = vector_input("polygons");
 
   auto& point_clouds = vector_output("point_clouds");
@@ -1892,36 +1894,53 @@ void EptInPolygonsNode::process() {
   color_clouds.resize<vec3f>(polygons.size());
 
   std::string ept_path = "ept://" + dirpath;
+
   {
     // This scope is for debugging
     pdal::EptReader reader;
-    pdal::Options options;
+    pdal::Options   options;
     options.add("filename", ept_path);
     reader.setOptions(options);
+    // .preview() only reads the metadata
     const pdal::QuickInfo qi(reader.preview());
     std::cout << std::endl << "EPT Bounds:\t" << qi.m_bounds << std::endl;
     std::cout << "EPT Point Count:\t" << qi.m_pointCount << std::endl;
     std::cout << "EPT WKT:\t" << qi.m_srs.getWKT() << std::endl;
   }
 
-  std::vector<pGridSet> poly_grids;
-  std::vector<pdal::BOX2D> poly_bboxes;
-
   // make a vector of BOX2D for each polygon in the same order
+  std::vector<pdal::BOX2D> poly_bboxes;
   float minx, miny, maxx, maxy;
   for (size_t i=0; i<polygons.size(); ++i) {
-    poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
     auto ring = polygons.get<LinearRing>(i);
-    minx = ring.box().min()[0]+(*manager.data_offset)[0];
-    miny = ring.box().min()[1]+(*manager.data_offset)[1];
-    maxx = ring.box().max()[0]+(*manager.data_offset)[0];
-    maxy = ring.box().max()[1]+(*manager.data_offset)[1];
+    minx = (ring.box().min()[0]+(*manager.data_offset)[0]) - 1.0;
+    miny = (ring.box().min()[1]+(*manager.data_offset)[1]) - 1.0;
+    maxx = (ring.box().max()[0]+(*manager.data_offset)[0]) + 1.0;
+    maxy = (ring.box().max()[1]+(*manager.data_offset)[1]) + 1.0;
     poly_bboxes.emplace_back(minx, miny, maxx, maxy);
   }
 
-  int i=0;
-  for (auto& poly_grid:poly_grids) {
-    std::cout << "polygon " << i << std::endl;
+  std::cout << "Polygon bounds selection is hardcoded to EPSG:7415" << std::endl;
+  for (size_t i = 0; i < polygons.size(); ++i) {
+    // TODO: check TEST(EptReaderTest, ogrCrop) on the PDAL master for using the
+    //  polygons directly from Postgres, instead of casting them to WKT.
+    // TODO: Ideally, polygon or LinearRing would have a .wkt() method
+    auto polygon = polygons.get<LinearRing>(i);
+    // Creating WKT
+    std::ostringstream wkt;
+    wkt << std::fixed << std::setprecision(3) << "POLYGON((";
+    for (auto& v : polygon) {
+      wkt << v[0] + (*manager.data_offset)[0] << " "
+          << v[1] + (*manager.data_offset)[1] << ", ";
+    }
+    // repeat first vertex
+    wkt << polygon[0][0] + (*manager.data_offset)[0] << " "
+        << polygon[0][1] + (*manager.data_offset)[1];
+    wkt << "))";
+    wkt << "/ EPSG:7415";
+
+    // TODO: The reader and filter init can go to a function that returns a
+    //  const PointViewSet.
     // For each polygon we need to re-init the reader and filters, according to
     //  ppl on the PDAL mailing list. There is no other way to reset the
     //  bounds on the reader.
@@ -1929,61 +1948,55 @@ void EptInPolygonsNode::process() {
     {
       pdal::Options options;
       options.add("filename", ept_path);
-      std::cout << "bounds are valid " << poly_bboxes[i].valid() << std::endl;
-      std::cout << "bounds are " << poly_bboxes[i].toWKT() << std::endl;
       options.add("bounds", poly_bboxes[i]);
+//      options.add("polygon", wkt.str());
       reader.setOptions(options);
+    }
+    pdal::CropFilter crop;
+    {
+      pdal::Options options;
+      options.add("polygon", wkt.str());
+      crop.setOptions(options);
+      crop.setInput(reader);
     }
     pdal::RangeFilter range;
     {
       pdal::Options options;
       if (filter_limits.length() == 0) {
-        std::cout << "Uh oh, PDAL Range filter cannot be empty. GOING TO CRASH!" << std::endl;
+        std::cout << "Uh oh, PDAL Range filter cannot be empty. GOING TO CRASH!"
+                  << std::endl;
       }
       options.add("limits", filter_limits);
       range.setOptions(options);
-      range.setInput(reader);
+      range.setInput(crop);
     }
     pdal::PointTable ept_table;
     range.prepare(ept_table);
     const pdal::PointViewSet pw_set(range.execute(ept_table));
 
-    std::cout << "range executed" << std::endl;
-
     for (const pdal::PointViewPtr& view : pw_set) {
 
-      std::cout << "view size " << view->size() << std::endl;
-
-      for (pdal::point_count_t p(0); p < view->size(); ++p) {
-
-        pPipoint point = new Pipoint{
-          view->getFieldAs<double>(pdal::Dimension::Id::X, p)-(*manager.data_offset)[0],
-          view->getFieldAs<double>(pdal::Dimension::Id::Y, p)-(*manager.data_offset)[1]
-        };
-
-        if (GridTest(poly_grid, point)) {
-          color_clouds.get<vec3f&>(i).push_back({
-            view->getFieldAs<float>(pdal::Dimension::Id::Red, p)/65535,
-            view->getFieldAs<float>(pdal::Dimension::Id::Green, p)/65535,
-            view->getFieldAs<float>(pdal::Dimension::Id::Blue, p)/65535
-          });
-          point_clouds.get<PointCollection&>(i).push_back({
-            float(view->getFieldAs<float>(pdal::Dimension::Id::X, p)-(*manager.data_offset)[0]),
-            float(view->getFieldAs<float>(pdal::Dimension::Id::Y, p)-(*manager.data_offset)[1]),
-            float(view->getFieldAs<float>(pdal::Dimension::Id::Z, p)-(*manager.data_offset)[2])
-          });
-
-          break;
+      if (view->size() == 0) {
+        std::cout << "0 points were found for polygon " << i << " " << wkt.str() << std::endl;
+      } else {
+        for (pdal::point_count_t p(0); p < view->size(); ++p) {
+          // Because we use the "polygon" option on the reader, we only get the
+          // points from the EPT that are within the polygon.
+          color_clouds.get<vec3f&>(i).push_back(
+            { view->getFieldAs<float>(pdal::Dimension::Id::Red, p) / 65535,
+              view->getFieldAs<float>(pdal::Dimension::Id::Green, p) / 65535,
+              view->getFieldAs<float>(pdal::Dimension::Id::Blue, p) / 65535 });
+          point_clouds.get<PointCollection&>(i).push_back(
+            { float(view->getFieldAs<float>(pdal::Dimension::Id::X, p) -
+                    (*manager.data_offset)[0]),
+              float(view->getFieldAs<float>(pdal::Dimension::Id::Y, p) -
+                    (*manager.data_offset)[1]),
+              float(view->getFieldAs<float>(pdal::Dimension::Id::Z, p) -
+                    (*manager.data_offset)[2]) });
         }
       }
     }
-    i++;
   }
-
-  for (int j=0; j<poly_grids.size(); j++) {
-    delete poly_grids[j];
-  }
-
 }
 
 void BuildingSelectorNode::process() {
