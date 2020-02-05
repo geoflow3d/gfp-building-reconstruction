@@ -1910,17 +1910,18 @@ void EptInPolygonsNode::process()
 
   // make a vector of BOX2D for each polygon in the same order
   std::vector<pdal::BOX2D> poly_bboxes;
-  float minx, miny, maxx, maxy;
-  for (size_t i=0; i<polygons.size(); ++i) {
+  float                    minx, miny, maxx, maxy;
+  for (size_t i = 0; i < polygons.size(); ++i) {
     auto ring = polygons.get<LinearRing>(i);
-    minx = (ring.box().min()[0]+(*manager.data_offset)[0]) - 1.0;
-    miny = (ring.box().min()[1]+(*manager.data_offset)[1]) - 1.0;
-    maxx = (ring.box().max()[0]+(*manager.data_offset)[0]) + 1.0;
-    maxy = (ring.box().max()[1]+(*manager.data_offset)[1]) + 1.0;
+    minx      = (ring.box().min()[0] + (*manager.data_offset)[0]) - 1.0;
+    miny      = (ring.box().min()[1] + (*manager.data_offset)[1]) - 1.0;
+    maxx      = (ring.box().max()[0] + (*manager.data_offset)[0]) + 1.0;
+    maxy      = (ring.box().max()[1] + (*manager.data_offset)[1]) + 1.0;
     poly_bboxes.emplace_back(minx, miny, maxx, maxy);
   }
 
-  std::cout << "Polygon bounds selection is hardcoded to EPSG:7415" << std::endl;
+  std::cout << "Polygon bounds selection is hardcoded to EPSG:7415"
+            << std::endl;
   for (size_t i = 0; i < polygons.size(); ++i) {
     // TODO: check TEST(EptReaderTest, ogrCrop) on the PDAL master for using the
     //  polygons directly from Postgres, instead of casting them to WKT.
@@ -1949,7 +1950,7 @@ void EptInPolygonsNode::process()
       pdal::Options options;
       options.add("filename", ept_path);
       options.add("bounds", poly_bboxes[i]);
-//      options.add("polygon", wkt.str());
+      //      options.add("polygon", wkt.str());
       reader.setOptions(options);
     }
     pdal::CropFilter crop;
@@ -1977,7 +1978,29 @@ void EptInPolygonsNode::process()
     for (const pdal::PointViewPtr& view : pw_set) {
 
       if (view->size() == 0) {
-        std::cout << "0 points were found for polygon " << i << " " << wkt.str() << std::endl;
+        std::cout << "0 points were found for polygon " << i << " " << wkt.str()
+                  << std::endl;
+        // TODO: Dirty dirty hack for the case when there is no point within the
+        // polygon. DetectPlanes node needs 3 points at least (I think),
+        // otherwise there is a CGAL precondition violation ( first != beyond ).
+        // Ideally, the DetectPlanes would check for empty vectors and assign a
+        // NULL height (or similar). All the donwstream nodes need such checks
+        // too.
+        color_clouds.get<vec3f&>(i).push_back({ 0.0, 0.0, 0.0 });
+        color_clouds.get<vec3f&>(i).push_back({ 0.0, 0.0, 0.0 });
+        color_clouds.get<vec3f&>(i).push_back({ 0.0, 0.0, 0.0 });
+        point_clouds.get<PointCollection&>(i).push_back(
+          { (*manager.data_offset)[0],
+            (*manager.data_offset)[1],
+            (*manager.data_offset)[2] });
+        point_clouds.get<PointCollection&>(i).push_back(
+          { (*manager.data_offset)[0] + 1,
+            (*manager.data_offset)[1] + 1,
+            (*manager.data_offset)[2] + 1 });
+        point_clouds.get<PointCollection&>(i).push_back(
+          { (*manager.data_offset)[0] + 2,
+            (*manager.data_offset)[1] + 2,
+            (*manager.data_offset)[2] + 2 });
       } else {
         for (pdal::point_count_t p(0); p < view->size(); ++p) {
           // Because we use the "polygon" option on the reader, we only get the
