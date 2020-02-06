@@ -24,8 +24,8 @@ find_package(glm)
 find_package(LASlib)
 find_package(CGAL QUIET COMPONENTS Core)
 # PDAL
-include_directories( ${PDAL_INCLUDE_DIRS} )
-link_directories( ${PDAL_LIBRARY_DIRS} )
+find_package(PDAL)
+
 #earcut
 include_directories(
   src 
