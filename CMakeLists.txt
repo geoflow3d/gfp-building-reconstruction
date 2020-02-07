@@ -26,14 +26,6 @@ find_package(CGAL QUIET COMPONENTS Core)
 # PDAL
 find_package(PDAL)
 
-#earcut
-include_directories(
-  src 
-  thirdparty/ptinpoly
-  thirdparty/earcut
-  thirdparty/region-grower
-)
-
 if (MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:precise")
 endif()
@@ -51,11 +43,22 @@ geoflow_create_plugin(
   src/heightfield_nodes.cpp
 )
 
-target_link_libraries( gfp_stepedge
+#earcut
+target_include_directories(gfp_stepedge PRIVATE
+  src
+  thirdparty/ptinpoly
+  thirdparty/earcut
+  thirdparty/region-grower
+  ${PDAL_INCLUDE_DIRS}
+)
+target_link_libraries( gfp_stepedge PRIVATE
   geoflow-core
   ptinpoly
   glm
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
-  pdalcpp
+  ${PDAL_LIBRARIES} 
+)
+target_link_directories( gfp_stepedge PRIVATE
+  ${PDAL_LIBRARY_DIRS}
 )
