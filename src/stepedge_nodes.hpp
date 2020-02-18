@@ -140,6 +140,33 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class ArrExtruderNode:public Node {
+    bool do_walls=true, do_roofs=true, do_floor=true;
+    bool LoD2 = false;
+    float base_elevation = 0;
+    float nodata_elevation = 3;
+    int snap_tolerance_exp = 4;
+
+    public:
+    using Node::Node;
+    void init() {
+      add_input("arrangement", typeid(Arrangement_2));
+
+      // add_output("normals_vec3f", typeid(vec3f), true);
+      add_vector_output("labels", typeid(int)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
+      add_vector_output("faces", typeid(LinearRing));
+
+      add_param("do_walls", ParamBool(do_walls, "Do walls"));
+      add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
+      add_param("do_floor", ParamBool(do_floor, "Do floor"));
+      add_param("LoD2", ParamBool(LoD2, "LoD2"));
+      add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
+      add_param("nodata_elevation", ParamFloat(nodata_elevation, "Nodata elevation"));
+      add_param("snap_tolerance_exp", ParamInt(snap_tolerance_exp, "Snap tolerance"));
+    }
+    void process();
+  };
+
   class ExtruderNode:public Node {
     bool do_walls=true, do_roofs=true;
     bool in_footprint = false;

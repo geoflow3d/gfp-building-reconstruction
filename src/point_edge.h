@@ -315,3 +315,4 @@ void arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygons,
 void arr_dissolve_seg_edges(Arrangement_2& arr);
 void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge);
 void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold);
+void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside);

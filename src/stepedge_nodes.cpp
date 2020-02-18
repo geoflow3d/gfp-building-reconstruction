@@ -479,6 +479,358 @@ void VecArr2LinearRingsNode::process(){
   attr_arr_complexity_term.set(attr_arr_complexity);
 }
 
+inline arr3f v2p(Arrangement_2::Vertex_handle v, float h) {
+  return {
+          float(CGAL::to_double(v->point().x())),
+          float(CGAL::to_double(v->point().y())),
+          h
+        };
+}
+template<typename P> arr3f p2p(P p) {
+  return {
+          float(CGAL::to_double(p->x())),
+          float(CGAL::to_double(p->y())),
+          float(CGAL::to_double(p->z()))
+        };
+}
+
+typedef std::pair<float, Face_handle> hf_pair;
+vec3f get_heights(std::vector<hf_pair>& vertex_column, Vertex_handle v, Face_handle f_a, Face_handle f_b, float& h_a, float& h_b) {
+  vec3f v_other;
+  float h_prev = -999999;
+  bool found_first = false;
+  for(auto& [h,face] : vertex_column) {
+    if (face==f_a) {
+      h_a = h;
+      if (!found_first) 
+        found_first = true;
+      else {
+        if (h==h_prev && v_other.size()) {
+          v_other.erase(v_other.end()-1);
+        }
+        break;
+      }
+    } else if (face==f_b) {
+      h_b = h;
+      if (!found_first) 
+        found_first = true;
+      else {
+        if (h==h_prev && v_other.size()) {
+          v_other.erase(v_other.end()-1);
+        }
+        break;
+      }
+    } else if (found_first) {
+      if (h!=h_prev)
+        v_other.push_back(v2p(v, h));
+    } //else break;
+    h_prev = h;
+  }
+  return v_other;
+}
+
+template<typename T> void push_ccb(
+  T& ring, 
+  Halfedge_handle hedge, 
+  std::unordered_map<Vertex_handle, std::vector<hf_pair>>& vertex_columns, 
+  std::unordered_map<Halfedge_handle, 
+  AK::Point_3>& extra_wall_points, 
+  float& snap_tolerance) {
+
+  auto first = hedge;
+  do {
+    auto v = hedge->source();
+    if(CGAL::squared_distance(v->point(), hedge->target()->point()) > snap_tolerance) {
+      for(auto& [h,f_h] : vertex_columns[v]) {
+        if (f_h==hedge->face()) {
+          ring.push_back(v2p(v,h));
+          break;
+        }
+      }
+      auto p_xtra = extra_wall_points.find(hedge);
+      auto q_xtra = extra_wall_points.find(hedge->twin());
+      if (p_xtra != extra_wall_points.end()) {
+        ring.push_back(p2p(&p_xtra->second));
+      } else if (q_xtra != extra_wall_points.end()) {
+        ring.push_back(p2p(&q_xtra->second));
+      }
+    }
+    hedge = hedge->next();
+  } while (hedge!=first);
+}
+
+void ArrExtruderNode::process(){
+  typedef Arrangement_2::Traits_2 AT;
+  auto arr = input("arrangement").get<Arrangement_2>();
+  float snap_tolerance = std::pow(10,-snap_tolerance_exp);
+
+  // assume we have only one unbounded faces that just has the building footprint as a hole
+
+  // std::vector<LinearRing> faces;
+  auto& faces = vector_output("faces");
+  auto& surface_labels = vector_output("labels");
+
+  auto unbounded_face = arr.unbounded_face();
+  unbounded_face->data().elevation_avg=base_elevation;
+
+  // floor
+  if (do_floor) {
+    std::cout << "arrangement has " << arr.number_of_unbounded_faces() << "unbounded faces\n";
+    for(auto hole = unbounded_face->holes_begin(); hole != unbounded_face->holes_end(); ++hole ) {
+      LinearRing floor;
+      auto he = *hole;
+      auto first = he;
+      do {
+        if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
+          floor.push_back(v2p(he->source(), base_elevation));
+        he = he->next();
+      } while(he!=first);
+      faces.push_back(floor);
+      surface_labels.push_back(int(0));
+    }
+  }
+
+  // compute all heights for each vertex
+  std::unordered_map<Vertex_handle, std::vector<hf_pair>> vertex_columns;
+  for(auto& v : arr.vertex_handles()) {
+    auto& p = v->point();
+    auto he = v->incident_halfedges();
+    auto first = he;
+    std::vector<hf_pair> heights;
+    do {
+      auto f = he->face();
+      float h;
+      if (f->data().in_footprint) {
+        if(LoD2) {
+          auto& plane = f->data().plane;
+          h = (plane.a()*CGAL::to_double(p.x()) + plane.b()*CGAL::to_double(p.y()) + plane.d()) / (-plane.c());
+        } else {
+          h = f->data().elevation_avg;
+        }
+      } else {
+        h = base_elevation;
+      }
+      heights.push_back(std::make_pair(h, f));
+    } while (++he!=first);
+    
+    if(heights.size()==0) continue;
+    
+    // sort heights
+    std::sort(heights.begin(), heights.end(), [](hf_pair& a, hf_pair& b) {
+      return a.first < b.first;   
+    });
+    // equalise heights that are practically the same
+    float h_ref = heights[0].first;
+    for (auto& [h,face] : heights) {
+      if(std::fabs(h_ref-h)<snap_tolerance) {
+        h = h_ref;
+      }
+      h_ref = h;
+    }
+
+    vertex_columns[v]=heights;
+  }
+
+  // walls
+  // store points that need to be created to do the walls right. We need them later for the roofs
+  std::unordered_map<Halfedge_handle, AK::Point_3> extra_wall_points;
+  if (do_walls) {
+    for (auto edge : arr.edge_handles()) {
+      auto e_a = edge->twin();
+      auto e_b = edge;
+      auto v1 = e_a->target();
+      auto v2 = e_a->source();
+      auto& p1 = v1->point();
+      auto& p2 = v2->point();
+      auto f_a = e_a->face();
+      auto f_b = e_b->face();
+      bool fp_a = f_a->data().in_footprint;
+      bool fp_b = f_b->data().in_footprint;
+      auto& pl_a = f_a->data().plane;
+      auto& pl_b = f_b->data().plane;
+
+      // edge has no length
+      if(CGAL::squared_distance(p1,p2)<snap_tolerance)
+        continue;
+
+      // edge is not in footprint nor on its boundary
+      if (!fp_a & !fp_b) {
+        continue;
+      }
+
+      // get precomputed heights from vertex column
+      float h1a, h1b, h2a, h2b;
+      vec3f v1_other = get_heights(vertex_columns[v1], v1, f_a, f_b, h1a, h1b);
+      vec3f v2_other = get_heights(vertex_columns[v2], v2, f_a, f_b, h2a, h2b);
+      
+      // // set base (ground) elevation to vertices adjacent to a face oustide the building fp
+      if (fp_a && !fp_b) h1b=h2b=base_elevation;
+      if (!fp_a && fp_b) h1a=h2a=base_elevation;
+
+      int wall_label = 3; //inner wall
+      if (!fp_a || !fp_b) wall_label = 2; //outer wall
+
+      LinearRing wall_face_1;
+      if ((h1a<h1b) and (h2a<h2b)) {
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other desc
+        wall_face_1.insert(wall_face_1.end(), v1_other.rbegin(), v1_other.rend());
+        wall_face_1.push_back(v2p(v1,h1a));
+        wall_face_1.push_back(v2p(v2,h2a));
+        // v2_other asc
+        wall_face_1.insert(wall_face_1.end(), v2_other.begin(), v2_other.end());
+        wall_face_1.push_back(v2p(v2,h2b));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h1a>h1b) and (h2a>h2b)) {
+        wall_face_1.push_back(v2p(v2,h2a));
+        // v2_other desc
+        wall_face_1.insert(wall_face_1.end(), v2_other.rbegin(), v2_other.rend());
+        wall_face_1.push_back(v2p(v2,h2b));
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other asc
+        wall_face_1.insert(wall_face_1.end(), v1_other.begin(), v1_other.end());
+        wall_face_1.push_back(v2p(v1,h1a));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h1a<h1b) and (h2a>h2b)) {
+        // compute vx and hx
+        auto l_a = AK::Line_3(AK::Point_3(p1.x(), p1.y(), h1a), AK::Point_3(p2.x(), p2.y(), h2a));
+        auto l_b = AK::Line_3(AK::Point_3(p1.x(), p1.y(), h1b), AK::Point_3(p2.x(), p2.y(), h2b));
+        auto result = CGAL::intersection(l_a, l_b);
+        auto px = boost::get<typename AK::Point_3>(&*result);
+
+        // TODO: check if distance from px to p1 and p2 is longer than snap_tolerance?
+
+        extra_wall_points[edge] = *px;
+        // AK::Point_2 px_2d(px->x(),px->y());
+        // arr.split_edge(edge, AT::Segment_2(p1,px_2d), AT::Segment_2(px_2d,p2));
+        // if (result) {
+          // auto px = )
+        // }
+
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other desc
+        wall_face_1.insert(wall_face_1.end(), v1_other.rbegin(), v1_other.rend());
+        wall_face_1.push_back(v2p(v1,h1a));
+        wall_face_1.push_back(p2p(px));
+
+        LinearRing wall_face_2;
+        wall_face_2.push_back(v2p(v2,h2a));
+        // v2_other desc
+        wall_face_2.insert(wall_face_2.end(), v2_other.rbegin(), v2_other.rend());
+        wall_face_2.push_back(v2p(v2,h2b));
+        wall_face_2.push_back(p2p(px));
+        
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+        faces.push_back(wall_face_2);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h1a>h1b) and (h2a<h2b)) {
+        // compute vx and hx
+        auto l_a = AK::Line_3(AK::Point_3(p1.x(), p1.y(), h1a), AK::Point_3(p2.x(), p2.y(), h2a));
+        auto l_b = AK::Line_3(AK::Point_3(p1.x(), p1.y(), h1b), AK::Point_3(p2.x(), p2.y(), h2b));
+        auto result = CGAL::intersection(l_a, l_b);
+        auto px = boost::get<typename AK::Point_3>(&*result);
+
+        // TODO: check if distance from px to p1 and p2 is longer than snap_tolerance?
+
+        extra_wall_points[edge] = *px;
+        // AK::Point_2 px_2d(px->x(),px->y());
+        // arr.split_edge(edge, AT::Segment_2(p1,px_2d), AT::Segment_2(px_2d,p2));
+        // if (result) {
+          // auto px = )
+        // }
+
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other asc
+        wall_face_1.insert(wall_face_1.end(), v1_other.begin(), v1_other.end());
+        wall_face_1.push_back(v2p(v1,h1a));
+        wall_face_1.push_back(p2p(px));
+
+        LinearRing wall_face_2;
+        wall_face_2.push_back(v2p(v2,h2a));
+        // v2_other asc
+        wall_face_2.insert(wall_face_2.end(), v2_other.begin(), v2_other.end());
+        wall_face_2.push_back(v2p(v2,h2b));
+        wall_face_2.push_back(p2p(px));
+        
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+        faces.push_back(wall_face_2);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h1a>h1b) and (h2a==h2b)) {
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other asc
+        wall_face_1.insert(wall_face_1.end(), v1_other.begin(), v1_other.end());
+        wall_face_1.push_back(v2p(v1,h1a));
+        wall_face_1.push_back(v2p(v2,h2a));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h1a<h1b) and (h2a==h2b)) {
+        wall_face_1.push_back(v2p(v1,h1b));
+        // v1_other desc
+        wall_face_1.insert(wall_face_1.end(), v1_other.rbegin(), v1_other.rend());
+        wall_face_1.push_back(v2p(v1,h1a));
+        wall_face_1.push_back(v2p(v2,h2a));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h2b>h2a) and (h1a==h1b)) {
+        wall_face_1.push_back(v2p(v2,h2a));
+        // v2_other asc
+        wall_face_1.insert(wall_face_1.end(), v2_other.begin(), v2_other.end());
+        wall_face_1.push_back(v2p(v2,h2b));
+        wall_face_1.push_back(v2p(v1,h1a));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      } else 
+      if ((h2b<h2a) and (h1a==h1b)) {
+        wall_face_1.push_back(v2p(v2,h2a));
+        // v2_other desc
+        wall_face_1.insert(wall_face_1.end(), v2_other.rbegin(), v2_other.rend());
+        wall_face_1.push_back(v2p(v2,h2b));
+        wall_face_1.push_back(v2p(v1,h1a));
+        faces.push_back(wall_face_1);
+        surface_labels.push_back(wall_label);
+      }
+    }
+  }
+
+  // roofs
+  if (do_roofs) {
+    for (auto face: arr.face_handles()) {
+      if (face->data().in_footprint) {
+        LinearRing roofpart;
+        auto he = face->outer_ccb();
+        push_ccb(roofpart, he, vertex_columns, extra_wall_points, snap_tolerance);
+
+        for(auto hole = face->holes_begin(); hole != face->holes_end(); ++hole ) {
+          vec3f roofpart_hole;
+          auto he = *hole;
+          push_ccb(roofpart_hole, he, vertex_columns, extra_wall_points, snap_tolerance);
+          if (roofpart_hole.size()>2) {
+            roofpart.interior_rings().push_back(roofpart_hole);
+          }
+        }
+
+        if (roofpart.size()>2) {
+          faces.push_back(roofpart);
+          surface_labels.push_back(int(1));
+        }
+
+      }
+    }
+
+  }
+  
+}
+
 void ExtruderNode::process(){
   // if (!(do_walls || do_roofs)) return;
   // Set up vertex data (and buffer(s)) and attribute pointers
@@ -2545,26 +2897,17 @@ void ArrDissolveNode::process() {
   }
   // remove all lines not inside footprint
   if (dissolve_outside_fp) {
-    {
-      std::vector<Arrangement_2::Halfedge_handle> to_remove;
-      for (auto he : arr.edge_handles()) {
-        auto d1 = he->face()->data();
-        auto d2 = he->twin()->face()->data();
-        if (!d1.in_footprint && !d2.in_footprint)
-          to_remove.push_back(he);
-      }
-      for (auto he : to_remove) {
-        arr.remove_edge(he);
-      }
-    }
-    {
-      // cleanup vertices with degree==2
-      for (auto v : arr.vertex_handles()) {
-        //this removes v if degree is 0 or 2
-        CGAL::remove_vertex(arr, v);
-      }
-    }
+    arr_dissolve_fp(arr, false, true);
   }
+
+  // snap edge shorter than snap_tolerance
+  // for (auto he : arr.edge_handles()) {
+  //   if(CGAL::squared_distance(he->source()->point(), he->target()->point()) < snap_tolerance) {
+
+  //     arr.remove_edge(he->next());
+  //     arr.remove_edge(he->twin()->previous());
+  //   }
+  // }
 
   output("arrangement").set(arr);
 }

@@ -176,12 +176,6 @@ void OptimiseArrangmentGridNode::process() {
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
 
-  // don't bother if there are no planes
-  if (planes.size() == 0) {
-    output("arrangement").set(arr);
-    return;
-  }
-
   std::vector<std::tuple<Plane, std::vector<Point>, size_t>> points_per_plane; // plane, points, seg_id
   for (auto& [plane_id, plane_pts] : planes) {
     if (plane_id<1) continue; // ignore unclassified points
@@ -236,6 +230,12 @@ void OptimiseArrangmentGridNode::process() {
   }
 
   std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+  // don't bother if there are no planes or faces
+  if (points_per_plane.size() == 0 || faces.size()) {
+    arr_dissolve_fp(arr, true, true);
+    output("arrangement").set(arr);
+    return;
+  }
 
   // compute edge_weights (smoothness term)
   double max_weight = 0;
