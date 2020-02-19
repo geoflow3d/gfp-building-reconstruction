@@ -44,6 +44,8 @@ namespace RasterTools {
         void prefill_arrays(alg a);
         void add_point(double x, double y, double z, alg a);
         void add_raster(double x, double y, double z, alg a);
+        size_t getRow(double x, double y) const;
+        size_t getCol(double x, double y) const;
         size_t getLinearCoord(double x, double y) const;
         std::array<double,2> getColRowCoord(double x, double y) const;
         point3d getPointFromRasterCoords(size_t col, size_t row) const;
@@ -119,7 +121,7 @@ namespace RasterTools {
         // template<> std::vector<point3d> rasterise_polygon(std::vector<point3d>& polygon) const;
 
         double cellSize_, minx_, miny_, maxx_, maxy_;
-        int dimx_, dimy_;
+        size_t dimx_, dimy_;
         double noDataVal_;
         std::vector<int16_t> counts_;
         std::vector<double> vals_;

@@ -231,7 +231,7 @@ void OptimiseArrangmentGridNode::process() {
 
   std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // don't bother if there are no planes or faces
-  if (points_per_plane.size() == 0 || faces.size()) {
+  if (points_per_plane.size()==0 || faces.size()==0) {
     arr_dissolve_fp(arr, true, true);
     output("arrangement").set(arr);
     return;

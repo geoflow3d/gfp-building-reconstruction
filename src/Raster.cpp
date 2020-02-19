@@ -88,6 +88,15 @@ namespace RasterTools {
     return {c,r};
   }
 
+  size_t Raster::getRow(double x, double y) const
+  {
+    return static_cast<size_t>( floor((y-miny_) / cellSize_) );
+  }
+  size_t Raster::getCol(double x, double y) const
+  {
+    return static_cast<size_t>( floor((x-minx_) / cellSize_) );
+  }
+
   size_t Raster::getLinearCoord(double x, double y) const
   {
     size_t r = static_cast<size_t>( floor((y-miny_) / cellSize_) );

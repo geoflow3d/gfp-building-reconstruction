@@ -600,13 +600,15 @@ void ArrExtruderNode::process(){
     do {
       auto f = he->face();
       float h;
-      if (f->data().in_footprint) {
+      if (f->data().in_footprint && f->data().segid!=0) {
         if(LoD2) {
           auto& plane = f->data().plane;
           h = (plane.a()*CGAL::to_double(p.x()) + plane.b()*CGAL::to_double(p.y()) + plane.d()) / (-plane.c());
         } else {
           h = f->data().elevation_avg;
         }
+      } else if (f->data().in_footprint) {
+        h = nodata_elevation;
       } else {
         h = base_elevation;
       }
@@ -2041,11 +2043,13 @@ void DetectPlanesNode::process() {
     pnl_points.push_back(pv);
   }
   // estimate normals
-  CGAL::pca_estimate_normals<Concurrency_tag>(
-    pnl_points, metrics_normal_k,
-    CGAL::parameters::point_map(Point_map()).
-    normal_map(Normal_map())
-  );
+  if (points.size()) {
+    CGAL::pca_estimate_normals<Concurrency_tag>(
+      pnl_points, metrics_normal_k,
+      CGAL::parameters::point_map(Point_map()).
+      normal_map(Normal_map())
+    );
+  }
   // orient normals upwards
   auto up = Vector(0,0,1);
   for ( auto& pv : pnl_points) {
@@ -2242,11 +2246,49 @@ void EptInPolygonsNode::process()
 
   auto& point_clouds = vector_output("point_clouds");
   point_clouds.resize<PointCollection>(polygons.size());
-  auto& color_clouds = vector_output("colors");
-  color_clouds.resize<vec3f>(polygons.size());
+  // auto& color_clouds = vector_output("colors");
+  // color_clouds.resize<vec3f>(polygons.size());
+
+  // make a vector of BOX2D for the set of input polygons
+  Box completearea_bb;
+  // build point in polygon grids
+  std::vector<pGridSet> poly_grids;
+  for (size_t i=0; i<polygons.size(); ++i) {
+    auto ring = polygons.get<LinearRing>(i);
+    poly_grids.push_back(build_grid(ring));
+    completearea_bb.add(ring.box());
+  }
+
+  // build an index grid for the polygons
+
+  // build raster index (pindex) and store for each raster cell all the polygons with intersecting bbox (pindex_vals)
+  float minx = completearea_bb.min()[0]-buffer; 
+  float miny = completearea_bb.min()[1]-buffer;
+  float maxx = completearea_bb.max()[0]+buffer;
+  float maxy = completearea_bb.max()[1]+buffer;
+  RasterTools::Raster pindex(cellsize, minx, maxx, miny, maxy);
+  std::vector<std::vector<size_t>> pindex_vals(pindex.dimx_*pindex.dimy_);
+
+  // populate pindex_vals
+  for (size_t i=0; i<polygons.size(); ++i) {
+    auto ring = polygons.get<LinearRing>(i);
+    auto& b = ring.box();
+    size_t r_min = pindex.getRow(b.min()[0], b.min()[1]);
+    size_t c_min = pindex.getCol(b.min()[0], b.min()[1]);
+    size_t r_max = static_cast<size_t>( ceil(b.size_y() / cellsize) ) + r_min;
+    size_t c_max = static_cast<size_t>( ceil(b.size_x() / cellsize) ) + c_min;
+    if (r_max >= pindex.dimy_)
+      r_max = pindex.dimy_-1;
+    if (c_max >= pindex.dimx_)
+      c_max = pindex.dimx_-1;
+    for(size_t r = r_min; r <= r_max; ++r) {
+      for(size_t c = c_min; c <= c_max; ++c) {
+        pindex_vals[r*pindex.dimx_ + c].push_back(i);
+      }
+    }
+  }
 
   std::string ept_path = "ept://" + dirpath;
-
   {
     // This scope is for debugging
     pdal::EptReader reader;
@@ -2260,91 +2302,53 @@ void EptInPolygonsNode::process()
     std::cout << "EPT WKT:\t" << qi.m_srs.getWKT() << std::endl;
   }
 
-  // make a vector of BOX2D for each polygon in the same order
-  std::vector<pdal::BOX2D> poly_bboxes;
-  float minx, miny, maxx, maxy;
-  for (size_t i=0; i<polygons.size(); ++i) {
-    auto ring = polygons.get<LinearRing>(i);
-    minx = (ring.box().min()[0]+(*manager.data_offset)[0]) - 1.0;
-    miny = (ring.box().min()[1]+(*manager.data_offset)[1]) - 1.0;
-    maxx = (ring.box().max()[0]+(*manager.data_offset)[0]) + 1.0;
-    maxy = (ring.box().max()[1]+(*manager.data_offset)[1]) + 1.0;
-    poly_bboxes.emplace_back(minx, miny, maxx, maxy);
-  }
-
-  std::cout << "Polygon bounds selection is hardcoded to EPSG:7415" << std::endl;
-  for (size_t i = 0; i < polygons.size(); ++i) {
-    // TODO: check TEST(EptReaderTest, ogrCrop) on the PDAL master for using the
-    //  polygons directly from Postgres, instead of casting them to WKT.
-    // TODO: Ideally, polygon or LinearRing would have a .wkt() method
-    auto polygon = polygons.get<LinearRing>(i);
-    // Creating WKT
-    std::ostringstream wkt;
-    wkt << std::fixed << std::setprecision(3) << "POLYGON((";
-    for (auto& v : polygon) {
-      wkt << v[0] + (*manager.data_offset)[0] << " "
-          << v[1] + (*manager.data_offset)[1] << ", ";
-    }
-    // repeat first vertex
-    wkt << polygon[0][0] + (*manager.data_offset)[0] << " "
-        << polygon[0][1] + (*manager.data_offset)[1];
-    wkt << "))";
-    wkt << "/ EPSG:7415";
-
-    // TODO: The reader and filter init can go to a function that returns a
-    //  const PointViewSet.
-    // For each polygon we need to re-init the reader and filters, according to
-    //  ppl on the PDAL mailing list. There is no other way to reset the
-    //  bounds on the reader.
-    pdal::EptReader reader;
-    {
-      pdal::Options options;
-      options.add("filename", ept_path);
-      options.add("bounds", poly_bboxes[i]);
+  // TODO: The reader and filter init can go to a function that returns a
+  //  const PointViewSet.
+  pdal::BOX2D poly_bbox(
+    completearea_bb.min()[0] + (*manager.data_offset)[0] - 1.0, 
+    completearea_bb.min()[1] + (*manager.data_offset)[1] - 1.0, 
+    completearea_bb.max()[0] + (*manager.data_offset)[0] + 1.0, 
+    completearea_bb.max()[1] + (*manager.data_offset)[1] + 1.0
+  );
+  pdal::EptReader reader;
+  {
+    pdal::Options options;
+    options.add("filename", ept_path);
+    options.add("bounds", poly_bbox);
 //      options.add("polygon", wkt.str());
-      reader.setOptions(options);
+    reader.setOptions(options);
+  }
+  pdal::RangeFilter range;
+  {
+    pdal::Options options;
+    if (filter_limits.length() == 0) {
+      std::cout << "Uh oh, PDAL Range filter cannot be empty. GOING TO CRASH!"
+                << std::endl;
     }
-    pdal::CropFilter crop;
-    {
-      pdal::Options options;
-      options.add("polygon", wkt.str());
-      crop.setOptions(options);
-      crop.setInput(reader);
-    }
-    pdal::RangeFilter range;
-    {
-      pdal::Options options;
-      if (filter_limits.length() == 0) {
-        std::cout << "Uh oh, PDAL Range filter cannot be empty. GOING TO CRASH!"
-                  << std::endl;
-      }
-      options.add("limits", filter_limits);
-      range.setOptions(options);
-      range.setInput(crop);
-    }
-    pdal::PointTable ept_table;
-    range.prepare(ept_table);
-    const pdal::PointViewSet pw_set(range.execute(ept_table));
+    options.add("limits", filter_limits);
+    range.setOptions(options);
+    range.setInput(reader);
+  }
+  pdal::PointTable ept_table;
+  range.prepare(ept_table);
+  const pdal::PointViewSet pw_set(range.execute(ept_table));
 
-    for (const pdal::PointViewPtr& view : pw_set) {
+  for (const pdal::PointViewPtr& view : pw_set) {
 
-      if (view->size() == 0) {
-        std::cout << "0 points were found for polygon " << i << " " << wkt.str() << std::endl;
-      } else {
-        for (pdal::point_count_t p(0); p < view->size(); ++p) {
-          // Because we use the "polygon" option on the reader, we only get the
-          // points from the EPT that are within the polygon.
-          color_clouds.get<vec3f&>(i).push_back(
-            { view->getFieldAs<float>(pdal::Dimension::Id::Red, p) / 65535,
-              view->getFieldAs<float>(pdal::Dimension::Id::Green, p) / 65535,
-              view->getFieldAs<float>(pdal::Dimension::Id::Blue, p) / 65535 });
-          point_clouds.get<PointCollection&>(i).push_back(
-            { float(view->getFieldAs<float>(pdal::Dimension::Id::X, p) -
-                    (*manager.data_offset)[0]),
-              float(view->getFieldAs<float>(pdal::Dimension::Id::Y, p) -
-                    (*manager.data_offset)[1]),
-              float(view->getFieldAs<float>(pdal::Dimension::Id::Z, p) -
-                    (*manager.data_offset)[2]) });
+    if (view->size() == 0) {
+      std::cout << "0 points were found" << std::endl;
+    }
+    for (pdal::point_count_t p(0); p < view->size(); ++p) {
+      float px = view->getFieldAs<float>(pdal::Dimension::Id::X, p) - (*manager.data_offset)[0];
+      float py = view->getFieldAs<float>(pdal::Dimension::Id::Y, p) - (*manager.data_offset)[1];
+      float pz = view->getFieldAs<float>(pdal::Dimension::Id::Z, p) - (*manager.data_offset)[2];
+      pPipoint point = new Pipoint{px,py};
+
+      // look up grid index cell and do pip for all polygons retreived from that cell
+      for(size_t& poly_i : pindex_vals[pindex.getLinearCoord(px,py)]) {
+        if (GridTest(poly_grids[poly_i], point)) {
+          point_clouds.get<PointCollection&>(poly_i).push_back({px, py, pz});
+          break;
         }
       }
     }

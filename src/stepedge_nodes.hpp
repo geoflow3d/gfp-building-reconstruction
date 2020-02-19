@@ -509,6 +509,8 @@ namespace geoflow::nodes::stepedge {
   class EptInPolygonsNode:public Node {
     std::string dirpath = "";
     std::string filter_limits = "Classification[6:6]";
+    float cellsize = 50.0;
+    float buffer = 1.0;
   public:
     using Node::Node;
     void init() {
@@ -518,6 +520,8 @@ namespace geoflow::nodes::stepedge {
 
       add_param("dirpath", ParamPath(dirpath, "EPT directory"));
       add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
+      add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
+      add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
     }
     void process();
   };
