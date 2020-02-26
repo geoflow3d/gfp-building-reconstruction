@@ -52,10 +52,10 @@ geoflow::Segment LineDetector::project(const size_t i1, const size_t i2) {
   const auto& p2 = indexed_points[i2].first;
   auto p1n = l.projection(p1);
   auto p2n = l.projection(p2);
-  return geoflow::Segment({
+  return geoflow::Segment(
     geoflow::arr3f{float(p1n.x()), float(p1n.y()), float(p1n.z())},
     geoflow::arr3f{float(p2n.x()), float(p2n.y()), float(p2n.z())}
-  });
+  );
 }
 SCK::Segment_2 LineDetector::project_cgal(const size_t i1, const size_t i2, float extension) {
   const auto& l = segment_shapes[point_segment_idx[i1]];

@@ -2333,6 +2333,8 @@ void EptInPolygonsNode::process()
   range.prepare(ept_table);
   const pdal::PointViewSet pw_set(range.execute(ept_table));
 
+  std::cout << "...PDAL Pipeline executed\n Continuing with point-in-polygon tests\n";
+
   for (const pdal::PointViewPtr& view : pw_set) {
 
     if (view->size() == 0) {
@@ -2377,12 +2379,12 @@ void RegulariseLinesNode::process(){
 
   // build vector of all input edges
   for(auto edge : edges) {
-    input_edges.push_back(std::make_pair(Segment({edge[0], edge[1]}), false));
+    input_edges.push_back(std::make_pair(Segment(edge[0], edge[1]), false));
   }
   for(size_t i=0; i<footprint.size()-1; ++i) {
-    input_edges.push_back(std::make_pair(Segment({footprint[i], footprint[i+1]}), true));
+    input_edges.push_back(std::make_pair(Segment(footprint[i], footprint[i+1]), true));
   }
-  input_edges.push_back(std::make_pair(Segment({footprint[footprint.size()-1], footprint[0]}), true));
+  input_edges.push_back(std::make_pair(Segment(footprint[footprint.size()-1], footprint[0]), true));
 
   //compute attributes for each segment
   typedef std::tuple<double, Point_2, double, double, bool, double, double, size_t> linetype; 
