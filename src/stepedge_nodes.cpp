@@ -2305,10 +2305,10 @@ void EptInPolygonsNode::process()
   // TODO: The reader and filter init can go to a function that returns a
   //  const PointViewSet.
   pdal::BOX2D poly_bbox(
-    completearea_bb.min()[0] + (*manager.data_offset)[0] - 1.0, 
-    completearea_bb.min()[1] + (*manager.data_offset)[1] - 1.0, 
-    completearea_bb.max()[0] + (*manager.data_offset)[0] + 1.0, 
-    completearea_bb.max()[1] + (*manager.data_offset)[1] + 1.0
+    minx + (*manager.data_offset)[0],
+    miny + (*manager.data_offset)[1],
+    maxx + (*manager.data_offset)[0],
+    maxy + (*manager.data_offset)[1]
   );
   pdal::EptReader reader;
   {
