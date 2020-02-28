@@ -182,23 +182,30 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
 }
 
 void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside) {
-  std::vector<Arrangement_2::Halfedge_handle> to_remove;
-  for (auto he : arr.edge_handles()) {
-    auto d1 = he->face()->data();
-    auto d2 = he->twin()->face()->data();
-    if(outside)
-      if (!d1.in_footprint && !d2.in_footprint)
-        to_remove.push_back(he);
-    if(inside)
-      if (d1.in_footprint && d2.in_footprint)
-        to_remove.push_back(he);
-  }
-  for (auto he : to_remove) {
-    arr.remove_edge(he);
+  {
+    std::vector<Arrangement_2::Halfedge_handle> to_remove;
+    for (auto he : arr.edge_handles()) {
+      auto d1 = he->face()->data();
+      auto d2 = he->twin()->face()->data();
+      if(outside)
+        if (!d1.in_footprint && !d2.in_footprint)
+          to_remove.push_back(he);
+      if(inside)
+        if (d1.in_footprint && d2.in_footprint)
+          to_remove.push_back(he);
+    }
+    for (auto he : to_remove) {
+      arr.remove_edge(he);
+    }
   }
   // cleanup vertices with degree==2
-  for (auto v : arr.vertex_handles()) {
-    //this removes v if degree is 0 or 2
-    CGAL::remove_vertex(arr, v);
+  {
+    std::vector<Arrangement_2::Vertex_handle> to_remove;
+    for (auto v : arr.vertex_handles()) {
+      if(v->degree()==2)
+        to_remove.push_back(v);
+    }
+    for (auto v : to_remove)
+      CGAL::remove_vertex(arr, v);
   }
 }
