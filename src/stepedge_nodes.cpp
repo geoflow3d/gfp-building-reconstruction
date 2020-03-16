@@ -306,6 +306,47 @@ void PolygonExtruderNode::process() {
   output("ring_types").set(surf_type);
 }
 
+void LOD1ExtruderNode::process() {
+  auto ring = input("polygon").get<LinearRing>();
+  auto h_roof = input("roof_height").get<float>();
+  auto h_floor = input("floor_height").get<float>();
+
+  auto& rings_3d = vector_output("3d_polygons");
+  vec1i surf_type;
+
+  //TODO: we need to consider holes
+
+  //floor
+  LinearRing r_floor = ring;
+  for (auto& p : r_floor) p[2] = h_floor;
+
+  //roof
+  LinearRing r_roof = ring;
+  for (auto& p : r_roof) p[2] = h_roof;
+  rings_3d.push_back(r_roof);
+  surf_type.push_back(2);
+  //walls
+  size_t j_prev = ring.size()-1;
+  for (size_t j=0; j<ring.size(); ++j) {
+    LinearRing wall;
+    wall.push_back(r_floor[j_prev]);
+    wall.push_back(r_floor[j]);
+    wall.push_back(r_roof[j]);
+    wall.push_back(r_roof[j_prev]);
+
+    surf_type.push_back(1);
+    rings_3d.push_back(wall);
+    j_prev=j;
+  }
+
+  //floor
+  std::reverse(r_floor.begin(), r_floor.end());
+  rings_3d.push_back(r_floor);
+  surf_type.push_back(0);
+
+  output("surface_types").set(surf_type);
+}
+
 inline arr3f grow(const arr3f& p_, const arr3f& q_, const arr3f& r_, const float& extension) {
   auto p = SCK::Point_2(p_[0], p_[1]);
   auto q = SCK::Point_2(q_[0], q_[1]);

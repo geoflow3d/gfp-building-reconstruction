@@ -108,6 +108,22 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class LOD1ExtruderNode:public Node {
+
+    public:
+    using Node::Node;
+    void init() {
+      add_input("polygon", typeid(LinearRing));
+      add_input("floor_height", typeid(float));
+      add_input("roof_height", typeid(float));
+      add_vector_output("3d_polygons", typeid(LinearRing));
+      add_output("surface_types", typeid(vec1i));
+      add_output("polygon_ids", typeid(vec1i));
+    }
+
+    void process();
+  };
+
   class Arr2LinearRingsNode:public Node {
     bool only_in_footprint = true;
     int plane_id = 0;
