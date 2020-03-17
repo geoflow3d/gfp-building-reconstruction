@@ -118,7 +118,6 @@ namespace geoflow::nodes::stepedge {
       add_input("roof_height", typeid(float));
       add_vector_output("3d_polygons", typeid(LinearRing));
       add_output("surface_types", typeid(vec1i));
-      add_output("polygon_ids", typeid(vec1i));
     }
 
     void process();

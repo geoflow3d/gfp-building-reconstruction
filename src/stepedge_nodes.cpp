@@ -2388,7 +2388,12 @@ void EptInPolygonsNode::process()
       pPipoint point = new Pipoint{px,py};
 
       // look up grid index cell and do pip for all polygons retreived from that cell
-      for(size_t& poly_i : pindex_vals[pindex.getLinearCoord(px,py)]) {
+      size_t lincoord = pindex.getLinearCoord(px,py);
+      if (lincoord >= pindex_vals.size() || lincoord < 0) {
+        std::cout << "Point (" << px << ", " <<py << ", "  << pz << ") is not in the polygon bbox.\n";
+        continue;
+      }
+      for(size_t& poly_i : pindex_vals[lincoord]) {
         if (GridTest(poly_grids[poly_i], point)) {
           point_clouds.get<PointCollection&>(poly_i).push_back({px, py, pz});
           break;
