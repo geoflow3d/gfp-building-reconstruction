@@ -2283,12 +2283,18 @@ void LASInPolygonsNode::process() {
 
 void EptInPolygonsNode::process()
 {
+  // Prepare inputs
   auto& polygons = vector_input("polygons");
 
+  // Prepare outputs
   auto& point_clouds = vector_output("point_clouds");
   point_clouds.resize<PointCollection>(polygons.size());
-  // auto& color_clouds = vector_output("colors");
-  // color_clouds.resize<vec3f>(polygons.size());
+  auto& ground_heights = vector_output("ground_heights");
+  ground_heights.resize<vec1f>(polygons.size());
+
+  // Intermediary storage for computing median ground heights
+  std::vector<std::vector<float>> point_clouds_ground;
+  point_clouds_ground.resize(polygons.size());
 
   // make a vector of BOX2D for the set of input polygons
   Box completearea_bb;
@@ -2385,6 +2391,7 @@ void EptInPolygonsNode::process()
       float px = view->getFieldAs<float>(pdal::Dimension::Id::X, p) - (*manager.data_offset)[0];
       float py = view->getFieldAs<float>(pdal::Dimension::Id::Y, p) - (*manager.data_offset)[1];
       float pz = view->getFieldAs<float>(pdal::Dimension::Id::Z, p) - (*manager.data_offset)[2];
+      int pclass = view->getFieldAs<int>(pdal::Dimension::Id::Classification, p);
       pPipoint point = new Pipoint{px,py};
 
       // look up grid index cell and do pip for all polygons retreived from that cell
@@ -2393,12 +2400,61 @@ void EptInPolygonsNode::process()
         std::cout << "Point (" << px << ", " <<py << ", "  << pz << ") is not in the polygon bbox.\n";
         continue;
       }
+      // For the ground points we only test if the point is within the grid
+      // index cell, but we do not do a pip for the footprint itself.
+      // The reasons for this:
+      //  - If we would do a pip for with the ground points, we would need to
+      //    have a separate list of buffered footprints that we use for the
+      //    ground pip. Still it would be often the case that there are no
+      //    ground points found for a buffered footprint. Thus we need a larger
+      //    area in which we can guarantee that we find at least a couple of
+      //    ground points.
+      //  - Because we work with Netherlands data, the ground relief is small.
+      //    Thus a single ground height value per grid cell is good enough for
+      //    representing the ground/floor elevation of the buildings in that
+      //    grid cell.
+      bool found_pip(false);
       for(size_t& poly_i : pindex_vals[lincoord]) {
-        if (GridTest(poly_grids[poly_i], point)) {
+        if (pclass == 2) {
+          point_clouds_ground[poly_i].push_back(pz);
+        } else if (not found_pip and GridTest(poly_grids[poly_i], point)) {
           point_clouds.get<PointCollection&>(poly_i).push_back({px, py, pz});
-          break;
+          found_pip = true;
         }
       }
+    }
+  }
+
+  // Compute median ground height per grid cell and store it for each polygon
+  std::cout <<"Computing the median ground elevation in the grid cells" << std::endl;
+  for (auto& cell : pindex_vals) {
+    std::vector<float> z_vec;
+    for (size_t& poly_i : cell) {
+      for (float& pz : point_clouds_ground[poly_i]) {
+        z_vec.push_back(pz);
+      }
+    }
+    float median;
+    // Median for odd-number of elements
+    if (z_vec.size() % 2 > 0) {
+      size_t n = z_vec.size() / 2;
+      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
+      median = z_vec[n];
+    }
+    // even-number of elements
+    else {
+      float m0, m1;
+      size_t n = z_vec.size() / 2;
+      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
+      m0 = z_vec[n];
+      n++;
+      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
+      m1 = z_vec[n];
+      median = (m0 + m1) / 2;
+    }
+    // Assign the median ground elevation to each polygon
+    for (size_t& poly_i : cell) {
+      ground_heights.get<vec1f>(poly_i).push_back(median);
     }
   }
 }
