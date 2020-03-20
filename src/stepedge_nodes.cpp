@@ -435,7 +435,7 @@ void VecArr2LinearRingsNode::process(){
   auto& roof_types = vector_input("roof_type");
   auto& arr_complexity = vector_input("arr_complexity");
   auto& attributes_in = poly_input("attributes");
-  auto& input_attr_terms = poly_output("attributes").get_terminals();
+  auto& input_attr_terms = poly_output("attributes").sub_terminals();
 
   auto& linear_rings = vector_output("linear_rings");
 
@@ -447,8 +447,8 @@ void VecArr2LinearRingsNode::process(){
   vec1i attr_objectid;
   vec1i attr_arr_complexity;
   
-  std::unordered_map<std::string, gfBasicMonoOutputTerminal*> input_attr_map;
-  for (auto &iterm : poly_input("attributes").basic_terminals()) {
+  std::unordered_map<std::string, gfSingleFeatureOutputTerminal*> input_attr_map;
+  for (auto &iterm : poly_input("attributes").sub_terminals()) {
     auto& oterm = poly_output("attributes").add(iterm->get_name(), iterm->get_type());
     if(oterm.accepts_type(typeid(vec1b))){
       input_attr_map[oterm.get_name()] = &oterm;
@@ -488,7 +488,7 @@ void VecArr2LinearRingsNode::process(){
         attr_objectid.push_back(i+1);
         attr_arr_complexity.push_back(arr_complexity.get<int>(i));
 
-        for (auto &term : poly_input("attributes").basic_terminals()) {
+        for (auto &term : poly_input("attributes").sub_terminals()) {
           if(term->accepts_type(typeid(vec1b))){
             // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
             input_attr_map[term->get_name()]->get<vec1b&>().push_back(term->get<vec1b>()[i]);
