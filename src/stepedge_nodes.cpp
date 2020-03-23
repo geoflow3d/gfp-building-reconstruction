@@ -392,6 +392,12 @@ void PolygonGrowerNode::process(){
 void Arr2LinearRingsNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
+  auto& mesh_errors = input("mesh_error");
+  auto& roof_types = input("roof_type");
+  auto& arr_complexity = input("arr_complexity");
+  auto& attributes_in = poly_input("attributes");
+  auto& input_attr_terms = poly_output("attributes").sub_terminals();
+
   LinearRingCollection linear_rings;
   auto& lrv_out = vector_output("linear_rings_v");
   AttributeMap attributes;

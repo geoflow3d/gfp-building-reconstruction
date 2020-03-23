@@ -130,7 +130,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
-      add_output("linear_rings", typeid(LinearRingCollection), true);
+      add_output("linear_rings", typeid(LinearRingCollection));
       add_vector_output("linear_rings_v", typeid(LinearRing));
       add_output("attributes", typeid(AttributeMap));
       add_output("arr_errors", typeid(vec1f));
@@ -199,8 +199,8 @@ namespace geoflow::nodes::stepedge {
       add_output("max_errors", typeid(vec1f));
       add_output("elevations", typeid(vec1f));
       add_output("segment_coverages", typeid(vec1f));
-      add_output("triangles", typeid(TriangleCollection), true);
-      add_output("normals_vec3f", typeid(vec3f), true);
+      add_output("triangles", typeid(TriangleCollection));
+      add_output("normals_vec3f", typeid(vec3f));
       add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
 
@@ -295,7 +295,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("lines", typeid(Segment));
       add_input("footprint", {typeid(linereg::Polygon_with_holes_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
-      add_output("arr_complexity", typeid(int), true);
+      add_output("arr_complexity", typeid(int));
 
       add_param("rel_area_thres", ParamBoundedFloat(rel_area_thres, 0.01, 1, "Preserve split ring area"));
       add_param("max_arr_complexity", ParamInt(max_arr_complexity, "Maximum nr of lines"));
@@ -366,7 +366,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
-      add_output("arrangement", typeid(Arrangement_2), true);
+      add_output("arrangement", typeid(Arrangement_2));
 
       add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
       add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
@@ -470,14 +470,14 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("points", typeid(PointCollection));
-      add_output("plane_id", typeid(vec1i), true);
+      add_output("plane_id", typeid(vec1i));
       add_output("is_wall", typeid(vec1i));
       add_output("is_horizontal", typeid(vec1i));
       
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_output("roof_pt_cnt", typeid(int));
-      add_output("class", typeid(int), true);
+      add_output("class", typeid(int));
       add_output("classf", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
       add_output("slant_roofplane_cnt", typeid(float));
@@ -708,10 +708,10 @@ namespace geoflow::nodes::stepedge {
       add_input("triangles", typeid(TriangleCollection));
       add_input("face_ids", typeid(vec1i));
       
-      add_output("point_errors", typeid(vec1f), true);
-      add_output("face_errors", typeid(vec1f), true);
-      add_output("mesh_error_f", typeid(float), true);
-      add_output("mesh_error", typeid(vec1f), true);
+      add_output("point_errors", typeid(vec1f));
+      add_output("face_errors", typeid(vec1f));
+      add_output("mesh_error_f", typeid(float));
+      add_output("mesh_error", typeid(vec1f));
 
     }
     void process();
@@ -743,7 +743,7 @@ namespace geoflow::nodes::stepedge {
       add_input("alpha_dts", typeid(std::vector<as::Triangulation_2>));
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
-      // add_input("heightfield", typeid(RasterTools::Raster), true);
+      // add_input("heightfield", typeid(RasterTools::Raster));
       add_output("heightfield", typeid(RasterTools::Raster));
       
       add_output("heightfield", typeid(RasterTools::Raster));
