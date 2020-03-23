@@ -12,11 +12,21 @@ jobs:
     name: Build Windows
     runs-on: windows-latest
     steps:
+    - name: Install LASlib
+      run: |
+        git clone https://github.com/LAStools/LAStools.git
+        cd LAStools
+        git checkout 653d341833aa2a0b327c20eacee02523faabe255
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software
+        cmake --build . --config Release --parallel 4
+        cmake --install .
     - name: Install dependencies
       run: |
         echo $env:VCPKG_INSTALLATION_ROOT
         $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
-        vcpkg install cgal gdal pdal lastools
+        vcpkg install cgal gdal
     - name: Install Geoflow
       run: |
         Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.0/Geoflow-0.1.0-win64.exe -OutFile geoflow-setup.exe
