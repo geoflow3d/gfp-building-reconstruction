@@ -129,13 +129,13 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() {
-      add_input("arrangement", typeid(Arrangement_2));
-      add_output("linear_rings", typeid(LinearRingCollection));
-      add_vector_output("linear_rings_v", typeid(LinearRing));
-      add_output("attributes", typeid(AttributeMap));
-      add_output("arr_errors", typeid(vec1f));
-      add_param("only_in_footprint", ParamBool(only_in_footprint, "Only in footprint"));
-      add_param("plane_id", ParamInt(plane_id, "Plane id"));
+      add_vector_input("arrangement", typeid(Arrangement_2));
+      add_vector_input("mesh_error", typeid(float));
+      add_vector_input("roof_type", typeid(int));
+      add_vector_input("arr_complexity", typeid(int));
+      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_vector_output("linear_rings", typeid(LinearRing));
     }
     void process();
   };

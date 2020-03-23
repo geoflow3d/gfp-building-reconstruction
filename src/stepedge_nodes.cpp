@@ -392,47 +392,55 @@ void PolygonGrowerNode::process(){
 void Arr2LinearRingsNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
-  auto& mesh_errors = input("mesh_error");
-  auto& roof_types = input("roof_type");
-  auto& arr_complexity = input("arr_complexity");
+  auto& mesh_error = input("mesh_error").get<float&>();
+  auto& roof_type = input("roof_type").get<int&>();
+  auto& arr_complexity = input("arr_complexity").get<int&>();
   auto& attributes_in = poly_input("attributes");
-  auto& input_attr_terms = poly_output("attributes").sub_terminals();
 
-  LinearRingCollection linear_rings;
-  auto& lrv_out = vector_output("linear_rings_v");
-  AttributeMap attributes;
-  vec1f arr_errors;
+  auto& linear_rings = vector_output("linear_rings");
+
+  //create all output fields
+  std::unordered_map<std::string, gfSingleFeatureOutputTerminal*> input_attr_map;
+  for (auto &iterm : poly_input("attributes").sub_terminals()) {
+    auto& oterm = poly_output("attributes").add_vector(iterm->get_name(), iterm->get_type());
+    input_attr_map[oterm.get_name()] = &oterm;
+  }
+  auto &attr_error_term = poly_output("attributes").add_vector("rmse", typeid(float));
+  input_attr_map["rmse"] = &attr_error_term;
+  auto &attr_rooftype_term = poly_output("attributes").add_vector("dak_type", typeid(int));
+  input_attr_map["dak_type"] = &attr_rooftype_term;
+  auto &attr_elevation_term = poly_output("attributes").add_vector("hoogte_abs", typeid(float));
+  input_attr_map["hoogte_abs"] = &attr_elevation_term;
+  auto &attr_roofid_term = poly_output("attributes").add_vector("dak_id", typeid(int));
+  input_attr_map["dak_id"] = &attr_roofid_term;
+  // auto &attr_objectid_term = poly_output("attributes").add_vector("building_id", typeid(int));
+  // input_attr_map["building_id"] = &attr_objectid_term;
+  auto &attr_arr_complexity_term = poly_output("attributes").add_vector("arr_complexity", typeid(int));
+  input_attr_map["arr_complexity"] = &attr_arr_complexity_term;
+
+  int j=0;
   for (auto face: arr.face_handles()){
     if(
       !(only_in_footprint && !face->data().in_footprint)
       &&
       !(face->is_fictitious() || face->is_unbounded())
       ) {
-      vec2f polygon;
+      LinearRing polygon;
       arrangementface_to_polygon(face, polygon);
-      LinearRing polygon3d;
-      for (auto& p : polygon) {
-        polygon3d.push_back({p[0],p[1],0});
-      }
-      linear_rings.push_back(polygon3d);
-      lrv_out.push_back(polygon3d);
-      attributes["height"].push_back(face->data().elevation_avg);
-      // attributes["rms_error"].push_back(face->data().rms_error_to_avg);
-      // attributes["max_error"].push_back(face->data().max_error);
-      // attributes["coverage"].push_back(face->data().segid_coverage);
-      attributes["count"].push_back(face->data().inlier_count);
-      attributes["segid"].push_back(face->data().segid);
-      if(plane_id >= 0 && plane_id < face->data().vertex_label_cost.size()) {
-        arr_errors.push_back(face->data().vertex_label_cost[plane_id]);
-      } else {
-        std::cout << "Plane id out of range!\n";
-        arr_errors.push_back(-1000);
+      linear_rings.push_back(polygon);
+
+      input_attr_map["hoogte_abs"]->push_back((float)face->data().elevation_avg);
+      input_attr_map["rmse"]->push_back((float)mesh_error);
+      input_attr_map["dak_type"]->push_back((int)roof_type);
+      input_attr_map["dak_id"]->push_back((int)++j);
+      // input_attr_map["building_id"]->push_back(int(i+1));
+      input_attr_map["arr_complexity"]->push_back(arr_complexity);
+
+      for (auto &iterm : poly_input("attributes").sub_terminals()) {
+        input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
       }
     }
   }
-  output("linear_rings").set(linear_rings);
-  output("attributes").set(attributes);
-  output("arr_errors").set(arr_errors);
 }
 
 void VecArr2LinearRingsNode::process(){
