@@ -530,6 +530,7 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+#ifdef GFP_WITH_PDAL
   class EptInPolygonsNode:public Node {
     std::string dirpath = "";
     std::string filter_limits = "Classification[2:2],Classification[6:6]";
@@ -551,6 +552,7 @@ namespace geoflow::nodes::stepedge {
     }
     void process();
   };
+#endif
   
   class BuildingSelectorNode:public Node {
     public:

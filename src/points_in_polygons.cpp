@@ -1,12 +1,14 @@
 #include "stepedge_nodes.hpp"
 
-#include <sstream>
-#include <pdal/PointTable.hpp>
-#include <pdal/PointView.hpp>
-#include <pdal/Options.hpp>
-#include <pdal/io/EptReader.hpp>
-#include <pdal/filters/RangeFilter.hpp>
-#include <pdal/filters/CropFilter.hpp>
+// #include <sstream>
+#ifdef GFP_WITH_PDAL
+  #include <pdal/PointTable.hpp>
+  #include <pdal/PointView.hpp>
+  #include <pdal/Options.hpp>
+  #include <pdal/io/EptReader.hpp>
+  #include <pdal/filters/RangeFilter.hpp>
+  #include <pdal/filters/CropFilter.hpp>
+#endif
 
 #include <lasreader.hpp>
 
@@ -194,6 +196,7 @@ void LASInPolygonsNode::process() {
   pip_collector.compute_ground_elevation(ground_percentile);
 }
 
+#ifdef GFP_WITH_PDAL
 void EptInPolygonsNode::process()
 {
   // Prepare inputs
@@ -271,5 +274,6 @@ void EptInPolygonsNode::process()
 
   pip_collector.compute_ground_elevation(ground_percentile);
 }
+#endif
 
 }

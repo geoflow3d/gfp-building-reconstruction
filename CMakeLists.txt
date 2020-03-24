@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
 project (building-reconstruction VERSION 0.0.1)
 
+option(GFP_WITH_PDAL "Build parts dependent on PDAL" ON)
+
 add_definitions(-DGF_PLUGIN_NAME=\"${CMAKE_PROJECT_NAME}\")
+
+if(GFP_WITH_PDAL)
+  add_definitions(-DGFP_WITH_PDAL)
+endif(GFP_WITH_PDAL)
 
 find_package(geoflow REQUIRED)
 
@@ -20,11 +26,13 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
     )
 endif()  
 
-find_package(glm)
-find_package(LASlib)
-find_package(CGAL QUIET COMPONENTS Core)
+find_package(glm REQUIRED)
+find_package(LASlib REQUIRED)
+find_package(CGAL QUIET COMPONENTS Core REQUIRED)
 # PDAL
-find_package(PDAL)
+if(GFP_WITH_PDAL)
+  find_package(PDAL REQUIRED)
+endif(GFP_WITH_PDAL)
 
 if (MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:precise")
@@ -44,7 +52,6 @@ geoflow_create_plugin(
   src/heightfield_nodes.cpp
 )
 
-#earcut
 target_include_directories(gfp_stepedge PRIVATE
   src
   thirdparty/ptinpoly
