@@ -523,7 +523,7 @@ namespace geoflow::nodes::stepedge {
 
   class EptInPolygonsNode:public Node {
     std::string dirpath = "";
-    std::string filter_limits = "Classification[6:6]";
+    std::string filter_limits = "Classification[2:2],Classification[6:6]";
     float cellsize = 50.0;
     float buffer = 1.0;
   public:
@@ -531,7 +531,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
-      add_vector_output("colors", typeid(vec3f));
+      add_vector_output("ground_heights", typeid(vec1f));
 
       add_param("dirpath", ParamPath(dirpath, "EPT directory"));
       add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
