@@ -170,10 +170,10 @@ void LASInPolygonsNode::process() {
 
   PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
 
-  for (auto filepath : split_string(filepaths, ";"))
+  for (auto filepath : split_string(manager.substitute_globals(filepaths), ";"))
   {
     LASreadOpener lasreadopener;
-    lasreadopener.set_file_name(manager.substitute_globals(filepath).c_str());
+    lasreadopener.set_file_name(filepath.c_str());
     LASreader* lasreader = lasreadopener.open();
     
     if (!lasreader)
