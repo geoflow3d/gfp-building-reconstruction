@@ -36,6 +36,7 @@ set(GF_PLUGIN_REGISTER ${PROJECT_SOURCE_DIR}/register.hpp)
 geoflow_create_plugin(
   src/stepedge_nodes.cpp
   src/node_optimise_arrangement.cpp
+  src/points_in_polygons.cpp
   src/point_edge.cpp
   src/region_growing.cpp
   src/node_pcmesh_quality.cpp

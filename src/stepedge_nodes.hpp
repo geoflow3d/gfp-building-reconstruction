@@ -37,8 +37,11 @@ namespace as {
   typedef Alpha_shape_2::Edge_circulator                      Edge_circulator;
 }
 
+
 namespace geoflow::nodes::stepedge {
 
+  float compute_percentile(std::vector<float>& z_vec, float percentile);
+  
   typedef std::unordered_map<int, std::pair<Plane, std::vector<Point>>> IndexedPlanesWithPoints;
 
   class AlphaShapeNode:public Node {
