@@ -313,8 +313,8 @@ void PolygonExtruderNode::process() {
 
 void LOD1ExtruderNode::process() {
   auto ring = input("polygon").get<LinearRing>();
-  auto h_roof = input("roof_height").get<float>();
-  auto h_floor = input("floor_height").get<float>();
+  auto h_roof = input("roof_elevation").get<float>();
+  auto h_floor = input("floor_elevation").get<float>();
 
   auto& rings_3d = vector_output("3d_polygons");
   vec1i surf_type;
@@ -397,6 +397,7 @@ void PolygonGrowerNode::process(){
 void Arr2LinearRingsNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
+  auto& floor_elevation = input("floor_elevation").get<float&>();
   auto& mesh_error = input("mesh_error").get<float&>();
   auto& roof_type = input("roof_type").get<int&>();
   auto& arr_complexity = input("arr_complexity").get<int&>();
@@ -410,6 +411,8 @@ void Arr2LinearRingsNode::process(){
     auto& oterm = poly_output("attributes").add_vector(iterm->get_name(), iterm->get_type());
     input_attr_map[oterm.get_name()] = &oterm;
   }
+  auto &floor_elevation_term = poly_output("attributes").add_vector("maaiveld_h", typeid(float));
+  input_attr_map["maaiveld_h"] = &floor_elevation_term;
   auto &attr_error_term = poly_output("attributes").add_vector("rmse", typeid(float));
   input_attr_map["rmse"] = &attr_error_term;
   auto &attr_rooftype_term = poly_output("attributes").add_vector("dak_type", typeid(int));
@@ -436,6 +439,7 @@ void Arr2LinearRingsNode::process(){
 
       input_attr_map["hoogte_abs"]->push_back((float)face->data().elevation_avg);
       input_attr_map["rmse"]->push_back((float)mesh_error);
+      input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
       input_attr_map["dak_type"]->push_back((int)roof_type);
       input_attr_map["dak_id"]->push_back((int)++j);
       // input_attr_map["building_id"]->push_back(int(i+1));
@@ -622,6 +626,7 @@ template<typename T> void push_ccb(
 void ArrExtruderNode::process(){
   typedef Arrangement_2::Traits_2 AT;
   auto arr = input("arrangement").get<Arrangement_2>();
+  auto floor_elevation = input("floor_elevation").get<float>();
   float snap_tolerance = std::pow(10,-snap_tolerance_exp);
 
   // assume we have only one unbounded faces that just has the building footprint as a hole
@@ -631,7 +636,7 @@ void ArrExtruderNode::process(){
   auto& surface_labels = vector_output("labels");
 
   auto unbounded_face = arr.unbounded_face();
-  unbounded_face->data().elevation_avg=base_elevation;
+  unbounded_face->data().elevation_avg=floor_elevation;
 
   // floor
   if (do_floor) {
@@ -642,7 +647,7 @@ void ArrExtruderNode::process(){
       auto first = he;
       do {
         if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
-          floor.push_back(v2p(he->source(), base_elevation));
+          floor.push_back(v2p(he->source(), floor_elevation));
         he = he->next();
       } while(he!=first);
       faces.push_back(floor);
@@ -670,7 +675,7 @@ void ArrExtruderNode::process(){
       } else if (f->data().in_footprint) {
         h = nodata_elevation;
       } else {
-        h = base_elevation;
+        h = floor_elevation;
       }
       heights.push_back(std::make_pair(h, f));
     } while (++he!=first);
@@ -726,8 +731,8 @@ void ArrExtruderNode::process(){
       vec3f v2_other = get_heights(vertex_columns[v2], v2, f_a, f_b, h2a, h2b);
       
       // // set base (ground) elevation to vertices adjacent to a face oustide the building fp
-      if (fp_a && !fp_b) h1b=h2b=base_elevation;
-      if (!fp_a && fp_b) h1a=h2a=base_elevation;
+      if (fp_a && !fp_b) h1b=h2b=floor_elevation;
+      if (!fp_a && fp_b) h1a=h2a=floor_elevation;
 
       int wall_label = 3; //inner wall
       if (!fp_a || !fp_b) wall_label = 2; //outer wall
@@ -2089,6 +2094,14 @@ void DetectLinesNode::process(){
 //   output("edge_points_vec3f").set(edge_points_vec3f);
 // }
 
+float compute_percentile(std::vector<float>& z_vec, float percentile) {
+  assert(percentile<=1.);
+  assert(percentile>=0.);
+  size_t n = (z_vec.size()-1) * percentile;
+  std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
+  return z_vec[n];
+}
+
 void DetectPlanesNode::process() {
   auto points = input("points").get<PointCollection>();
 
@@ -2151,6 +2164,7 @@ void DetectPlanesNode::process() {
   size_t slant_roofplane_cnt=0;
   if (only_horizontal) pts_per_roofplane[-1].second = std::vector<Point>();
   size_t horiz_pt_cnt=0, total_pt_cnt=0;
+  vec1f roof_elevations;
   for(auto region: R.regions){
     auto& plane = region.plane;
     Vector n = plane.orthogonal_vector();
@@ -2164,6 +2178,7 @@ void DetectPlanesNode::process() {
       std::vector<Point> segpts;
       for (auto& i : region.inliers) {
         segpts.push_back(boost::get<0>(pnl_points[i]));
+        roof_elevations.push_back(float(boost::get<0>(pnl_points[i]).z()));
       }
       total_pt_cnt += segpts.size();
       if (!only_horizontal ||
@@ -2205,8 +2220,8 @@ void DetectPlanesNode::process() {
     building_type=2;
   }
 
-  output("class").set(building_type);
-  output("classf").set(float(building_type));
+  output("roof_elevation").set(compute_percentile(roof_elevations, roof_percentile));
+  output("roof_type").set(building_type);
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
   output("slant_roofplane_cnt").set(float(slant_roofplane_cnt));
   output("roof_pt_cnt").set((int)total_pt_cnt);
@@ -2308,7 +2323,7 @@ void EptInPolygonsNode::process()
   // Prepare outputs
   auto& point_clouds = vector_output("point_clouds");
   point_clouds.resize<PointCollection>(polygons.size());
-  auto& ground_heights = vector_output("ground_heights");
+  auto& ground_elevations = vector_output("ground_elevations");
 
   // Intermediary storage for computing median ground heights
   std::vector<std::vector<float>> point_clouds_ground;
@@ -2399,6 +2414,7 @@ void EptInPolygonsNode::process()
   const pdal::PointViewSet pw_set(range.execute(ept_table));
 
   std::cout << "...PDAL Pipeline executed\n Continuing with point-in-polygon tests\n";
+  float min_ground_elevation = std::numeric_limits<float>::max();
 
   for (const pdal::PointViewPtr& view : pw_set) {
 
@@ -2435,6 +2451,7 @@ void EptInPolygonsNode::process()
       for(size_t& poly_i : pindex_vals[lincoord]) {
         if (pclass == 2) {
           point_clouds_ground[poly_i].push_back(pz);
+          min_ground_elevation = std::min(min_ground_elevation, pz);
         } else if (not found_pip and GridTest(poly_grids[poly_i], point)) {
           point_clouds.get<PointCollection&>(poly_i).push_back({px, py, pz});
           found_pip = true;
@@ -2453,26 +2470,15 @@ void EptInPolygonsNode::process()
   // Compute median ground height per grid cell and store it for each polygon
   std::cout <<"Computing the median ground elevation per polygon..." << std::endl;
   for (auto& z_vec : point_clouds_ground) {
-    float median;
     // Median for odd-number of elements
-    if (z_vec.size() % 2 > 0) {
-      size_t n = z_vec.size() / 2;
-      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
-      median = z_vec[n];
-    }
-    // even-number of elements
-    else {
-      float m0, m1;
-      size_t n = z_vec.size() / 2;
-      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
-      m0 = z_vec[n];
-      n++;
-      std::nth_element(z_vec.begin(), z_vec.begin()+n, z_vec.end());
-      m1 = z_vec[n];
-      median = (m0 + m1) / 2;
+    float ground_ele = min_ground_elevation;
+    if (z_vec.size()!=0) {
+      ground_ele = compute_percentile(z_vec, ground_percentile);
+    } else {
+      std::cout << "no ground pts found for polygon\n";
     }
     // Assign the median ground elevation to each polygon
-    ground_heights.push_back(median);
+    ground_elevations.push_back(ground_ele);
 
       // DEBUG: write polygon WKT with ground height to file
       // auto polygon = polygons.get<LinearRing>(poly_i);

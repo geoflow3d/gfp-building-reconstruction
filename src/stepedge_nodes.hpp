@@ -114,8 +114,8 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("polygon", typeid(LinearRing));
-      add_input("floor_height", typeid(float));
-      add_input("roof_height", typeid(float));
+      add_input("floor_elevation", typeid(float));
+      add_input("roof_elevation", typeid(float));
       add_vector_output("3d_polygons", typeid(LinearRing));
       add_output("surface_types", typeid(vec1i));
     }
@@ -130,6 +130,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("arrangement", typeid(Arrangement_2));
+      add_vector_input("floor_elevation", typeid(float));
       add_vector_input("mesh_error", typeid(float));
       add_vector_input("roof_type", typeid(int));
       add_vector_input("arr_complexity", typeid(int));
@@ -158,7 +159,7 @@ namespace geoflow::nodes::stepedge {
   class ArrExtruderNode:public Node {
     bool do_walls=true, do_roofs=true, do_floor=true;
     bool LoD2 = false;
-    float base_elevation = 0;
+    // float base_elevation = 0;
     float nodata_elevation = 3;
     int snap_tolerance_exp = 4;
 
@@ -166,6 +167,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
+      add_input("floor_elevation", typeid(float));
 
       // add_output("normals_vec3f", typeid(vec3f), true);
       add_vector_output("labels", typeid(int)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
@@ -175,7 +177,7 @@ namespace geoflow::nodes::stepedge {
       add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
       add_param("do_floor", ParamBool(do_floor, "Do floor"));
       add_param("LoD2", ParamBool(LoD2, "LoD2"));
-      add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
+      // add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
       add_param("nodata_elevation", ParamFloat(nodata_elevation, "Nodata elevation"));
       add_param("snap_tolerance_exp", ParamInt(snap_tolerance_exp, "Snap tolerance"));
     }
@@ -466,6 +468,7 @@ namespace geoflow::nodes::stepedge {
     float metrics_is_horizontal_threshold = 0.97;
     float metrics_is_wall_threshold = 0.3;
     int n_refit = 5;
+    float roof_percentile=0.5;
     public:
     using Node::Node;
     void init() {
@@ -477,8 +480,8 @@ namespace geoflow::nodes::stepedge {
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_output("roof_pt_cnt", typeid(int));
-      add_output("class", typeid(int));
-      add_output("classf", typeid(float));
+      add_output("roof_type", typeid(int));
+      add_output("roof_elevation", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
       add_output("slant_roofplane_cnt", typeid(float));
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
@@ -493,6 +496,7 @@ namespace geoflow::nodes::stepedge {
       add_param("metrics_is_horizontal_threshold", ParamFloat(metrics_is_horizontal_threshold, "Is horizontal"));
       add_param("metrics_is_wall_threshold", ParamFloat(metrics_is_wall_threshold, "Wall angle thres"));
       add_param("n_refit", ParamInt(n_refit, "Refit every n points"));
+      add_param("roof_percentile", ParamBoundedFloat(roof_percentile, 0, 1, "Roof elevation percentile"));
     }
     void before_gui(){
       auto param_count = std::get<ParamFloat>(parameters.at("horiz_min_count"));
@@ -526,17 +530,19 @@ namespace geoflow::nodes::stepedge {
     std::string filter_limits = "Classification[2:2],Classification[6:6]";
     float cellsize = 50.0;
     float buffer = 1.0;
+    float ground_percentile=0.5;
   public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
-      add_vector_output("ground_heights", typeid(float));
+      add_vector_output("ground_elevations", typeid(float));
 
       add_param("dirpath", ParamPath(dirpath, "EPT directory"));
       // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
       add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
       add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
+      add_param("ground_percentile", ParamBoundedFloat(ground_percentile, 0, 1, "Ground elevation percentile"));
     }
     void process();
   };
