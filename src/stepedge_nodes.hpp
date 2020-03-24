@@ -511,7 +511,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class LASInPolygonsNode:public Node {
-    std::string filepath = "";
+    std::string filepaths = "";
     float cellsize = 50.0;
     float buffer = 1.0;
     float ground_percentile=0.1;
@@ -522,7 +522,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
 
-      add_param("las_filepath", ParamPath(filepath, "LAS filepath"));
+      add_param("las_filepaths", ParamPath(filepaths, "LAS filepaths"));
       add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
       add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
       add_param("ground_percentile", ParamBoundedFloat(ground_percentile, 0, 1, "Ground elevation percentile"));

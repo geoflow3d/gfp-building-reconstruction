@@ -147,6 +147,18 @@ class PointsInPolygonsCollector  {
   }
 };
 
+std::vector<std::string> split_string(const std::string& s, std::string delimiter) {
+  std::vector<std::string> parts;
+  size_t last = 0;
+  size_t next = 0;
+
+  while ((next = s.find(delimiter, last)) != std::string::npos) { 
+    parts.push_back(s.substr(last, next-last));
+    last = next + 1;
+  } 
+  parts.push_back(s.substr(last));
+  return parts;
+}
 
 void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
@@ -156,25 +168,29 @@ void LASInPolygonsNode::process() {
 
   PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
 
-  LASreadOpener lasreadopener;
-  lasreadopener.set_file_name(manager.substitute_globals(filepath).c_str());
-  LASreader* lasreader = lasreadopener.open();
-  
-  if (!lasreader)
-    return;
+  for (auto filepath : split_string(filepaths, ";"))
+  {
+    LASreadOpener lasreadopener;
+    lasreadopener.set_file_name(manager.substitute_globals(filepath).c_str());
+    LASreader* lasreader = lasreadopener.open();
+    
+    if (!lasreader)
+      return;
 
-  while (lasreader->read_point()) {
-    pip_collector.add_point(
-      {
-      float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
-      float(lasreader->point.get_y()-(*manager.data_offset)[1]),
-      float(lasreader->point.get_z()-(*manager.data_offset)[2]) 
-      }, 
-      lasreader->point.get_classification()
-    );
+    while (lasreader->read_point()) {
+      pip_collector.add_point(
+        {
+        float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
+        float(lasreader->point.get_y()-(*manager.data_offset)[1]),
+        float(lasreader->point.get_z()-(*manager.data_offset)[2]) 
+        }, 
+        lasreader->point.get_classification()
+      );
+    }
+    lasreader->close();
+    delete lasreader;
   }
-  lasreader->close();
-  delete lasreader;
+
   pip_collector.compute_ground_elevation(ground_percentile);
 }
 
