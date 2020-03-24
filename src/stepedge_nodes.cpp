@@ -2309,7 +2309,6 @@ void EptInPolygonsNode::process()
   auto& point_clouds = vector_output("point_clouds");
   point_clouds.resize<PointCollection>(polygons.size());
   auto& ground_heights = vector_output("ground_heights");
-  ground_heights.resize<vec1f>(polygons.size());
 
   // Intermediary storage for computing median ground heights
   std::vector<std::vector<float>> point_clouds_ground;
@@ -2445,21 +2444,15 @@ void EptInPolygonsNode::process()
   }
 
   // DEBUG: write polygon WKT with ground height to file
-  std::string fout("/tmp/geoflow_footprint_ground.tsv");
-  std::ofstream out_tsv(fout.c_str());
-  std::ostringstream wkt;
-  wkt << "geom" << "\t" << "ground_height" << std::endl;
-  // end DEBUG
+  // std::string fout("/tmp/geoflow_footprint_ground.tsv");
+  // std::ofstream out_tsv(fout.c_str());
+  // std::ostringstream wkt;
+  // wkt << "geom" << "\t" << "ground_height" << std::endl;
+  // // end DEBUG
 
   // Compute median ground height per grid cell and store it for each polygon
-  std::cout <<"Computing the median ground elevation in the grid cells..." << std::endl;
-  for (auto& cell : pindex_vals) {
-    std::vector<float> z_vec;
-    for (size_t& poly_i : cell) {
-      for (float& pz : point_clouds_ground[poly_i]) {
-        z_vec.push_back(pz);
-      }
-    }
+  std::cout <<"Computing the median ground elevation per polygon..." << std::endl;
+  for (auto& z_vec : point_clouds_ground) {
     float median;
     // Median for odd-number of elements
     if (z_vec.size() % 2 > 0) {
@@ -2479,32 +2472,30 @@ void EptInPolygonsNode::process()
       median = (m0 + m1) / 2;
     }
     // Assign the median ground elevation to each polygon
-    for (size_t& poly_i : cell) {
-      ground_heights.get<vec1f>(poly_i).push_back(median);
+    ground_heights.push_back(median);
 
       // DEBUG: write polygon WKT with ground height to file
-      auto polygon = polygons.get<LinearRing>(poly_i);
-      wkt << std::fixed << std::setprecision(3) << "POLYGON((";
-      for (auto& v : polygon) {
-        wkt << v[0] + (*manager.data_offset)[0] << " "
-            << v[1] + (*manager.data_offset)[1] << ", ";
-      }
-      wkt << polygon[0][0] + (*manager.data_offset)[0] << " "
-          << polygon[0][1] + (*manager.data_offset)[1];
-      wkt << "))" << "\t";
-      wkt << median << std::endl;
+      // auto polygon = polygons.get<LinearRing>(poly_i);
+      // wkt << std::fixed << std::setprecision(3) << "POLYGON((";
+      // for (auto& v : polygon) {
+      //   wkt << v[0] + (*manager.data_offset)[0] << " "
+      //       << v[1] + (*manager.data_offset)[1] << ", ";
+      // }
+      // wkt << polygon[0][0] + (*manager.data_offset)[0] << " "
+      //     << polygon[0][1] + (*manager.data_offset)[1];
+      // wkt << "))" << "\t";
+      // wkt << median << std::endl;
       // end DEBUG
-    }
   }
-  // DEBUG: write polygon WKT with ground height to file
-  if (out_tsv.is_open()) {
-    std::cout << "Writing " << fout << std::endl;
-    out_tsv << wkt.str();
-  } else {
-    std::cout << "Could not open " << fout << std::endl;
-  }
-  out_tsv.close();
-  // end DEBUG
+  // // DEBUG: write polygon WKT with ground height to file
+  // if (out_tsv.is_open()) {
+  //   std::cout << "Writing " << fout << std::endl;
+  //   out_tsv << wkt.str();
+  // } else {
+  //   std::cout << "Could not open " << fout << std::endl;
+  // }
+  // out_tsv.close();
+  // // end DEBUG
 }
 
 void BuildingSelectorNode::process() {

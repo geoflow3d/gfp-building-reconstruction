@@ -531,10 +531,10 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
-      add_vector_output("ground_heights", typeid(vec1f));
+      add_vector_output("ground_heights", typeid(float));
 
       add_param("dirpath", ParamPath(dirpath, "EPT directory"));
-      add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
+      // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
       add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
       add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
     }
