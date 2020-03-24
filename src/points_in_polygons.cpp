@@ -49,6 +49,7 @@ class PointsInPolygonsCollector  {
   PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
   : polygons(polygons), point_clouds(point_clouds), ground_elevations(ground_elevations) {
     point_clouds_ground.resize(polygons.size());
+    point_clouds.resize<PointCollection>(polygons.size());
 
     // make a vector of BOX2D for the set of input polygons
     // build point in polygon grids
@@ -89,13 +90,17 @@ class PointsInPolygonsCollector  {
 
   }
 
-  void add_point(arr3f point, int point_class) {
-    pPipoint pipoint = new Pipoint{point[0],point[1]};
+  ~PointsInPolygonsCollector() {
+    for (int i=0; i<poly_grids.size(); i++) {
+      delete poly_grids[i];
+    }
+  }
 
+  void add_point(arr3f point, int point_class) {
     // look up grid index cell and do pip for all polygons retreived from that cell
     size_t lincoord = pindex.getLinearCoord(point[0],point[1]);
     if (lincoord >= pindex_vals.size() || lincoord < 0) {
-      std::cout << "Point (" << point[0] << ", " <<point[1] << ", "  << point[2] << ") is not in the polygon bbox.\n";
+      // std::cout << "Point (" << point[0] << ", " <<point[1] << ", "  << point[2] << ") is not in the polygon bbox.\n";
       return;
     }
     // For the ground points we only test if the point is within the grid
@@ -111,6 +116,7 @@ class PointsInPolygonsCollector  {
     //    Thus a single ground height value per grid cell is good enough for
     //    representing the ground/floor elevation of the buildings in that
     //    grid cell.
+    pPipoint pipoint = new Pipoint{point[0],point[1]};
     for(size_t& poly_i : pindex_vals[lincoord]) {
       if (point_class == 2) {
         point_clouds_ground[poly_i].push_back(point[2]);
@@ -121,6 +127,7 @@ class PointsInPolygonsCollector  {
         }
       }
     }
+    delete pipoint;
   }
 
   void compute_ground_elevation(float& ground_percentile) {
@@ -145,58 +152,30 @@ void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
 
   auto& point_clouds = vector_output("point_clouds");
-  point_clouds.resize<PointCollection>(polygons.size());
-  auto& color_clouds = vector_output("colors");
-  color_clouds.resize<vec3f>(polygons.size());
+  auto& ground_elevations = vector_output("ground_elevations");
 
-  std::vector<pGridSet> poly_grids;
-          
-  for (size_t i=0; i<polygons.size(); ++i) {
-    poly_grids.push_back(build_grid(polygons.get<LinearRing>(i)));
-  }
+  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
 
   LASreadOpener lasreadopener;
-  lasreadopener.set_file_name(filepath.c_str());
+  lasreadopener.set_file_name(manager.substitute_globals(filepath).c_str());
   LASreader* lasreader = lasreadopener.open();
   
   if (!lasreader)
     return;
 
   while (lasreader->read_point()) {
-    if (do_filter && lasreader->point.get_classification() != filter_class) {
-      continue;
-    } else {
-      int i=0;
-      pPipoint point = new Pipoint{ lasreader->point.get_x()-(*manager.data_offset)[0], lasreader->point.get_y()-(*manager.data_offset)[1] };
-      
-      for (auto& poly_grid:poly_grids) {
-        if (GridTest(poly_grid, point)) {
-          color_clouds.get<vec3f&>(i).push_back({
-            float(lasreader->point.get_R())/65535,
-            float(lasreader->point.get_G())/65535,
-            float(lasreader->point.get_B())/65535
-          });
-          point_clouds.get<PointCollection&>(i).push_back({
-            float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
-            float(lasreader->point.get_y()-(*manager.data_offset)[1]),
-            float(lasreader->point.get_z()-(*manager.data_offset)[2])
-          });
-
-          break;
-          // laswriter->write_point(&lasreader->point);
-        }
-        i++;
-      }
-      delete point;
-    }
-  }
-  for (int i=0; i<poly_grids.size(); i++) {
-    delete poly_grids[i];
+    pip_collector.add_point(
+      {
+      float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
+      float(lasreader->point.get_y()-(*manager.data_offset)[1]),
+      float(lasreader->point.get_z()-(*manager.data_offset)[2]) 
+      }, 
+      lasreader->point.get_classification()
+    );
   }
   lasreader->close();
   delete lasreader;
-
-  // output("point_clouds").set(point_clouds);
+  pip_collector.compute_ground_elevation(ground_percentile);
 }
 
 void EptInPolygonsNode::process()
@@ -206,12 +185,11 @@ void EptInPolygonsNode::process()
 
   // Prepare outputs
   auto& point_clouds = vector_output("point_clouds");
-  point_clouds.resize<PointCollection>(polygons.size());
   auto& ground_elevations = vector_output("ground_elevations");
 
   PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
 
-  std::string ept_path = "ept://" + dirpath;
+  std::string ept_path = "ept://" + manager.substitute_globals(dirpath);
   {
     // This scope is for debugging
     pdal::EptReader reader;

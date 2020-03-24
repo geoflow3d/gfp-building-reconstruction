@@ -41,7 +41,7 @@ namespace as {
 namespace geoflow::nodes::stepedge {
 
   float compute_percentile(std::vector<float>& z_vec, float percentile);
-  
+
   typedef std::unordered_map<int, std::pair<Plane, std::vector<Point>>> IndexedPlanesWithPoints;
 
   class AlphaShapeNode:public Node {
@@ -512,18 +512,20 @@ namespace geoflow::nodes::stepedge {
 
   class LASInPolygonsNode:public Node {
     std::string filepath = "";
-    int filter_class = 6;
-    bool do_filter = true;
+    float cellsize = 50.0;
+    float buffer = 1.0;
+    float ground_percentile=0.1;
     public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
-      add_vector_output("colors", typeid(vec3f));
+      add_vector_output("ground_elevations", typeid(float));
 
       add_param("las_filepath", ParamPath(filepath, "LAS filepath"));
-      add_param("filter_class", ParamBoundedInt(filter_class, 0, 100, "Filter class"));
-      add_param("do_filter", ParamBool(do_filter, "Do filter"));
+      add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
+      add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
+      add_param("ground_percentile", ParamBoundedFloat(ground_percentile, 0, 1, "Ground elevation percentile"));
     }
     void process();
   };
@@ -533,7 +535,7 @@ namespace geoflow::nodes::stepedge {
     std::string filter_limits = "Classification[2:2],Classification[6:6]";
     float cellsize = 50.0;
     float buffer = 1.0;
-    float ground_percentile=0.5;
+    float ground_percentile=0.1;
   public:
     using Node::Node;
     void init() {
