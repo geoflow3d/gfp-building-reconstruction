@@ -27,7 +27,7 @@ jobs:
         run: |
           echo $env:VCPKG_INSTALLATION_ROOT
           $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
-          vcpkg install cgal gdal
+          vcpkg install cgal gdal boost-geometry
       - name: Install Geoflow
         run: |
           Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.1/Geoflow-0.1.1-win64.exe -OutFile geoflow-setup.exe
