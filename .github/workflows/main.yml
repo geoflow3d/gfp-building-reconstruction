@@ -15,8 +15,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install GDAL
         run: |
-          Invoke-WebRequest http://download.gisinternals.com/sdk/downloads/release-1911-x64-gdal-2-4-4-mapserver-7-4-3/gdal-204-1911-x64-core.msi -OutFile gdal.msi
-          .\gdal.msi /quiet /n
+          Invoke-WebRequest http://download.gisinternals.com/sdk/downloads/release-1911-x64-gdal-2-4-4-mapserver-7-4-3/gdal-204-1911-x64-core.msi -OutFile gdal-204-1911-x64-core.msi
+          (Start-Process "msiexec.exe" -ArgumentList "/i gdal-204-1911-x64-core.msi INSTALLDIR=""C:\Software\GDAL"" ADSK_SETUP_EXE=1 /qb!" -NoNewWindow -Wait -PassThru).ExitCode
       - name: Install LASlib
         run: |
           git clone https://github.com/LAStools/LAStools.git
