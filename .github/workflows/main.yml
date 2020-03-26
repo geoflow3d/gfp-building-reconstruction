@@ -13,6 +13,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install GDAL
+        run: |
+          Invoke-WebRequest http://download.gisinternals.com/sdk/downloads/release-1911-x64-gdal-2-4-4-mapserver-7-4-3/gdal-204-1911-x64-core.msi -OutFile gdal.msi
+          .\gdal.msi /quiet /n
       - name: Install LASlib
         run: |
           git clone https://github.com/LAStools/LAStools.git
@@ -23,11 +27,11 @@ jobs:
           cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software
           cmake --build . --config Release --parallel 4
           cmake --install .
-      - name: Install dependencies
+      - name: Install CGAL & Boost
         run: |
           echo $env:VCPKG_INSTALLATION_ROOT
           $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
-          vcpkg install cgal gdal boost-geometry
+          vcpkg install cgal boost-geometry
       - name: Install Geoflow
         run: |
           Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.1/Geoflow-0.1.1-win64.exe -OutFile geoflow-setup.exe
@@ -37,7 +41,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software -DGFP_WITH_PDAL=OFF
-          cmake --build . --target gfp_building_reconstruction --parallel 4 --config Release
+          cmake --build . --target gfp_stepedge --parallel 4 --config Release
       - name: Create artifact
         uses: actions/upload-artifact@master
         with:
