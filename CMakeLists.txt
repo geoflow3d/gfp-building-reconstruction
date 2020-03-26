@@ -35,6 +35,10 @@ if(GFP_WITH_PDAL)
 endif(GFP_WITH_PDAL)
 
 if (MSVC)
+  # windows.h breaks std::min/std::max, fix by define
+  add_definitions(-DNOMINMAX)
+  # disable language extension for compiling and/or statements
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Za")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:precise")
 endif()
 
