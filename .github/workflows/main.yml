@@ -29,14 +29,14 @@ jobs:
         vcpkg install cgal gdal
     - name: Install Geoflow
       run: |
-        Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.0/Geoflow-0.1.0-win64.exe -OutFile geoflow-setup.exe
+        Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.1/Geoflow-0.1.1-win64.exe -OutFile geoflow-setup.exe
         .\geoflow-setup.exe /S
     - uses: actions/checkout@v2
     - name: Build
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software
+        cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software -DGFP_WITH_PDAL=OFF
         cmake --build . --target gfp_building_reconstruction --parallel 4 --config Release
     - name: Create artifact
       uses: actions/upload-artifact@master
