@@ -121,6 +121,7 @@ namespace geoflow::nodes::stepedge {
       add_input("roof_elevation", typeid(float));
       add_vector_output("3d_polygons", typeid(LinearRing));
       add_output("surface_types", typeid(vec1i));
+      add_output("mesh", typeid(Mesh));
     }
 
     void process();
@@ -175,6 +176,7 @@ namespace geoflow::nodes::stepedge {
       // add_output("normals_vec3f", typeid(vec3f), true);
       add_vector_output("labels", typeid(int)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_vector_output("faces", typeid(LinearRing));
+      add_output("mesh", typeid(Mesh));
 
       add_param("do_walls", ParamBool(do_walls, "Do walls"));
       add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));

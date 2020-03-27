@@ -308,6 +308,9 @@ void LOD1ExtruderNode::process() {
   auto& rings_3d = vector_output("3d_polygons");
   vec1i surf_type;
 
+  Mesh mesh;
+  // mesh.create_attribute_field<int>("surface_type");
+
   //TODO: we need to consider holes
 
   //floor
@@ -319,6 +322,8 @@ void LOD1ExtruderNode::process() {
   for (auto& p : r_roof) p[2] = h_roof;
   rings_3d.push_back(r_roof);
   surf_type.push_back(2);
+  mesh.push_polygon(r_roof);
+  // mesh.push_attribute("surface_type", int(2));
   //walls
   size_t j_prev = ring.size()-1;
   for (size_t j=0; j<ring.size(); ++j) {
@@ -328,8 +333,10 @@ void LOD1ExtruderNode::process() {
     wall.push_back(r_roof[j]);
     wall.push_back(r_roof[j_prev]);
 
-    surf_type.push_back(1);
     rings_3d.push_back(wall);
+    surf_type.push_back(1);
+    mesh.push_polygon(wall);
+    // mesh.push_attribute("surface_type", int(1));
     j_prev=j;
   }
 
@@ -337,8 +344,11 @@ void LOD1ExtruderNode::process() {
   std::reverse(r_floor.begin(), r_floor.end());
   rings_3d.push_back(r_floor);
   surf_type.push_back(0);
+  mesh.push_polygon(r_floor);
+  // mesh.push_attribute("surface_type", int(0));
 
   output("surface_types").set(surf_type);
+  output("mesh").set(mesh);
 }
 
 inline arr3f grow(const arr3f& p_, const arr3f& q_, const arr3f& r_, const float& extension) {
@@ -407,13 +417,15 @@ void Arr2LinearRingsNode::process(){
   auto &attr_rooftype_term = poly_output("attributes").add_vector("dak_type", typeid(int));
   input_attr_map["dak_type"] = &attr_rooftype_term;
   auto &attr_elevation_term = poly_output("attributes").add_vector("hoogte_abs", typeid(float));
+  auto &attr_arr_complexity_term = poly_output("attributes").add_vector("arr_complexity", typeid(int));
+  input_attr_map["arr_complexity"] = &attr_arr_complexity_term;
+
+  // attributes specific to each roofpart
   input_attr_map["hoogte_abs"] = &attr_elevation_term;
   auto &attr_roofid_term = poly_output("attributes").add_vector("dak_id", typeid(int));
   input_attr_map["dak_id"] = &attr_roofid_term;
   // auto &attr_objectid_term = poly_output("attributes").add_vector("building_id", typeid(int));
   // input_attr_map["building_id"] = &attr_objectid_term;
-  auto &attr_arr_complexity_term = poly_output("attributes").add_vector("arr_complexity", typeid(int));
-  input_attr_map["arr_complexity"] = &attr_arr_complexity_term;
 
   int j=0;
   for (auto face: arr.face_handles()){
@@ -426,14 +438,17 @@ void Arr2LinearRingsNode::process(){
       arrangementface_to_polygon(face, polygon);
       linear_rings.push_back(polygon);
 
+      // attributes specific to each roofpart
       input_attr_map["hoogte_abs"]->push_back((float)face->data().elevation_avg);
+      
+      input_attr_map["dak_id"]->push_back((int)++j);
+      // input_attr_map["building_id"]->push_back(int(i+1));
+
+      //attributes not specific to roofpart
       input_attr_map["rmse"]->push_back((float)mesh_error);
       input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
       input_attr_map["dak_type"]->push_back((int)roof_type);
-      input_attr_map["dak_id"]->push_back((int)++j);
-      // input_attr_map["building_id"]->push_back(int(i+1));
       input_attr_map["arr_complexity"]->push_back(arr_complexity);
-
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
         input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
       }
@@ -624,6 +639,9 @@ void ArrExtruderNode::process(){
   auto& faces = vector_output("faces");
   auto& surface_labels = vector_output("labels");
 
+  Mesh mesh;
+  // mesh.create_attribute_field<int>("surface_type");
+
   auto unbounded_face = arr.unbounded_face();
   unbounded_face->data().elevation_avg=floor_elevation;
 
@@ -641,6 +659,8 @@ void ArrExtruderNode::process(){
       } while(he!=first);
       faces.push_back(floor);
       surface_labels.push_back(int(0));
+      mesh.push_polygon(floor);
+      // mesh.push_attribute("surface_type", int(0));
     }
   }
 
@@ -738,6 +758,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2b));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a>h2b)) {
         wall_face_1.push_back(v2p(v2,h2a));
@@ -750,6 +772,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a<h1b) and (h2a>h2b)) {
         // compute vx and hx
@@ -782,8 +806,12 @@ void ArrExtruderNode::process(){
         
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
         faces.push_back(wall_face_2);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_2);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a<h2b)) {
         // compute vx and hx
@@ -816,8 +844,12 @@ void ArrExtruderNode::process(){
         
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
         faces.push_back(wall_face_2);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_2);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a==h2b)) {
         wall_face_1.push_back(v2p(v1,h1b));
@@ -827,6 +859,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a<h1b) and (h2a==h2b)) {
         wall_face_1.push_back(v2p(v1,h1b));
@@ -836,6 +870,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h2b>h2a) and (h1a==h1b)) {
         wall_face_1.push_back(v2p(v2,h2a));
@@ -845,6 +881,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h2b<h2a) and (h1a==h1b)) {
         wall_face_1.push_back(v2p(v2,h2a));
@@ -854,6 +892,8 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
+        mesh.push_polygon(wall_face_1);
+        // mesh.push_attribute("surface_type", wall_label);
       }
     }
   }
@@ -878,12 +918,16 @@ void ArrExtruderNode::process(){
         if (roofpart.size()>2) {
           faces.push_back(roofpart);
           surface_labels.push_back(int(1));
+          mesh.push_polygon(roofpart);
+          // mesh.push_attribute("surface_type", int(1));
         }
 
       }
     }
 
   }
+
+  output("mesh").set(mesh);
   
 }
 
@@ -2209,7 +2253,10 @@ void DetectPlanesNode::process() {
     building_type=2;
   }
 
-  output("roof_elevation").set(compute_percentile(roof_elevations, roof_percentile));
+  if(!roof_elevations.size())
+    output("roof_elevation").set(float(0));
+  else
+    output("roof_elevation").set(compute_percentile(roof_elevations, roof_percentile));
   output("roof_type").set(building_type);
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
   output("slant_roofplane_cnt").set(float(slant_roofplane_cnt));
