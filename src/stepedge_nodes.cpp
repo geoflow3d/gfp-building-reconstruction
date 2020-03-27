@@ -648,7 +648,7 @@ void ArrExtruderNode::process(){
   // floor
   if (do_floor) {
     std::cout << "arrangement has " << arr.number_of_unbounded_faces() << "unbounded faces\n";
-    for(auto hole = unbounded_face->holes_begin(); hole != unbounded_face->holes_end(); ++hole ) {
+    for(Arrangement_2::Hole_iterator hole = unbounded_face->holes_begin(); hole != unbounded_face->holes_end(); ++hole ) {
       LinearRing floor;
       auto he = *hole;
       auto first = he;
@@ -906,7 +906,7 @@ void ArrExtruderNode::process(){
         auto he = face->outer_ccb();
         push_ccb(roofpart, he, vertex_columns, extra_wall_points, snap_tolerance);
 
-        for(auto hole = face->holes_begin(); hole != face->holes_end(); ++hole ) {
+        for(Arrangement_2::Hole_iterator hole = face->holes_begin(); hole != face->holes_end(); ++hole ) {
           vec3f roofpart_hole;
           auto he = *hole;
           push_ccb(roofpart_hole, he, vertex_columns, extra_wall_points, snap_tolerance);
