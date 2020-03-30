@@ -43,7 +43,7 @@ if (MSVC)
 endif()
 
 set(GF_PLUGIN_NAME ${PROJECT_NAME})
-set(GF_PLUGIN_TARGET_NAME "gfp_stepedge")
+set(GF_PLUGIN_TARGET_NAME "gfp_buildingreconstruction")
 set(GF_PLUGIN_REGISTER ${PROJECT_SOURCE_DIR}/register.hpp)
 geoflow_create_plugin(
   src/stepedge_nodes.cpp
@@ -57,14 +57,14 @@ geoflow_create_plugin(
   src/polygon_triangulate.cpp
 )
 
-target_include_directories(gfp_stepedge PRIVATE
+target_include_directories(gfp_buildingreconstruction PRIVATE
   src
   thirdparty/ptinpoly
   thirdparty/earcut
   thirdparty/region-grower
   ${PDAL_INCLUDE_DIRS}
 )
-target_link_libraries( gfp_stepedge PRIVATE
+target_link_libraries( gfp_buildingreconstruction PRIVATE
   geoflow-core
   ptinpoly
   glm
@@ -72,6 +72,6 @@ target_link_libraries( gfp_stepedge PRIVATE
   LASlib
   ${PDAL_LIBRARIES} 
 )
-target_link_directories( gfp_stepedge PRIVATE
+target_link_directories( gfp_buildingreconstruction PRIVATE
   ${PDAL_LIBRARY_DIRS}
 )
