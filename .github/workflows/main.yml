@@ -37,7 +37,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_INSTALL_PREFIX=C:\Software -DGFP_WITH_PDAL=OFF
-          cmake --build . --target gfp_stepedge --parallel 4 --config Release
+          cmake --build . --target gfp_building-reconstruction --parallel 4 --config Release
       - name: Create artifact
         uses: actions/upload-artifact@master
         with:
