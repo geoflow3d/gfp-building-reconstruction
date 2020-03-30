@@ -105,6 +105,14 @@ void mark_domains(CDT& cdt) {
   }
 }
 
+Polygon_2 project(geoflow::vec3f& ring, Plane_3& plane) {
+  Polygon_2 poly_2d;
+  for (auto& p : ring) {
+    poly_2d.push_back(plane.to_2d(K::Point_3(p[0], p[1], p[2])));
+  }
+  return poly_2d;
+}
+
 void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, CDT& cdt) {
   auto pit_last = ring.end()-1;
   CDT::Vertex_handle new_vh, vh_last, vh = cdt.insert(plane.to_2d(K::Point_3((*pit_last)[0], (*pit_last)[1], (*pit_last)[2])));
@@ -151,9 +159,16 @@ void PolygonTriangulatorNode::process()
     
     // project and triangulate
     CDT triangulation;
-    project_and_insert(poly_3d, plane, triangulation);
+    // project_and_insert(poly_3d, plane, triangulation);
+    Polygon_2 poly_2d = project(poly_3d, plane);
+    if(CGAL::abs(poly_2d.area())<1E-4) {
+      continue;
+    }
+    triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     for (auto& ring : poly_3d.interior_rings()) {
-      project_and_insert(poly_3d, plane, triangulation);
+      // project_and_insert(poly_3d, plane, triangulation);
+      poly_2d = project(poly_3d, plane);
+      triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     }
 
     mark_domains(triangulation);
