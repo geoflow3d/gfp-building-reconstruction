@@ -40,7 +40,7 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TriangulationDataStructure
 typedef CGAL::Polygon_2<K> Polygon_2;
 typedef CGAL::Plane_3<K> Plane_3;
 
-glm::vec3 calculate_normal<typename T>(const T ring)
+glm::vec3 calculate_normal(const LinearRing ring)
 {
   glm::vec3 normal(0, 0, 0);
   for (size_t i = 0; i < ring.size(); ++i)
