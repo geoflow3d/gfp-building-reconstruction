@@ -54,6 +54,7 @@ geoflow_create_plugin(
   src/node_pcmesh_quality.cpp
   src/Raster.cpp
   src/heightfield_nodes.cpp
+  src/polygon_triangulate.cpp
 )
 
 target_include_directories(gfp_stepedge PRIVATE

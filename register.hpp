@@ -35,4 +35,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     // node_register.register_node<VecArr2LinearRingsNode>("VecArr2LinearRings");
     node_register.register_node<ArrExtruderNode>("ArrExtruder");
     node_register.register_node<LOD1ExtruderNode>("LOD1Extruder");
+    node_register.register_node<PolygonTriangulatorNode>("PolygonTriangulator");
 }

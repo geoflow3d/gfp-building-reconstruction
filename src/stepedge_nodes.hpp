@@ -818,5 +818,16 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class PolygonTriangulatorNode:public Node {
+    public:
+    using Node::Node;
+    void init() {
+      add_vector_input("polygons", typeid(LinearRing));
+      add_output("triangles", typeid(TriangleCollection));
+      add_output("normals", typeid(vec3f));
+      add_output("ring_ids", typeid(vec1i));
+    }
+    void process();
+  };
 
 }
