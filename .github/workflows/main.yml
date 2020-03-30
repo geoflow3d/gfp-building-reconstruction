@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software -DGFP_WITH_PDAL=OFF -DCMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\share\glm -DCMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\share\lastools\LASlib -DCMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\share\mpir -DCMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\share\cgal -DGMP_INCLUDE_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\include -DMPFR_INCLUDE_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\include
+          cmake .. -A x64 -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=C:\Software -DGFP_WITH_PDAL=OFF -DCMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\share\lastools\LASlib
           cmake --build . --target gfp_stepedge --parallel 4 --config Release
       - name: Create artifact
         uses: actions/upload-artifact@master
