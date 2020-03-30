@@ -63,7 +63,7 @@ target_include_directories(gfp_building-reconstruction PRIVATE
   thirdparty/region-grower
   ${PDAL_INCLUDE_DIRS}
 )
-target_link_libraries(gfp_building-reconstruction PRIVATE
+target_link_libraries( gfp_building-reconstruction PRIVATE
   geoflow-core
   ptinpoly
   glm
@@ -71,6 +71,6 @@ target_link_libraries(gfp_building-reconstruction PRIVATE
   LASlib
   ${PDAL_LIBRARIES} 
 )
-target_link_directories(gfp_building-reconstruction PRIVATE
+target_link_directories( gfp_building-reconstruction PRIVATE
   ${PDAL_LIBRARY_DIRS}
 )
