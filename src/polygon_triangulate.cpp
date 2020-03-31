@@ -159,16 +159,16 @@ void PolygonTriangulatorNode::process()
     
     // project and triangulate
     CDT triangulation;
-    // project_and_insert(poly_3d, plane, triangulation);
     Polygon_2 poly_2d = project(poly_3d, plane);
     if(CGAL::abs(poly_2d.area())<1E-4) {
       continue;
     }
+    project_and_insert(poly_3d, plane, triangulation);
     triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     for (auto& ring : poly_3d.interior_rings()) {
-      // project_and_insert(poly_3d, plane, triangulation);
-      poly_2d = project(poly_3d, plane);
-      triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
+      project_and_insert(poly_3d, plane, triangulation);
+      // poly_2d = project(poly_3d, plane);
+      // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     }
 
     mark_domains(triangulation);
