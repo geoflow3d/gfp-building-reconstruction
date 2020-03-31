@@ -175,7 +175,7 @@ namespace geoflow::nodes::stepedge {
       auto box = alpha_rings.box();
       auto boxmin = box.min();
       auto boxmax = box.max();
-      r = RasterTools::Raster(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+      r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);
       r.prefill_arrays(RasterTools::MAX);
     // }
 
@@ -186,23 +186,24 @@ namespace geoflow::nodes::stepedge {
       // auto dt = alpha_dts[ring_cntr];
       as::Triangulation_2 T;
       auto points = pts_per_roofplane[roofplane_ids[ring_cntr]].second;
+      auto plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
       T.insert(points.begin(), points.end());
       auto as = as::Alpha_shape_2(T, as::FT(thres_alpha), as::Alpha_shape_2::GENERAL);
 
       for (auto& p : points_inside) {
         // grid_points.push_back(p);
         
-        // do linear TIN interpolation
-        auto face = as.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
-        if (face==nullptr) continue;
-        if (as.is_infinite(face)) continue;
-        if (as.classify(face) == as::Alpha_shape_2::EXTERIOR) continue;
+        // // do linear TIN interpolation
+        // auto face = as.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
+        // if (face==nullptr) continue;
+        // if (as.is_infinite(face)) continue;
+        // if (as.classify(face) == as::Alpha_shape_2::EXTERIOR) continue;
 
-        CGAL::Plane_3<as::K> plane(
-          face->vertex(0)->point(),
-          face->vertex(1)->point(),
-          face->vertex(2)->point()
-        );
+        // CGAL::Plane_3<as::K> plane(
+        //   face->vertex(0)->point(),
+        //   face->vertex(1)->point(),
+        //   face->vertex(2)->point()
+        // );
         double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
         r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
 
