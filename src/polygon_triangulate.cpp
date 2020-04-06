@@ -194,6 +194,9 @@ void PolygonTriangulatorNode::process()
       // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     }
 
+    if (triangulation.number_of_faces()==0)
+      continue;
+
     mark_domains(triangulation);
 
     for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
