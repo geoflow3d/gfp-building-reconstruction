@@ -819,6 +819,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class PolygonTriangulatorNode:public Node {
+    float dupe_threshold = 1E-5;
     public:
     using Node::Node;
     void init() {

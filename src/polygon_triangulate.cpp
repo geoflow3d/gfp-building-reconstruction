@@ -132,6 +132,26 @@ void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, CDT& cdt) {
   }
 }
 
+bool has_duplicates_ring(vec3f& poly, float& dupe_threshold) {
+  auto pl = *poly.rbegin();
+  for (auto& p : poly) {
+    if (std::fabs(pl[0]-p[0])< dupe_threshold && std::fabs(pl[1]-p[1])< dupe_threshold && std::fabs(pl[2]-p[2])< dupe_threshold) {
+      return true;
+    }
+    pl=p;
+  }
+  return false;
+}
+
+bool has_duplicates(LinearRing& poly, float& dupe_threshold) {
+  if (has_duplicates_ring(poly, dupe_threshold)) return true;
+
+  for (auto& ring : poly.interior_rings())
+    if (has_duplicates_ring(ring, dupe_threshold)) return true;
+  
+  return false;
+}
+
 void PolygonTriangulatorNode::process()
 {
   auto &rings = vector_input("polygons");
@@ -149,6 +169,9 @@ void PolygonTriangulatorNode::process()
     if (poly_3d.size() < 3)
       continue;
 
+    if (has_duplicates(poly_3d, dupe_threshold))
+      continue;
+
     auto normal = calculate_normal(poly_3d);
     if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){
       std::cout << "degenerate normal: " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
@@ -159,12 +182,12 @@ void PolygonTriangulatorNode::process()
     
     // project and triangulate
     CDT triangulation;
-    Polygon_2 poly_2d = project(poly_3d, plane);
-    if(CGAL::abs(poly_2d.area())<1E-4) {
-      continue;
-    }
+    // Polygon_2 poly_2d = project(poly_3d, plane);
+    // if(CGAL::abs(poly_2d.area())<1E-4) {
+    //   continue;
+    // }
     project_and_insert(poly_3d, plane, triangulation);
-    triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
+    // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     for (auto& ring : poly_3d.interior_rings()) {
       project_and_insert(poly_3d, plane, triangulation);
       // poly_2d = project(poly_3d, plane);
