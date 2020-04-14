@@ -62,15 +62,15 @@ namespace geoflow::nodes::stepedge {
       add_output("boundary_points", typeid(PointCollection));
       add_output("roofplane_ids", typeid(vec1i));
 
-      add_param("thres_alpha", ParamFloat(thres_alpha, "thres_alpha"));
-      add_param("optimal_alpha", ParamBool(optimal_alpha, "optimal_alpha"));
-      add_param("optimal_only_if_needed", ParamBool(optimal_only_if_needed, "optimal_only_if_needed"));
+      add_param(ParamFloat(thres_alpha, "thres_alpha", "thres_alpha"));
+      add_param(ParamBool(optimal_alpha, "optimal_alpha", "optimal_alpha"));
+      add_param(ParamBool(optimal_only_if_needed, "optimal_only_if_needed", "optimal_only_if_needed"));
     }
 
-    void before_gui(){
-      auto param = std::get<ParamBool>(parameters.at("optimal_only_if_needed"));
-      param.set_visible(optimal_alpha);
-    }
+    // void before_gui(){
+    //   auto param = std::get<ParamBool>(parameters.at("optimal_only_if_needed"));
+    //   param.set_visible(optimal_alpha);
+    // }
     void process();
   };
 
@@ -178,13 +178,13 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("faces", typeid(LinearRing));
       add_output("mesh", typeid(Mesh));
 
-      add_param("do_walls", ParamBool(do_walls, "Do walls"));
-      add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
-      add_param("do_floor", ParamBool(do_floor, "Do floor"));
-      add_param("LoD2", ParamBool(LoD2, "LoD2"));
-      // add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
-      add_param("nodata_elevation", ParamFloat(nodata_elevation, "Nodata elevation"));
-      add_param("snap_tolerance_exp", ParamInt(snap_tolerance_exp, "Snap tolerance"));
+      add_param(ParamBool(do_walls, "do_walls", "Do walls"));
+      add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
+      add_param(ParamBool(do_floor, "do_floor", "Do floor"));
+      add_param(ParamBool(LoD2, "LoD2", "LoD2"));
+      // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
+      add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
+      add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
     }
     void process();
   };
@@ -211,12 +211,12 @@ namespace geoflow::nodes::stepedge {
       add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
 
-      add_param("do_walls", ParamBool(do_walls, "Do walls"));
-      add_param("do_roofs", ParamBool(do_roofs, "Do roofs"));
-      add_param("in_footprint", ParamBool(in_footprint, "in_footprint"));
-      add_param("LoD2", ParamBool(LoD2, "LoD2"));
-      add_param("base_elevation", ParamFloat(base_elevation, "Base elevation"));
-      add_param("nodata_elevation", ParamFloat(nodata_elevation, "Nodata elevation"));
+      add_param(ParamBool(do_walls, "do_walls", "Do walls"));
+      add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
+      add_param(ParamBool(in_footprint, "in_footprint", "in_footprint"));
+      add_param(ParamBool(LoD2, "LoD2", "LoD2"));
+      add_param(ParamFloat(base_elevation, "base_elevation", "Base elevation"));
+      add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
     }
     void process();
   };
@@ -229,7 +229,7 @@ namespace geoflow::nodes::stepedge {
       add_input("rings", typeid(LinearRingCollection));
       add_output("rings", typeid(LinearRingCollection));
 
-      add_param("extension", ParamFloat(extension, "Extension length"));
+      add_param(ParamFloat(extension, "extension", "Extension length"));
     }
     void process();
   };
@@ -268,18 +268,18 @@ namespace geoflow::nodes::stepedge {
       add_output("snap_fp_to_v", typeid(PointCollection));
       add_output("snap_fp_v", typeid(PointCollection));
 
-      add_param("extrude_unsegmented", ParamBool(extrude_unsegmented, "extrude_unsegmented"));
-      add_param("extrude_mindensity", ParamBoundedFloat(extrude_mindensity, 1, 20, "Extrude min density"));
-      add_param("z_percentile", ParamBoundedFloat(z_percentile, 0, 1, "Elevation percentile"));
-      add_param("rel_area_thres", ParamBoundedFloat(rel_area_thres, 0.01, 1, "Preserve split ring area"));
-      add_param("flood_to_unsegmented", ParamBool(flood_to_unsegmented, "flood_to_unsegmented"));
-      add_param("dissolve_edges", ParamBool(dissolve_edges, "dissolve_edges"));
-      add_param("dissolve_stepedges", ParamBool(dissolve_stepedges, "dissolve_stepedges"));
-      add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
-      add_param("snap_clean", ParamBool(snap_clean, "Snap"));
-      add_param("snap_clean_fp", ParamBool(snap_clean_fp, "Snap fp"));
-      add_param("snap_detect_only", ParamBool(snap_detect_only, "snap_detect_only"));
-      add_param("snap_dist", ParamBoundedFloat(snap_dist, 0.01, 5, "Snap distance"));
+      add_param(ParamBool(extrude_unsegmented, "extrude_unsegmented", "extrude_unsegmented"));
+      add_param(ParamBoundedFloat(extrude_mindensity, 1, 20, "extrude_mindensity",  "Extrude min density"));
+      add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
+      add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
+      add_param(ParamBool(flood_to_unsegmented, "flood_to_unsegmented", "flood_to_unsegmented"));
+      add_param(ParamBool(dissolve_edges, "dissolve_edges", "dissolve_edges"));
+      add_param(ParamBool(dissolve_stepedges, "dissolve_stepedges", "dissolve_stepedges"));
+      add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
+      add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
+      add_param(ParamBool(snap_clean_fp, "snap_clean_fp", "Snap fp"));
+      add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
+      add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
     }
     // std::string info() {
     //   ImGui::Text("Arrangement valid? %s", arr_is_valid? "yes" : "no");
@@ -304,8 +304,8 @@ namespace geoflow::nodes::stepedge {
       add_output("arrangement", typeid(Arrangement_2));
       add_output("arr_complexity", typeid(int));
 
-      add_param("rel_area_thres", ParamBoundedFloat(rel_area_thres, 0.01, 1, "Preserve split ring area"));
-      add_param("max_arr_complexity", ParamInt(max_arr_complexity, "Maximum nr of lines"));
+      add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
+      add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
     }
     void process();
   };
@@ -328,13 +328,13 @@ namespace geoflow::nodes::stepedge {
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
 
-      add_param("graph_cut_impl", ParamBoundedInt(graph_cut_impl, 0, 2, "Graph cut implementation"));
-      add_param("n_iterations", ParamBoundedInt(n_iterations, 0, 100, "Number of iterations"));
-      add_param("data_multiplier", ParamBoundedFloat(data_multiplier, 0.001, 100, "Multiplier on data term"));
-      add_param("smoothness_multiplier", ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "Multiplier on smoothness term"));
-      add_param("preset_labels", ParamBool(preset_labels, "Preset face labels"));
-      add_param("do_normalise", ParamBool(do_normalise, "Normalise weights"));
-      add_param("z_percentile", ParamBoundedFloat(z_percentile, 0, 1, "Elevation percentile"));
+      add_param(ParamBoundedInt(graph_cut_impl, 0, 2, "graph_cut_impl", "Graph cut implementation"));
+      add_param(ParamBoundedInt(n_iterations, 0, 100, "n_iterations", "Number of iterations"));
+      add_param(ParamBoundedFloat(data_multiplier, 0.001, 100,  "data_multiplier", "Multiplier on data term"));
+      add_param(ParamBoundedFloat(smoothness_multiplier, 0.001, 100,  "smoothness_multiplier", "Multiplier on smoothness term"));
+      add_param(ParamBool(preset_labels, "preset_labels", "Preset face labels"));
+      add_param(ParamBool(do_normalise, "do_normalise", "Normalise weights"));
+      add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
     }
     void process();
   };
@@ -354,12 +354,12 @@ namespace geoflow::nodes::stepedge {
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
 
-      add_param("graph_cut_impl", ParamBoundedInt(graph_cut_impl, 0, 2, "Graph cut implementation"));
-      add_param("n_iterations", ParamBoundedInt(n_iterations, 0, 100, "Number of iterations"));
-      add_param("data_multiplier", ParamBoundedFloat(data_multiplier, 0.001, 100, "Multiplier on data term"));
-      add_param("smoothness_multiplier", ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "Multiplier on smoothness term"));
-      add_param("preset_labels", ParamBool(preset_labels, "Preset face labels"));
-      add_param("z_percentile", ParamBoundedFloat(z_percentile, 0, 1, "Elevation percentile"));
+      add_param(ParamBoundedInt(graph_cut_impl, 0, 2, "graph_cut_impl", "Graph cut implementation"));
+      add_param(ParamBoundedInt(n_iterations, 0, 100, "n_iterations", "Number of iterations"));
+      add_param(ParamBoundedFloat(data_multiplier, 0.001, 100, "data_multiplier", "Multiplier on data term"));
+      add_param(ParamBoundedFloat(smoothness_multiplier, 0.001, 100, "smoothness_multiplier", "Multiplier on smoothness term"));
+      add_param(ParamBool(preset_labels, "preset_labels", "Preset face labels"));
+      add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
     }
     void process();
   };
@@ -375,10 +375,10 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_output("arrangement", typeid(Arrangement_2));
 
-      add_param("dissolve_outside_fp", ParamBool(dissolve_outside_fp, "Dissolve edges outside footprint"));
-      add_param("dissolve_seg_edges", ParamBool(dissolve_seg_edges, "Dissolve same label cells"));
-      add_param("dissolve_step_edges", ParamBool(dissolve_step_edges, "Dissolve step edges"));
-      add_param("step_height_threshold", ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold"));
+      add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
+      add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
+      add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges"));
+      add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
     }
     void process();
   };
@@ -423,14 +423,14 @@ namespace geoflow::nodes::stepedge {
       add_output("ring_order", typeid(vec1i));
       add_output("is_start", typeid(vec1i));
 
-      add_param("linear_knn", ParamBool(linear_knn, "Use linear neighbourhood for ring input"));
-      add_param("dist_thres", ParamFloat(dist_thres, "dist_thres"));
-      add_param("min_cnt_range", ParamIntRange(min_cnt_range, "Minimum segment count"));
-      add_param("k", ParamInt(k, "k"));
-      add_param("snap_threshold", ParamFloat(snap_threshold, "Chain snap thres"));
-      add_param("line_extend", ParamFloat(line_extend, "Extend lines"));
-      add_param("perform_chaining", ParamBool(perform_chaining, "Perform chaining"));
-      add_param("remove_overlap", ParamBool(remove_overlap, "Remove overlap"));
+      add_param(ParamBool(linear_knn, "linear_knn", "Use linear neighbourhood for ring input"));
+      add_param(ParamFloat(dist_thres, "dist_thres", "dist_thres"));
+      add_param(ParamIntRange(min_cnt_range, "min_cnt_range", "Minimum segment count"));
+      add_param(ParamInt(k, "k", "k"));
+      add_param(ParamFloat(snap_threshold, "snap_threshold", "Chain snap thres"));
+      add_param(ParamFloat(line_extend, "line_extend", "Extend lines"));
+      add_param(ParamBool(perform_chaining, "perform_chaining", "Perform chaining"));
+      add_param(ParamBool(remove_overlap, "remove_overlap", "Remove overlap"));
     }
     inline void detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out);
     inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, SegmentCollection& segments_out);
@@ -491,24 +491,24 @@ namespace geoflow::nodes::stepedge {
       add_output("slant_roofplane_cnt", typeid(float));
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
 
-      add_param("only_horizontal", ParamBool(only_horizontal, "Output only horizontal planes"));
-      add_param("horiz_min_count", ParamFloat(horiz_min_count, "Min horiz point count"));
-      add_param("metrics_normal_k", ParamInt(metrics_normal_k, "K estimate normal"));
-      add_param("metrics_plane_k", ParamInt(metrics_plane_k, "Knn plane segmentation"));
-      add_param("metrics_plane_min_points", ParamInt(metrics_plane_min_points, "Plane min points"));
-      add_param("metrics_plane_epsilon", ParamFloat(metrics_plane_epsilon, "Plane epsilon"));
-      add_param("metrics_plane_normal_threshold", ParamFloat(metrics_plane_normal_threshold, "Plane normal thres"));
-      add_param("metrics_is_horizontal_threshold", ParamFloat(metrics_is_horizontal_threshold, "Is horizontal"));
-      add_param("metrics_is_wall_threshold", ParamFloat(metrics_is_wall_threshold, "Wall angle thres"));
-      add_param("n_refit", ParamInt(n_refit, "Refit every n points"));
-      add_param("roof_percentile", ParamBoundedFloat(roof_percentile, 0, 1, "Roof elevation percentile"));
+      add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
+      add_param(ParamFloat(horiz_min_count, "horiz_min_count", "Min horiz point count"));
+      add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "K estimate normal"));
+      add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Knn plane segmentation"));
+      add_param(ParamInt(metrics_plane_min_points, "metrics_plane_min_points", "Plane min points"));
+      add_param(ParamFloat(metrics_plane_epsilon, "metrics_plane_epsilon", "Plane epsilon"));
+      add_param(ParamFloat(metrics_plane_normal_threshold, "metrics_plane_normal_threshold", "Plane normal thres"));
+      add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Is horizontal"));
+      add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
+      add_param(ParamInt(n_refit, "n_refit", "Refit every n points"));
+      add_param(ParamBoundedFloat(roof_percentile, 0, 1, "roof_percentile",  "Roof elevation percentile"));
     }
-    void before_gui(){
-      auto param_count = std::get<ParamFloat>(parameters.at("horiz_min_count"));
-      auto param_ishoriz = std::get<ParamFloat>(parameters.at("metrics_is_horizontal_threshold"));
-      param_count.set_visible(only_horizontal);
-      param_ishoriz.set_visible(only_horizontal);
-    }
+    // void before_gui(){
+    //   auto param_count = std::get<ParamFloat>(parameters.at("horiz_min_count"));
+    //   auto param_ishoriz = std::get<ParamFloat>(parameters.at("metrics_is_horizontal_threshold"));
+    //   param_count.set_visible(only_horizontal);
+    //   param_ishoriz.set_visible(only_horizontal);
+    // }
     void process();
   };
 
@@ -524,10 +524,10 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
 
-      add_param("las_filepaths", ParamPath(filepaths, "LAS filepaths"));
-      add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
-      add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
-      add_param("ground_percentile", ParamBoundedFloat(ground_percentile, 0, 1, "Ground elevation percentile"));
+      add_param(ParamPath(filepaths, "las_filepaths", "LAS filepaths"));
+      add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
+      add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
+      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };
@@ -546,11 +546,11 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
 
-      add_param("dirpath", ParamPath(dirpath, "EPT directory"));
+      add_param(ParamPath(dirpath, "dirpath", "EPT directory"));
       // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
-      add_param("cellsize", ParamBoundedFloat(cellsize, 1, 1000, "Grid index cellsize"));
-      add_param("buffer", ParamBoundedFloat(buffer, 0.1, 100, "Query buffer"));
-      add_param("ground_percentile", ParamBoundedFloat(ground_percentile, 0, 1, "Ground elevation percentile"));
+      add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
+      add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
+      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };
@@ -566,13 +566,13 @@ namespace geoflow::nodes::stepedge {
       add_output("point_cloud", typeid(PointCollection));
       add_output("polygon", typeid(LinearRing));
 
-      add_param("building_id", ParamBoundedInt(building_id, 0, polygon_count-1, "building_id"));
+      add_param(ParamBoundedInt(building_id, 0, polygon_count-1,  "building_id", "building_id"));
     }
     void on_receive(gfInputTerminal& it) {
       if (it.get_name() == "polygons") {
         polygon_count = vector_input("polygons").size();
-        auto param = std::get<ParamBoundedInt>(parameters.at("building_id"));
-        param.set_bounds(0, polygon_count-1);
+        auto param = static_cast<ParamBoundedInt*>(parameters.at("building_id").get());
+        param->set_bounds(0, polygon_count-1);
       }
     }
     void process();
@@ -609,8 +609,8 @@ namespace geoflow::nodes::stepedge {
       // add_output("footprint_labels", typeid(vec1i));
       // add_output("line_clusters", TT_any); // ie a LineCluster
       // add_output("tmp_vec3f", typeid(vec3f));
-      add_param("dist_threshold", ParamFloat(dist_threshold, "Distance threshold"));
-      add_param("angle_threshold", ParamBoundedFloat(angle_threshold, 0.01, pi, "Angle threshold"));
+      add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
+      add_param(ParamBoundedFloat(angle_threshold, 0.01, pi, "angle_threshold", "Angle threshold"));
     }
     void process();
   };
@@ -646,14 +646,14 @@ namespace geoflow::nodes::stepedge {
       // add_output("footprint_labels", typeid(vec1i));
       // add_output("line_clusters", TT_any); // ie a LineCluster
       // add_output("tmp_vec3f", typeid(vec3f));
-      add_param("dist_threshold", ParamFloat(dist_threshold, "Distance threshold"));
-      add_param("angle_threshold", ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "Angle threshold"));
-      add_param("snap_threshold", ParamBoundedFloat(snap_threshold, 0.01, 10, "Snap threshold"));
-      add_param("weighted_avg", ParamBool(weighted_avg, "weighted_avg"));
-      add_param("angle_per_distcluster", ParamBool(angle_per_distcluster, "angle_per_distcluster"));
-      add_param("regularise_fp", ParamBool(regularise_fp, "regularise_fp"));
-      add_param("recompute_rings", ParamBool(recompute_rings, "recompute_rings"));
-      add_param("fp_offset", ParamBoundedFloat(fp_offset, 0.01, 10, "fp_offset"));
+      add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
+      add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
+      add_param(ParamBoundedFloat(snap_threshold, 0.01, 10, "snap_threshold", "Snap threshold"));
+      add_param(ParamBool(weighted_avg, "weighted_avg", "weighted_avg"));
+      add_param(ParamBool(angle_per_distcluster, "angle_per_distcluster", "angle_per_distcluster"));
+      add_param(ParamBool(regularise_fp, "regularise_fp", "regularise_fp"));
+      add_param(ParamBool(recompute_rings, "recompute_rings", "recompute_rings"));
+      add_param(ParamBoundedFloat(fp_offset, 0.01, 10, "fp_offset", "fp_offset"));
     }
     void process();
   };
@@ -687,8 +687,8 @@ namespace geoflow::nodes::stepedge {
 
       add_output("lines", typeid(SegmentCollection));
 
-      add_param("min_neighb_pts", ParamInt(min_neighb_pts, "Minimum number of neighbouring points"));
-      add_param("min_dist_to_line", ParamFloat(min_dist_to_line, "Minimum number of neighbouring points"));
+      add_param(ParamInt(min_neighb_pts, "min_neighb_pts", "Minimum number of neighbouring points"));
+      add_param(ParamFloat(min_dist_to_line, "min_dist_to_line", "Minimum number of neighbouring points"));
     }
     void process();
   };
@@ -703,7 +703,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("polygons_simp", typeid(LinearRing));
       // add_output("polygon_simp", typeid(LinearRing));
 
-      add_param("threshold_stop_cost", ParamBoundedFloat(threshold_stop_cost, 0, 1000, "threshold_stop_cost"));
+      add_param(ParamBoundedFloat(threshold_stop_cost, 0, 1000, "threshold_stop_cost",  "threshold_stop_cost"));
     }
     // void on_change_parameter(std::string name, ParameterVariant& param){
     //   if (name == "threshold_stop_cost") {
@@ -743,7 +743,7 @@ namespace geoflow::nodes::stepedge {
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
 
-      add_param("cellsize", ParamBoundedFloat(cellsize, 0, 50, "cellsize"));
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
     void process();
   };
@@ -765,7 +765,7 @@ namespace geoflow::nodes::stepedge {
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
 
-      add_param("cellsize", ParamBoundedFloat(cellsize, 0, 50, "cellsize"));
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
     void process();
   };
@@ -810,10 +810,10 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("heightfield_pts", typeid(PointCollection));
 
-      add_param("cellsize", ParamBoundedFloat(cellsize, 0, 50, "cellsize"));
-      add_param("angle_thres", ParamBoundedFloat(angle_thres, 0, 180, "angle_thres"));
-      add_param("count_thres", ParamBoundedInt(count_thres, 0, 10, "count_thres"));
-      add_param("area_thres", ParamBoundedFloat(area_thres, 0, 100, "area_thres"));
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+      add_param(ParamBoundedFloat(angle_thres, 0, 180, "angle_thres",  "angle_thres"));
+      add_param(ParamBoundedInt(count_thres, 0, 10, "count_thres", "count_thres"));
+      add_param(ParamBoundedFloat(area_thres, 0, 100, "area_thres",  "area_thres"));
     }
     void process();
   };
