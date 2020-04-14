@@ -397,6 +397,8 @@ namespace geoflow::nodes::stepedge {
     bool linear_knn = false;
     float dist_thres = 0.4;
     std::pair<int,int> min_cnt_range = {5,10};
+    int min_cnt_range_lower = 5;
+    int min_cnt_range_upper = 10;
     int k = 10;
     float snap_threshold = 1;
     float line_extend = 0.05;
@@ -425,7 +427,8 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBool(linear_knn, "linear_knn", "Use linear neighbourhood for ring input"));
       add_param(ParamFloat(dist_thres, "dist_thres", "dist_thres"));
-      add_param(ParamIntRange(min_cnt_range, "min_cnt_range", "Minimum segment count"));
+      add_param(ParamInt(min_cnt_range_lower, "min_cnt_range_lower", "Minimum count lower"));
+      add_param(ParamInt(min_cnt_range_upper, "min_cnt_range_upper", "Minimum count upper"));
       add_param(ParamInt(k, "k", "k"));
       add_param(ParamFloat(snap_threshold, "snap_threshold", "Chain snap thres"));
       add_param(ParamFloat(line_extend, "line_extend", "Extend lines"));

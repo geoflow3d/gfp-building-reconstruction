@@ -1838,12 +1838,10 @@ void BuildArrFromLinesNode::process() {
 inline void DetectLinesNode::detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out) {
   LD.dist_thres = dist_thres * dist_thres;
   LD.N = k;
-  auto& c_upper = min_cnt_range.first;
-  auto& c_lower = min_cnt_range.second;
   std::vector<size_t> detected_regions;
   size_t ringsize = LD.point_segment_idx.size();
   RingSegMap ring_seg_map;
-  for (size_t i=c_upper; i>=c_lower; --i){
+  for (size_t i=min_cnt_range_upper; i>=min_cnt_range_lower; --i){
     LD.min_segment_count = i;
     auto new_regions = LD.detect();
 
