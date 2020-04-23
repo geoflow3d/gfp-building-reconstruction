@@ -38,7 +38,12 @@ namespace linereg {
     LineRegulariser() {};
 
     void add_segments(size_t priority, const Polygon_2& polygon, double offset) {
-      size_t i=0;
+      size_t i;
+      if(segments.find(priority) == segments.end()) {
+        i=0;
+      } else {
+        i=segments.size();
+      }
       auto orientation = polygon.orientation();
       for(auto edge = polygon.edges_begin(); edge != polygon.edges_end(); ++edge) {
         auto source = edge->source();
@@ -62,7 +67,13 @@ namespace linereg {
 
     void add_segments(size_t priority, geoflow::SegmentCollection& segs) {
       if (segs.size()==0) return;
-      size_t i=0;
+      size_t i;
+      if(segments.find(priority) == segments.end()) {
+        i=0;
+      } else {
+        i=segments.size();
+      }
+
       for(auto& edge : segs) {
         auto source = EK::Point_2(edge[0][0], edge[0][1]);
         auto target = EK::Point_2(edge[1][0], edge[1][1]);
