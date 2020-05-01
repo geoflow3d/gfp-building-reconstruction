@@ -2287,225 +2287,64 @@ void BuildingSelectorNode::process() {
 void RegulariseLinesNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto edges = input("edge_segments").get<SegmentCollection>();
+  auto ints_segments = input("ints_segments").get<SegmentCollection>();
+  auto ring_idx = input("ring_idx").get<std::unordered_map<size_t,std::vector<size_t>>>();
   auto footprint = input("footprint").get<LinearRing>();
+  // auto ring_id = input("ring_id").get<vec1i>();
+  // auto ring_order = input("ring_order").get<vec1i>();
 
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_2 Point_2;
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_3 Point_3;
-  typedef std::array<float,2> arr3f;
-  std::vector<std::pair<Segment, bool>> input_edges;
-
-  // build vector of all input edges
-  for(auto edge : edges) {
-    input_edges.push_back(std::make_pair(Segment(edge[0], edge[1]), false));
+  linereg::Polygon_2 ek_footprint;
+  std::vector<linereg::Polygon_2> ek_holes;
+  for (auto& p : footprint) {
+    ek_footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
   }
-  for(size_t i=0; i<footprint.size()-1; ++i) {
-    input_edges.push_back(std::make_pair(Segment(footprint[i], footprint[i+1]), true));
-  }
-  input_edges.push_back(std::make_pair(Segment(footprint[footprint.size()-1], footprint[0]), true));
-
-  //compute attributes for each segment
-  typedef std::tuple<double, Point_2, double, double, bool, double, double, size_t> linetype; 
-  // new angle, midpoint, distance in angle cluster, elevation, is_footprint, initial angle, squared distance from midpoint to an end point, id_cntr
-  std::vector<linetype> lines;
-  // add non-footprint lines
-  size_t id_cntr = 0;
-  for(auto& ie : input_edges) {
-    auto& is_footprint = ie.second;
-    auto& edge = ie.first;
-    auto source = Point_3(edge[0][0], edge[0][1], edge[0][2]);
-    auto target = Point_3(edge[1][0], edge[1][1], edge[1][2]);
-    auto v = target-source;
-    auto p_ = source + v/2;
-    auto p = Point_2(p_.x(),p_.y());
-    auto l = std::sqrt(v.squared_length()/2);
-    auto angle = std::atan2(v.x(),v.y());
-    if (angle < 0) angle += pi;
-    lines.push_back(std::make_tuple(angle,p,0,p_.z(), is_footprint, angle, l, id_cntr++));
-  }
-
-  //sort by angle, smallest on top
-  std::vector<size_t> edge_idx(input_edges.size());
-  for (size_t i=0; i<input_edges.size(); ++i) {
-    edge_idx[i]=i;
-  }
-  std::sort(edge_idx.begin(), edge_idx.end(), [&lines=lines](size_t a, size_t b) {
-    return std::get<0>(lines[a]) < std::get<0>(lines[b]);   
-  });
-  //cluster by angle difference
-  std::vector<ValueCluster> angle_clusters(1);
-  auto last_angle = std::get<0>(lines[edge_idx[0]]);
-  for(auto edge_id : edge_idx ) {
-    auto& line = lines[edge_id];
-    if((std::get<0>(line) - last_angle) < angle_threshold)
-      angle_clusters.back().idx.push_back(edge_id);
-    else {
-      angle_clusters.resize(angle_clusters.size()+1);
-      angle_clusters.back().idx.push_back(edge_id);
-      }
-    last_angle=std::get<0>(line);
-  }
-
-  // get average angle for each cluster
-  // vec3f directions_before, directions_after;
-  // vec1i angles;
-  for(auto& cluster : angle_clusters) {
-    // average angle:
-    double sum=0;
-    for(auto& i : cluster.idx) {
-      sum+=std::get<0>(lines[i]);
+  for (auto& ring : footprint.interior_rings()) {
+    linereg::Polygon_2 ek_hole;
+    for (auto& p : ring) {
+      ek_hole.push_back(linereg::EK::Point_2(p[0], p[1]));
     }
-    double angle = sum/cluster.idx.size();
-    Vector_2 n(-1.0, std::tan(angle));
-    cluster.ref_vec = n/std::sqrt(n.squared_length()); // normalize
-    
-    // or median angle:
-    // size_t median_id = cluster.idx[cluster.idx.size()/2];
-    // cluster.value = std::get<0>(lines[median_id]);
+    ek_holes.push_back(ek_hole);
   }
 
-  // vec1f distances;
-  // snap nearby lines that are close
-  std::vector<ValueCluster> dist_clusters;
-  for(auto& cluster : angle_clusters) {
-    auto n = cluster.ref_vec;
-    // compute distances along n wrt to first line in cluster
-    auto p = std::get<1>(lines[cluster.idx[0]]);
-    for(auto& i : cluster.idx) {
-      auto q = std::get<1>(lines[i]);
-      auto v = p-q;
-      std::get<2>(lines[i]) = v*n;
-      // distances.push_back(v*n);
-    }
-    // sort by distance, ascending
-    auto sorted_by_dist = cluster.idx;
-    std::sort(sorted_by_dist.begin(), sorted_by_dist.end(), [&lines=lines](size_t a, size_t b){
-        return std::get<2>(lines[a]) < std::get<2>(lines[b]);
-    });
-    // cluster nearby lines using separation threshold
-    double last_dist = std::get<2>(lines[sorted_by_dist[0]]);
-    dist_clusters.resize(dist_clusters.size()+1);
-    dist_clusters.back().ref_vec = n;
-    for(auto& i : sorted_by_dist) {
-      auto& line = lines[i];
-      double dist_diff = std::get<2>(line) - last_dist;
-      if (dist_diff < dist_threshold) {
-        dist_clusters.back().idx.push_back(i);
-      } else {
-        dist_clusters.resize(dist_clusters.size()+1);
-        dist_clusters.back().ref_vec = n;
-        dist_clusters.back().idx.push_back(i);
-      }
-      last_dist = std::get<2>(line);
-    }
+  // get clusters from line regularisation 
+  auto LR = linereg::LineRegulariser();
+  LR.add_segments(0,edges);
+  LR.add_segments(1,ek_footprint, (double) 0);
+  for (auto& hole : ek_holes) {
+    LR.add_segments(1,hole, (double) 0);
+  }
+  LR.add_segments(2,ints_segments);
+  LR.dist_threshold = dist_threshold;
+  LR.angle_threshold = angle_threshold;
+  LR.cluster(weighted_avg, angle_per_distcluster);
+
+  output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_footprint, ek_holes.begin(), ek_holes.end()));
+
+  auto& new_segments = vector_output("edges_out");
+  SegmentCollection edges_out_;
+  vec1i priorities, angle_cluster_ids, dist_cluster_ids;
+  for(auto& line : LR.lines) {
+    auto& ekseg = line.reg_segment;
+    auto new_seg = Segment();
+    new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
+    new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
+    new_segments.push_back(new_seg);
+    edges_out_.push_back(new_seg);
+    priorities.push_back(line.priority);
+    priorities.push_back(line.priority);
+    angle_cluster_ids.push_back(line.id_angle_cluster);
+    angle_cluster_ids.push_back(line.id_angle_cluster);
+    dist_cluster_ids.push_back(line.id_dist_cluster);
+    dist_cluster_ids.push_back(line.id_dist_cluster);
   }
 
-  // compute one line per dist cluster => the one with the highest elevation
-  LineStringCollection edges_out;
-  // std::vector<std::pair<Point,Point>> edges_out;
-  
-  for(auto& cluster : dist_clusters) {
-    // find average midpoint
-    // double sum=0;
-    Vector_2 sum_p(0,0);
-    for(auto& i : cluster.idx) {
-      // sum+=std::get<2>(lines[i]);
-      auto& q = std::get<1>(lines[i]);
-      sum_p += Vector_2(q.x(), q.y());
-    }
-    // cluster.distance = sum/cluster.idx.size();
-    cluster.ref_point = sum_p/cluster.idx.size();
-    cluster.ref_vec = Vector_2(cluster.ref_vec.y(), -cluster.ref_vec.x());
-    
-    
-    //try to find a footprint line
-    linetype best_line;
-    double best_angle;
-    bool found_fp=false, found_non_fp=false;
-    for(auto& i : cluster.idx) {
-      auto& line = lines[i];
-      if(std::get<4>(line)){
-        found_fp=true;
-        best_line = line;
-        best_angle = std::get<5>(line); // initial angle of this fp line
-      } else {
-        found_non_fp = true;
-      }
-    }
-    // if there are no non-footprint lines, skip this cluster
-    if(!found_non_fp) continue;
-    // if we didn't find any footprint lines, pick the line with the highest elevation
-    if(!found_fp) {
-      double max_z=0;
-      linetype high_line;
-      for(auto& i : cluster.idx) {
-      auto& line = lines[i];
-        auto z = std::get<3>(line);
-        if(z > max_z) {
-          max_z = z;
-          best_line = line;
-          best_angle = std::get<0>(best_line);
-        }
-      }
-    }
-
-    // compute vec orthogonal to lines in this cluster
-    auto p0 = std::get<1>(best_line);
-    auto halfdist = std::get<6>(best_line);
-    // Vector_2 n(-1.0, std::tan(angle));
-    // n = n/std::sqrt(n.squared_length();()); // normalize
-    Vector_2 l(std::tan(best_angle),1.0);
-    l = l/std::sqrt(l.squared_length()); // normalize
-    auto p_center = p0;// + average_dist*n;
-    auto p_begin = p_center + halfdist*l;
-    auto p_end = p_center - halfdist*l;
-    edges_out.push_back({
-      {float(p_begin.x()), float(p_begin.y()), 0},
-      {float(p_end.x()), float(p_end.y()), 0}
-    });
-  }
-
-  // std::vector<LineCluster> line_clusters;
-  LineStringCollection merged_edges_out;
-  vec1i cluster_labels;
-  int i=0;
-  for(auto& cluster : dist_clusters) {
-    LineCluster final_cluster;
-    auto ref_v = cluster.ref_vec;
-    auto ref_p = Point_2(cluster.ref_point.x(), cluster.ref_point.y());
-
-    // IntervalList interval_list;
-    for(auto& i : cluster.idx) {
-      bool& is_footprint = std::get<4>(lines[i]);
-      if (!is_footprint) {
-        auto& edge = input_edges[i].first;
-        auto s = Point_2(edge[0][0], edge[0][1]);
-        auto t = Point_2(edge[1][0], edge[1][1]);
-        auto d1 = (s-ref_p)*ref_v;
-        auto d2 = (t-ref_p)*ref_v;
-        // interval_list.insert({d1,d2});
-        auto source = ref_p + d1*ref_v;
-        auto target = ref_p + d2*ref_v;
-        merged_edges_out.push_back({
-          {float(source.x()), float(source.y()), 0},
-          {float(target.x()), float(target.y()), 0}
-        });
-        cluster_labels.push_back(i);
-      }
-    }
-    // merge non-footprint segments that have an overlap
-    // std::cout << "size of intervallist: " << interval_list.size()  << "\n";
-    // auto merged_intervals = interval_list.merge_overlap();
-
-    // for (auto& s : segments_in_cluster) {
-      
-    // }
-    ++i;
-    // clip non footprint segments on overlapping footprint segments?
-    // output all resulting segments as a LineCluster?
-  }
-
-  output("merged_edges_out").set(merged_edges_out);
-  output("edges_out").set(edges_out);
+  output("angle_cluster_id").set(angle_cluster_ids);
+  output("dist_cluster_id").set(dist_cluster_ids);
+  output("priorities").set(priorities);
+  output("edges_out_").set(edges_out_);
+  // output("edges_out").set(new_segments);
+  // output("rings_out").set(new_rings);
+  // output("footprint_out").set(new_fp);
 }
 
 void chain(Segment& a, Segment& b, LinearRing& ring, const float& snap_threshold) {
@@ -2621,20 +2460,27 @@ void RegulariseRingsNode::process(){
 
   }
   auto& new_segments = vector_output("edges_out");
-  vec1i priorities;
-  for(auto& kv : LR.segments) {
-    for(auto& ekseg : kv.second) {
-      auto new_seg = Segment();
-      new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
-      new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
-      new_segments.push_back(new_seg);
-      priorities.push_back(kv.first);
-      priorities.push_back(kv.first);
-    }
+  SegmentCollection edges_out_;
+  vec1i priorities, angle_cluster_ids, dist_cluster_ids;
+  for(auto& line : LR.lines) {
+    auto& ekseg = line.reg_segment;
+    auto new_seg = Segment();
+    new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
+    new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
+    new_segments.push_back(new_seg);
+    edges_out_.push_back(new_seg);
+    priorities.push_back(line.priority);
+    priorities.push_back(line.priority);
+    angle_cluster_ids.push_back(line.id_angle_cluster);
+    angle_cluster_ids.push_back(line.id_angle_cluster);
+    dist_cluster_ids.push_back(line.id_dist_cluster);
+    dist_cluster_ids.push_back(line.id_dist_cluster);
   }
 
-
+  output("angle_cluster_id").set(angle_cluster_ids);
+  output("dist_cluster_id").set(dist_cluster_ids);
   output("priorities").set(priorities);
+  output("edges_out_").set(edges_out_);
   // output("edges_out").set(new_segments);
   // output("rings_out").set(new_rings);
   // output("footprint_out").set(new_fp);

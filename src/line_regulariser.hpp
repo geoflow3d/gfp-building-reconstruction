@@ -23,7 +23,23 @@ namespace linereg {
       std::vector<size_t> idx;
     };
 
-    typedef std::tuple<double, Point_2, double, size_t, size_t, double> linetype; 
+    struct linetype {
+      linetype(double angle_, Point_2 midpoint_, double dist_in_ang_cluster_, size_t priority_, size_t segment_id_, double sqlength_) :
+      angle(angle_), midpoint(midpoint_), dist_in_ang_cluster(dist_in_ang_cluster_), priority(priority_), segment_id(segment_id_), sqlength(sqlength_) {};
+      
+      double angle;
+      Point_2 midpoint;
+      double dist_in_ang_cluster;
+      size_t priority;
+      size_t segment_id;
+      double sqlength;
+
+      EK::Segment_2 reg_segment;
+      size_t id_angle_cluster;
+      size_t id_dist_cluster;
+    };
+
+    // typedef std::tuple<double, Point_2, double, size_t, size_t, double> linetype; 
       // new angle, midpoint, distance in angle cluster, priority, segment_id, sqlength
     typedef std::vector<EK::Segment_2> vec_ek_seg;
 
@@ -60,7 +76,7 @@ namespace linereg {
         auto l = CGAL::to_double(v.squared_length());
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
-        lines.push_back(std::make_tuple(angle,p,0,priority,i++,l));
+        lines.push_back(linetype(angle,p,0,priority,i++,l));
         segments[priority].push_back(EK::Segment_2(target,source));
       }
     }
@@ -83,7 +99,7 @@ namespace linereg {
         auto l = CGAL::to_double(v.squared_length());
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
-        lines.push_back(std::make_tuple(angle,p,0,priority,i++,l));
+        lines.push_back(linetype(angle,p,0,priority,i++,l));
         segments[priority].push_back(EK::Segment_2(source, target));
       }
     }
@@ -107,21 +123,21 @@ namespace linereg {
         edge_idx[i]=i;
       }
       std::sort(edge_idx.begin(), edge_idx.end(), [&lines=lines](size_t a, size_t b) {
-        return std::get<0>(lines[a]) < std::get<0>(lines[b]);   
+        return lines[a].angle < lines[b].angle;   
       });
 
       std::vector<ValueCluster> angle_clusters(1);
-      auto angle_sum = std::get<0>(lines[edge_idx[0]]);
+      auto angle_sum = lines[edge_idx[0]].angle;
       angle_clusters.back().idx.push_back(edge_idx[0]);
       for(size_t i=1; i < edge_idx.size(); ++i) {
         auto& edge_id = edge_idx[i];
         auto& line = lines[edge_id];
-        auto& angle = std::get<0>(line);
+        auto& angle = line.angle;
         // mean angle
         // auto repr_angle = angle_sum/angle_clusters.back().idx.size();
         // median angle
         auto mid = angle_clusters.back().idx.size()/2;
-        auto repr_angle = std::get<0>(lines[angle_clusters.back().idx[mid]]);
+        auto repr_angle = lines[angle_clusters.back().idx[mid]].angle;
         if(std::fmod((angle - repr_angle), pi) < angle_threshold) {
           angle_clusters.back().idx.push_back(edge_id);
           angle_sum += angle;
@@ -130,6 +146,7 @@ namespace linereg {
           angle_clusters.back().idx.push_back(edge_id);
           angle_sum = angle;
         }
+        line.id_angle_cluster = angle_clusters.size()-1;
       }
 
       // determine angle for each cluster
@@ -137,12 +154,12 @@ namespace linereg {
         // find maximum priority in this cluster
         size_t max_pr=0;
         for(auto& i : cluster.idx)
-          max_pr = std::max(max_pr, std::get<3>(lines[i]));
+          max_pr = std::max(max_pr, lines[i].priority);
 
         // collect all ids that have the max priority
         std::vector<size_t> max_idx;
         for(auto& i : cluster.idx)
-          if (std::get<3>(lines[i]) == max_pr)
+          if (lines[i].priority == max_pr)
             max_idx.push_back(i);
 
         // computed average angle weighted by segment length
@@ -151,8 +168,8 @@ namespace linereg {
         double max_len=-1;
         size_t max_len_id;
         for(auto& i : max_idx) {
-          auto& len = std::get<5>(lines[i]);
-          auto& angle = std::get<0>(lines[i]);
+          auto& len = lines[i].sqlength;
+          auto& angle = lines[i].angle;
           sum_all += len * angle;
           sum_len += len;
           if (len > max_len) {
@@ -164,14 +181,14 @@ namespace linereg {
         if (weight_by_len) 
           angle = sum_all/sum_len;
         else 
-          angle = std::get<0>(lines[max_len_id]);
+          angle = lines[max_len_id].angle;
 
         Vector_2 n(-1.0, std::tan(angle));
         cluster.ref_vec = n/std::sqrt(n.squared_length()); // normalize
         
         // or median angle:
         // size_t median_id = cluster.idx[cluster.idx.size()/2];
-        // cluster.value = std::get<0>(lines[median_id]);
+        // cluster.value = lines[median_id].angle;
       }
 
       // cluster parallel lines by distance
@@ -179,20 +196,20 @@ namespace linereg {
       for(auto& cluster : angle_clusters) {
         auto n = cluster.ref_vec;
         // compute distances along n wrt to first line in cluster
-        auto p = std::get<1>(lines[cluster.idx[0]]);
+        auto p = lines[cluster.idx[0]].midpoint;
         for(auto& i : cluster.idx) {
-          auto q = std::get<1>(lines[i]);
+          auto q = lines[i].midpoint;
           auto v = p-q;
-          std::get<2>(lines[i]) = v*n;
+          lines[i].dist_in_ang_cluster = v*n;
           // distances.push_back(v*n);
         }
         // sort by distance, ascending
         auto dist_idx = cluster.idx;
         std::sort(dist_idx.begin(), dist_idx.end(), [&lines=lines](size_t a, size_t b){
-            return std::get<2>(lines[a]) < std::get<2>(lines[b]);
+            return lines[a].dist_in_ang_cluster < lines[b].dist_in_ang_cluster;
         });
         // cluster nearby lines using separation threshold
-        double dist_sum = std::get<2>(lines[dist_idx[0]]);
+        double dist_sum = lines[dist_idx[0]].dist_in_ang_cluster;
         dist_clusters.resize(dist_clusters.size()+1);
         dist_clusters.back().ref_vec = n;
         dist_clusters.back().idx.push_back(dist_idx[0]);
@@ -201,8 +218,8 @@ namespace linereg {
           auto& line = lines[edge_id];
           // double repr_dist = dist_sum / dist_clusters.back().idx.size();
           auto mid = dist_clusters.back().idx.size()/2;
-          double repr_dist = std::get<2>(lines[dist_clusters.back().idx[mid]]);
-          double& dist = std::get<2>(line);
+          double repr_dist = lines[dist_clusters.back().idx[mid]].dist_in_ang_cluster;
+          double& dist = line.dist_in_ang_cluster;
           if (std::abs(repr_dist-dist) < dist_threshold) {
             dist_clusters.back().idx.push_back(edge_id);
             dist_sum += dist;
@@ -212,6 +229,7 @@ namespace linereg {
             dist_clusters.back().idx.push_back(edge_id);
             dist_sum = dist;
           }
+          line.id_dist_cluster = dist_clusters.size()-1;
         }
       }
 
@@ -220,12 +238,12 @@ namespace linereg {
         // find max priority
         size_t max_pr=0;
         for(auto& i : cluster.idx)
-          max_pr = std::max(max_pr, std::get<3>(lines[i]));
+          max_pr = std::max(max_pr, lines[i].priority);
 
         // collect all ids that have the max priority
         std::vector<size_t> max_idx;
         for(auto& i : cluster.idx)
-          if (std::get<3>(lines[i]) == max_pr)
+          if (lines[i].priority == max_pr)
             max_idx.push_back(i);
 
         // computed cluster ref point
@@ -235,8 +253,8 @@ namespace linereg {
           size_t max_len_id;
           Vector_2 sum_all(0,0);
           for(auto& i : max_idx) {
-            auto& len = std::get<5>(lines[i]);
-            auto& q = std::get<1>(lines[i]);
+            auto& len = lines[i].sqlength;
+            auto& q = lines[i].midpoint;
             sum_all += len*Vector_2(q.x(), q.y());
             sum_len += len;
             if (len > max_len) {
@@ -248,7 +266,7 @@ namespace linereg {
           if (weight_by_len) 
             cluster.ref_point = sum_all/sum_len;
           else {
-            auto& p = std::get<1>(lines[max_len_id]);
+            auto& p = lines[max_len_id].midpoint;
             cluster.ref_point = Vector_2(p.x(), p.y());
           }
         }
@@ -259,8 +277,8 @@ namespace linereg {
           double max_len=-1;
           size_t max_len_id;
           for(auto& i : max_idx) {
-            auto& len = std::get<5>(lines[i]);
-            auto& angle = std::get<0>(lines[i]);
+            auto& len = lines[i].sqlength;
+            auto& angle = lines[i].angle;
             sum_all += len * angle;
             sum_len += len;
             if (len > max_len) {
@@ -272,7 +290,7 @@ namespace linereg {
           if (weight_by_len) 
             angle = sum_all/sum_len;
           else 
-            angle = std::get<0>(lines[max_len_id]);
+            angle = lines[max_len_id].angle;
 
           Vector_2 n(-1.0, std::tan(angle));
           cluster.ref_vec = n/std::sqrt(n.squared_length());
@@ -288,13 +306,15 @@ namespace linereg {
         EK::Line_2 ref_line(ref_p, ref_v);
 
         for(auto& i : cluster.idx) {
-          auto pri = std::get<3>(lines[i]);
+          auto pri = lines[i].priority;
           if (pri==2) continue; //HACK!
-          auto j = std::get<4>(lines[i]);
+          auto j = lines[i].segment_id;
           auto& edge = segments[pri][j];
           auto s_new = ref_line.projection(edge.source());
           auto t_new = ref_line.projection(edge.target());
-          segments[pri][j] = EK::Segment_2(s_new, t_new);
+          auto reg_seg = EK::Segment_2(s_new, t_new);
+          segments[pri][j] = reg_seg;
+          lines[i].reg_segment = reg_seg;
           // input_segments[i][0] = 
           //   {float(CGAL::to_double(s_new.x())), float(CGAL::to_double(s_new.y())), 0};
           // input_segments[i][1] = 

@@ -597,23 +597,30 @@ namespace geoflow::nodes::stepedge {
   };
 
   class RegulariseLinesNode:public Node {
-    static constexpr double pi = 3.14159265358979323846;
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
+    bool weighted_avg = false;
+    bool angle_per_distcluster = false;
 
     public:
     using Node::Node;
     void init() {
       add_input("edge_segments", typeid(SegmentCollection));
+      add_input("ints_segments", typeid(SegmentCollection));
+      add_input("ring_idx", typeid(std::unordered_map<size_t,std::vector<size_t>>));
       add_input("footprint", typeid(LinearRing));
-      add_output("edges_out", typeid(LineStringCollection));
-      add_output("merged_edges_out", typeid(LineStringCollection));
-      add_output("cluster_labels", typeid(vec1i));
-      // add_output("footprint_labels", typeid(vec1i));
-      // add_output("line_clusters", TT_any); // ie a LineCluster
-      // add_output("tmp_vec3f", typeid(vec3f));
+
+      add_vector_output("edges_out", typeid(Segment));
+      add_output("edges_out_", typeid(SegmentCollection));
+      add_output("priorities", typeid(vec1i));
+      add_output("angle_cluster_id", typeid(vec1i));
+      add_output("dist_cluster_id", typeid(vec1i));
+      add_output("exact_footprint_out", typeid(linereg::Polygon_with_holes_2));
+      
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
-      add_param(ParamBoundedFloat(angle_threshold, 0.01, pi, "angle_threshold", "Angle threshold"));
+      add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
+      add_param(ParamBool(weighted_avg, "weighted_avg", "weighted_avg"));
+      add_param(ParamBool(angle_per_distcluster, "angle_per_distcluster", "angle_per_distcluster"));
     }
     void process();
   };
@@ -639,7 +646,10 @@ namespace geoflow::nodes::stepedge {
       // add_input("edge_segments", typeid(SegmentCollection));
       add_input("footprint", typeid(LinearRing));
       add_vector_output("edges_out", typeid(Segment));
+      add_output("edges_out_", typeid(SegmentCollection));
       add_output("priorities", typeid(vec1i));
+      add_output("angle_cluster_id", typeid(vec1i));
+      add_output("dist_cluster_id", typeid(vec1i));
       // add_output("rings_out", typeid(LinearRingCollection));
       // add_output("footprint_out", typeid(LinearRing));
       add_output("rings_out", typeid(LinearRingCollection));
