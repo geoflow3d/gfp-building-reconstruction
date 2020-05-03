@@ -2548,6 +2548,46 @@ LinearRing simplify_footprint(const LinearRing& polygon, float& threshold_stop_c
       return polygon;
 }
 
+bool get_line_extend(
+   Kernel::Line_3* l,
+   Kernel::Point_3& lp,
+   Kernel::Vector_3& lv,
+   std::vector<Point>& points,
+   double& dmin,
+   double& dmax,
+   Point& pmin,
+   Point& pmax,
+   float& min_dist_to_line_sq
+) {
+  size_t cnt = 0;
+  bool setminmax=false;  
+  double sqd_min = 1 + min_dist_to_line_sq;
+
+  for (auto p : points) {
+    auto sqd = CGAL::squared_distance(*l, p);
+    if (sqd > min_dist_to_line_sq)
+      continue;
+    auto av = p-lp;
+    auto d = av*lv;
+    if (!setminmax) {
+      setminmax=true;
+      dmin=dmax=d;
+      pmin=pmax=p;
+    }
+    if (d < dmin){
+      dmin = d;
+      pmin = p;
+    }
+    if (d > dmax) {
+      dmax = d;
+      pmax = p;
+    }
+    sqd_min = std::min(sqd_min, sqd);
+    ++cnt;
+  }
+  return cnt > 1;
+}
+
 void PlaneIntersectNode::process() {
   auto pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto plane_adj = input("plane_adj").get<std::map<size_t, std::map<size_t, size_t>>>();
@@ -2559,47 +2599,42 @@ void PlaneIntersectNode::process() {
   size_t ring_cntr=0;
   for(auto& [id_hi, ids_lo] : plane_adj) {
     auto& plane_hi = pts_per_roofplane[id_hi].first;
-    auto& plane_pts = pts_per_roofplane[id_hi].second;
+    auto& plane_pts_hi = pts_per_roofplane[id_hi].second;
     // auto& alpha_ring = alpha_rings[ring_cntr++];
     for (auto& [id_lo, cnt] : ids_lo) {
       // skip plain pairs with  low number of neighbouring points
       if (cnt < min_neighb_pts) continue;
       auto& plane_lo = pts_per_roofplane[id_lo].first;
+      auto& plane_pts_lo = pts_per_roofplane[id_lo].second;
       auto result = CGAL::intersection(plane_hi, plane_lo);
       if (result) {
         // bound the line to extend of one plane's inliers
         if (auto l = boost::get<typename Kernel::Line_3>(&*result)) {
+          Point pmin_lo, pmax_lo;
+          Point pmin_hi, pmax_hi;
+          double dmin_lo, dmax_lo;
+          double dmin_hi, dmax_hi;
+
           auto lp = l->point();
           auto lv = l->to_vector();
           lv = lv / CGAL::sqrt(lv.squared_length());
-          double dmin, dmax;
-          Point pmin, pmax;
-          bool setminmax=false;
-          double sqd_min = 1 + min_dist_to_line_sq;
-          for (auto p : plane_pts) {
-            auto av = p-lp;
-            auto d = av*lv;
-            if (!setminmax) {
-              setminmax=true;
-              dmin=dmax=d;
-              pmin=pmax=p;
-            }
-            if (d < dmin){
-              dmin = d;
-              pmin = p;
-            }
-            if (d > dmax) {
-              dmax = d;
-              pmax = p;
-            }
-            sqd_min = std::min(sqd_min, CGAL::squared_distance(*l, p));
-          }
+          
           // skip this line if it is too far away any of the plane_pts
-          if(sqd_min > min_dist_to_line_sq)
+          if( !get_line_extend(l, lp, lv, plane_pts_hi, dmin_hi, dmax_hi, pmin_hi, pmax_hi, min_dist_to_line_sq) || 
+              !get_line_extend(l, lp, lv, plane_pts_lo, dmin_lo, dmax_lo, pmin_lo, pmax_lo, min_dist_to_line_sq) )
             continue;
 
-          auto ppmin = l->projection(pmin);
-          auto ppmax = l->projection(pmax);
+          // take the overlap between the two extends
+          Point ppmin, ppmax;
+          if (dmin_lo > dmin_hi)
+            ppmin = l->projection(pmin_lo);
+          else
+            ppmin = l->projection(pmin_hi);
+          
+          if (dmax_lo < dmax_hi)
+            ppmax = l->projection(pmax_lo);
+          else
+            ppmax = l->projection(pmax_hi);
           
           // Check for infinity (quick fix for linux crash)
           auto sx = float(CGAL::to_double(ppmin.x()));
