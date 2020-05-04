@@ -581,36 +581,19 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
-  struct LineCluster {
-    //                source_id, target_id, is_footprint
-    typedef std::tuple<size_t, size_t, bool> SegmentTuple; 
-    Vector_2 ref_vec; // direction of reference line for this cluster (exact_exact arrangent traits)
-    Point_2 ref_point; // reference point on reference line
-    vec1f vertices; // stored as distances from ref_point in direction of ref_vec
-    std::vector<SegmentTuple> segments;
-  };
-
-  struct ValueCluster {
-    Vector_2 ref_vec;
-    Vector_2 ref_point;
-    std::vector<size_t> idx;
-  };
-
   class RegulariseLinesNode:public Node {
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
-    bool weighted_avg = false;
-    bool angle_per_distcluster = false;
+    bool regularise_lines = false;
 
     public:
     using Node::Node;
     void init() {
       add_input("edge_segments", typeid(SegmentCollection));
       add_input("ints_segments", typeid(SegmentCollection));
-      add_input("ring_idx", typeid(std::unordered_map<size_t,std::vector<size_t>>));
       add_input("footprint", typeid(LinearRing));
 
-      add_vector_output("edges_out", typeid(Segment));
+      add_vector_output("regularised", typeid(Segment));
       add_output("edges_out_", typeid(SegmentCollection));
       add_output("priorities", typeid(vec1i));
       add_output("angle_cluster_id", typeid(vec1i));
@@ -619,8 +602,7 @@ namespace geoflow::nodes::stepedge {
       
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
       add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
-      add_param(ParamBool(weighted_avg, "weighted_avg", "weighted_avg"));
-      add_param(ParamBool(angle_per_distcluster, "angle_per_distcluster", "angle_per_distcluster"));
+      add_param(ParamBool(regularise_lines, "regularise_lines", "regularise_lines"));
     }
     void process();
   };

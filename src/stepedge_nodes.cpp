@@ -1668,7 +1668,7 @@ void BuildArrFromRingsExactNode::process() {
   else {
     auto& lr = fp_in.get<LinearRing&>();
     for (auto& p : lr) {
-      footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
+      footprint.push_back(linereg::Point_2(p[0], p[1]));
     }
   }
 
@@ -1778,7 +1778,7 @@ void BuildArrFromLinesNode::process() {
     auto& lr = fp_term.get<LinearRing&>();
     linereg::Polygon_2 poly2;
     for (auto& p : lr) {
-      poly2.push_back(linereg::EK::Point_2(p[0], p[1]));
+      poly2.push_back(linereg::Point_2(p[0], p[1]));
     }
     footprint = linereg::Polygon_with_holes_2(poly2);
   }
@@ -2288,20 +2288,19 @@ void RegulariseLinesNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto edges = input("edge_segments").get<SegmentCollection>();
   auto ints_segments = input("ints_segments").get<SegmentCollection>();
-  auto ring_idx = input("ring_idx").get<std::unordered_map<size_t,std::vector<size_t>>>();
   auto footprint = input("footprint").get<LinearRing>();
   // auto ring_id = input("ring_id").get<vec1i>();
   // auto ring_order = input("ring_order").get<vec1i>();
 
-  linereg::Polygon_2 ek_footprint;
+  linereg::Polygon_2 cgal_footprint;
   std::vector<linereg::Polygon_2> ek_holes;
   for (auto& p : footprint) {
-    ek_footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
+    cgal_footprint.push_back(linereg::Point_2(p[0], p[1]));
   }
   for (auto& ring : footprint.interior_rings()) {
     linereg::Polygon_2 ek_hole;
     for (auto& p : ring) {
-      ek_hole.push_back(linereg::EK::Point_2(p[0], p[1]));
+      ek_hole.push_back(linereg::Point_2(p[0], p[1]));
     }
     ek_holes.push_back(ek_hole);
   }
@@ -2309,35 +2308,54 @@ void RegulariseLinesNode::process(){
   // get clusters from line regularisation 
   auto LR = linereg::LineRegulariser();
   LR.add_segments(0,edges);
-  LR.add_segments(1,ek_footprint, (double) 0);
+  LR.add_segments(1,cgal_footprint, (double) 0);
   for (auto& hole : ek_holes) {
     LR.add_segments(1,hole, (double) 0);
   }
   LR.add_segments(2,ints_segments);
-  LR.dist_threshold = dist_threshold;
+  LR.dist_threshold = dist_threshold*dist_threshold;
   LR.angle_threshold = angle_threshold;
-  LR.cluster(weighted_avg, angle_per_distcluster);
 
-  output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_footprint, ek_holes.begin(), ek_holes.end()));
+  std::cout << "angle clustering...\n";
+  LR.perform_angle_clustering();
+  std::cout << "distance clustering...\n";
+  LR.perform_distance_clustering();
+  std::cout << "...clustering complete\n";
 
-  auto& new_segments = vector_output("edges_out");
+  output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
+
+  auto& regularised = vector_output("regularised_edges");
   SegmentCollection edges_out_;
   vec1i priorities, angle_cluster_ids, dist_cluster_ids;
+  // we should iterate of the distance clusters and output one segment per cluster
   for(auto& line : LR.lines) {
-    auto& ekseg = line.reg_segment;
+    linereg::Segment_2 segment;
+    if (regularise_lines) {
+      segment = line.dist_cluster->value;
+    } else {
+      segment = line.segment;
+    }
     auto new_seg = Segment();
-    new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
-    new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
-    new_segments.push_back(new_seg);
+    new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
+    new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
     edges_out_.push_back(new_seg);
     priorities.push_back(line.priority);
     priorities.push_back(line.priority);
-    angle_cluster_ids.push_back(line.id_angle_cluster);
-    angle_cluster_ids.push_back(line.id_angle_cluster);
-    dist_cluster_ids.push_back(line.id_dist_cluster);
-    dist_cluster_ids.push_back(line.id_dist_cluster);
+    angle_cluster_ids.push_back(line.angle_cluster_id);
+    angle_cluster_ids.push_back(line.angle_cluster_id);
+    dist_cluster_ids.push_back(line.dist_cluster_id);
+    dist_cluster_ids.push_back(line.dist_cluster_id);
   }
-
+  for(auto& dclust : LR.dist_clusters) {
+    //get lines with highest priority
+    //compute mean line with small extensions on both ends
+    //omit if it only contains fp segments
+    auto& segment = dclust->value;
+    auto new_seg = Segment();
+    new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
+    new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
+    regularised.push_back(new_seg);
+  }
   output("angle_cluster_id").set(angle_cluster_ids);
   output("dist_cluster_id").set(dist_cluster_ids);
   output("priorities").set(priorities);
@@ -2371,119 +2389,119 @@ void chain(Segment& a, Segment& b, LinearRing& ring, const float& snap_threshold
   }
 }
 void RegulariseRingsNode::process(){
-  // Set up vertex data (and buffer(s)) and attribute pointers
-  auto edges = input("edge_segments").get<SegmentCollection>();
-  auto ints_segments = input("ints_segments").get<SegmentCollection>();
-  auto ring_idx = input("ring_idx").get<std::unordered_map<size_t,std::vector<size_t>>>();
-  auto footprint = input("footprint").get<LinearRing>();
-  // auto ring_id = input("ring_id").get<vec1i>();
-  // auto ring_order = input("ring_order").get<vec1i>();
+  // // Set up vertex data (and buffer(s)) and attribute pointers
+  // auto edges = input("edge_segments").get<SegmentCollection>();
+  // auto ints_segments = input("ints_segments").get<SegmentCollection>();
+  // auto ring_idx = input("ring_idx").get<std::unordered_map<size_t,std::vector<size_t>>>();
+  // auto footprint = input("footprint").get<LinearRing>();
+  // // auto ring_id = input("ring_id").get<vec1i>();
+  // // auto ring_order = input("ring_order").get<vec1i>();
 
-  // SegmentCollection all_edges;
+  // // SegmentCollection all_edges;
 
-  // build vector of all input edges
-  // for(auto edge : edges) {
-  //   all_edges.push_back(edge);
+  // // build vector of all input edges
+  // // for(auto edge : edges) {
+  // //   all_edges.push_back(edge);
+  // // }
+  // // size_t fpi_begin = all_edges.size();
+  // // SegmentCollection fp_edges;
+  // // for(size_t i=0; i<footprint.size()-1; ++i) {
+  // //   fp_edges.push_back(Segment({footprint[i], footprint[i+1]}));
+  // // }
+  // // fp_edges.push_back(
+  // //   Segment({footprint[footprint.size()-1], footprint[0]})
+  // // );
+  // linereg::Polygon_2 ek_footprint;
+  // std::vector<linereg::Polygon_2> ek_holes;
+  // for (auto& p : footprint) {
+  //   ek_footprint.push_back(linereg::Point_2(p[0], p[1]));
   // }
-  // size_t fpi_begin = all_edges.size();
-  // SegmentCollection fp_edges;
-  // for(size_t i=0; i<footprint.size()-1; ++i) {
-  //   fp_edges.push_back(Segment({footprint[i], footprint[i+1]}));
+  // for (auto& ring : footprint.interior_rings()) {
+  //   linereg::Polygon_2 ek_hole;
+  //   for (auto& p : ring) {
+  //     ek_hole.push_back(linereg::Point_2(p[0], p[1]));
+  //   }
+  //   ek_holes.push_back(ek_hole);
   // }
-  // fp_edges.push_back(
-  //   Segment({footprint[footprint.size()-1], footprint[0]})
-  // );
-  linereg::Polygon_2 ek_footprint;
-  std::vector<linereg::Polygon_2> ek_holes;
-  for (auto& p : footprint) {
-    ek_footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
-  }
-  for (auto& ring : footprint.interior_rings()) {
-    linereg::Polygon_2 ek_hole;
-    for (auto& p : ring) {
-      ek_hole.push_back(linereg::EK::Point_2(p[0], p[1]));
-    }
-    ek_holes.push_back(ek_hole);
-  }
-  // size_t fpi_end = all_edges.size()-1;
+  // // size_t fpi_end = all_edges.size()-1;
 
-  // get clusters from line regularisation 
-  auto LR = linereg::LineRegulariser();
-  LR.add_segments(0,edges);
-  LR.add_segments(1,ek_footprint, (double) fp_offset);
-  for (auto& hole : ek_holes) {
-    LR.add_segments(1,hole, (double) fp_offset);
-  }
-  LR.add_segments(2,ints_segments);
-  LR.dist_threshold = dist_threshold;
-  LR.angle_threshold = angle_threshold;
-  LR.cluster(weighted_avg, angle_per_distcluster);
+  // // get clusters from line regularisation 
+  // auto LR = linereg::LineRegulariser();
+  // LR.add_segments(0,edges);
+  // LR.add_segments(1,ek_footprint, (double) fp_offset);
+  // for (auto& hole : ek_holes) {
+  //   LR.add_segments(1,hole, (double) fp_offset);
+  // }
+  // LR.add_segments(2,ints_segments);
+  // LR.dist_threshold = dist_threshold;
+  // LR.angle_threshold = angle_threshold;
+  // LR.cluster(weighted_avg, angle_per_distcluster);
 
-  if (regularise_fp) {
-    std::vector<size_t> fp_idx;
-    for (size_t i=0; i < LR.get_segments(1).size(); ++i) {
-      fp_idx.push_back(i);
-    }
-    auto ek_reg_fp = linereg::chain_ring<linereg::EK>(fp_idx, LR.get_segments(1), snap_threshold);
-    output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_reg_fp));
-  } else {
-    output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_footprint, ek_holes.begin(), ek_holes.end()));
-  }
+  // if (regularise_fp) {
+  //   std::vector<size_t> fp_idx;
+  //   for (size_t i=0; i < LR.get_segments(1).size(); ++i) {
+  //     fp_idx.push_back(i);
+  //   }
+  //   auto ek_reg_fp = linereg::chain_ring<linereg::EK>(fp_idx, LR.get_segments(1), snap_threshold);
+  //   output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_reg_fp));
+  // } else {
+  //   output("exact_footprint_out").set(linereg::Polygon_with_holes_2(ek_footprint, ek_holes.begin(), ek_holes.end()));
+  // }
 
-  if (recompute_rings) {
-    std::unordered_map<size_t, linereg::Polygon_2> exact_polygons;
-    for (auto& idx : ring_idx) {
-      exact_polygons[idx.first] = 
-        linereg::chain_ring<linereg::EK>(idx.second, LR.get_segments(0), snap_threshold);
-      // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
-    }
-    // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
-    output("exact_rings_out").set(exact_polygons);
+  // if (recompute_rings) {
+  //   std::unordered_map<size_t, linereg::Polygon_2> exact_polygons;
+  //   for (auto& idx : ring_idx) {
+  //     exact_polygons[idx.first] = 
+  //       linereg::chain_ring<linereg::EK>(idx.second, LR.get_segments(0), snap_threshold);
+  //     // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
+  //   }
+  //   // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
+  //   output("exact_rings_out").set(exact_polygons);
 
 
-    LinearRingCollection lrc;
-    vec1i plane_ids;
-    for (auto& poly : exact_polygons) {
-      LinearRing lr;
-      for (auto p=poly.second.vertices_begin(); p!=poly.second.vertices_end(); ++p) {
-        lr.push_back({
-          float(CGAL::to_double(p->x())),
-          float(CGAL::to_double(p->y())),
-          0
-        });
-        plane_ids.push_back(poly.first);
-      }
-      lrc.push_back(lr);
-    }
-    output("rings_out").set(lrc);
-    output("plane_id").set(plane_ids);
+  //   LinearRingCollection lrc;
+  //   vec1i plane_ids;
+  //   for (auto& poly : exact_polygons) {
+  //     LinearRing lr;
+  //     for (auto p=poly.second.vertices_begin(); p!=poly.second.vertices_end(); ++p) {
+  //       lr.push_back({
+  //         float(CGAL::to_double(p->x())),
+  //         float(CGAL::to_double(p->y())),
+  //         0
+  //       });
+  //       plane_ids.push_back(poly.first);
+  //     }
+  //     lrc.push_back(lr);
+  //   }
+  //   output("rings_out").set(lrc);
+  //   output("plane_id").set(plane_ids);
 
-  }
-  auto& new_segments = vector_output("edges_out");
-  SegmentCollection edges_out_;
-  vec1i priorities, angle_cluster_ids, dist_cluster_ids;
-  for(auto& line : LR.lines) {
-    auto& ekseg = line.reg_segment;
-    auto new_seg = Segment();
-    new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
-    new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
-    new_segments.push_back(new_seg);
-    edges_out_.push_back(new_seg);
-    priorities.push_back(line.priority);
-    priorities.push_back(line.priority);
-    angle_cluster_ids.push_back(line.id_angle_cluster);
-    angle_cluster_ids.push_back(line.id_angle_cluster);
-    dist_cluster_ids.push_back(line.id_dist_cluster);
-    dist_cluster_ids.push_back(line.id_dist_cluster);
-  }
+  // }
+  // auto& new_segments = vector_output("edges_out");
+  // SegmentCollection edges_out_;
+  // vec1i priorities, angle_cluster_ids, dist_cluster_ids;
+  // for(auto& line : LR.lines) {
+  //   auto& ekseg = line.reg_segment;
+  //   auto new_seg = Segment();
+  //   new_seg[0] = {float(CGAL::to_double(ekseg.source().x())), float(CGAL::to_double(ekseg.source().y())), 0};
+  //   new_seg[1] = {float(CGAL::to_double(ekseg.target().x())), float(CGAL::to_double(ekseg.target().y())), 0};
+  //   new_segments.push_back(new_seg);
+  //   edges_out_.push_back(new_seg);
+  //   priorities.push_back(line.priority);
+  //   priorities.push_back(line.priority);
+  //   angle_cluster_ids.push_back(line.angle_cluster_id);
+  //   angle_cluster_ids.push_back(line.angle_cluster_id);
+  //   dist_cluster_ids.push_back(line.dist_cluster_id);
+  //   dist_cluster_ids.push_back(line.dist_cluster_id);
+  // }
 
-  output("angle_cluster_id").set(angle_cluster_ids);
-  output("dist_cluster_id").set(dist_cluster_ids);
-  output("priorities").set(priorities);
-  output("edges_out_").set(edges_out_);
-  // output("edges_out").set(new_segments);
-  // output("rings_out").set(new_rings);
-  // output("footprint_out").set(new_fp);
+  // output("angle_cluster_id").set(angle_cluster_ids);
+  // output("dist_cluster_id").set(dist_cluster_ids);
+  // output("priorities").set(priorities);
+  // output("edges_out_").set(edges_out_);
+  // // output("edges_out").set(new_segments);
+  // // output("rings_out").set(new_rings);
+  // // output("footprint_out").set(new_fp);
 }
 
 LinearRing simplify_footprint(const LinearRing& polygon, float& threshold_stop_cost) {
@@ -2550,8 +2568,6 @@ LinearRing simplify_footprint(const LinearRing& polygon, float& threshold_stop_c
 
 bool get_line_extend(
    Kernel::Line_3* l,
-   Kernel::Point_3& lp,
-   Kernel::Vector_3& lv,
    std::vector<Point>& points,
    double& dmin,
    double& dmax,
@@ -2562,6 +2578,10 @@ bool get_line_extend(
   size_t cnt = 0;
   bool setminmax=false;  
   double sqd_min = 1 + min_dist_to_line_sq;
+
+  auto lp = l->point();
+  auto lv = l->to_vector();
+  lv = lv / CGAL::sqrt(lv.squared_length());
 
   for (auto p : points) {
     auto sqd = CGAL::squared_distance(*l, p);
@@ -2614,14 +2634,10 @@ void PlaneIntersectNode::process() {
           Point pmin_hi, pmax_hi;
           double dmin_lo, dmax_lo;
           double dmin_hi, dmax_hi;
-
-          auto lp = l->point();
-          auto lv = l->to_vector();
-          lv = lv / CGAL::sqrt(lv.squared_length());
           
           // skip this line if it is too far away any of the plane_pts
-          if( !get_line_extend(l, lp, lv, plane_pts_hi, dmin_hi, dmax_hi, pmin_hi, pmax_hi, min_dist_to_line_sq) || 
-              !get_line_extend(l, lp, lv, plane_pts_lo, dmin_lo, dmax_lo, pmin_lo, pmax_lo, min_dist_to_line_sq) )
+          if( !get_line_extend(l, plane_pts_hi, dmin_hi, dmax_hi, pmin_hi, pmax_hi, min_dist_to_line_sq) || 
+              !get_line_extend(l, plane_pts_lo, dmin_lo, dmax_lo, pmin_lo, pmax_lo, min_dist_to_line_sq) )
             continue;
 
           // take the overlap between the two extends

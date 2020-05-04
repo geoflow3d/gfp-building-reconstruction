@@ -1,3 +1,5 @@
+#pragma once
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Polygon_2.h>
@@ -5,51 +7,110 @@
 #include <geoflow/geoflow.hpp>
 
 namespace linereg {
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_2 Point_2;
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_3 Point_3;
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel::Vector_2 Vector_2;
+  typedef CGAL::Exact_predicates_exact_constructions_kernel K;
+  // typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
-  typedef CGAL::Exact_predicates_exact_constructions_kernel EK;
-  typedef CGAL::Polygon_2<EK> Polygon_2;
-  typedef CGAL::Polygon_with_holes_2<EK> Polygon_with_holes_2;
-  // typedef EK::Polygon_2 Polygon_2;
+  typedef K::Point_2 Point_2;
+  typedef K::Point_3 Point_3;
+  typedef K::Vector_2 Vector_2;
+  typedef K::Line_2 Line_2;
+  typedef K::Segment_2 Segment_2;
+  typedef CGAL::Polygon_2<K> Polygon_2;
+  typedef CGAL::Polygon_with_holes_2<K> Polygon_with_holes_2;
 
+  struct linetype;
+
+  template <typename T> struct Cluster {
+    T value;
+    std::vector<linetype*> lines;
+    virtual double distance(Cluster<T>* other_cluster)=0;
+    virtual void calc_mean_value()=0;
+  };
+  struct AngleCluster : public Cluster<double>{
+    double distance(Cluster<double>* other_cluster);
+    void calc_mean_value();
+  };
+  struct DistCluster : public Cluster<Segment_2>{
+    double distance(Cluster<Segment_2>* other_cluster);
+    void calc_mean_value();
+  };
+
+  template <typename ClusterH> struct DistanceTable {
+    typedef std::pair<ClusterH, ClusterH> ClusterPair;
+
+    // define has function such that the same hash results regardless of the order of cluster handles in the pair
+    struct KeyHash {
+      size_t operator()(const ClusterPair& key) const {
+        if (key.first.get() < key.second.get())
+          return std::hash<ClusterH>()(key.first) ^
+            (std::hash<ClusterH>()(key.second) << 1);
+        else
+          return std::hash<ClusterH>()(key.second) ^
+            (std::hash<ClusterH>()(key.first) << 1);
+
+      }
+    };
+    // True equality function is needed to deal with collisions
+    struct KeyEqual {
+      bool operator()(const ClusterPair& lhs, const ClusterPair& rhs) const {
+        return 
+          ((lhs.first==rhs.first) && (lhs.second==rhs.second)) 
+          ||
+          ((lhs.first==rhs.second) && (lhs.second==rhs.first));
+      }
+    };
+    typedef std::unordered_map<ClusterPair, double, KeyHash, KeyEqual> DistanceMap;
+
+    DistanceMap distances;
+    std::set<ClusterH>& clusters;
+
+    DistanceTable(std::set<ClusterH>& clusters); //computes initial distances
+    void merge(ClusterH lhs, ClusterH rhs); // merges two clusters, then removes one from the distances map and update the affected distances
+    std::pair<ClusterPair, double> get_closest_pair(); //returns the cluster pair with the smallest distance
+  };
+  
+  // extern template class Cluster<double>;
+  // extern template class Cluster<Segment_2>;
+
+  typedef std::shared_ptr<AngleCluster> AngleClusterH;
+  typedef std::shared_ptr<DistCluster> DistClusterH;
+
+  extern template class DistanceTable<AngleClusterH>;
+  extern template class DistanceTable<DistClusterH>;
+
+  struct linetype {
+    linetype(Segment_2 segment_, double angle_, Point_2 midpoint_, double dist_in_ang_cluster_, size_t priority_, size_t segment_id_, double sqlength_) :
+    segment(segment_), angle(angle_), midpoint(midpoint_), priority(priority_), segment_id(segment_id_), sqlength(sqlength_) {};
+    
+    Segment_2 segment;
+    double angle;
+    Point_2 midpoint;
+    Vector_2 direction;
+    double sqlength;
+    // double dist_in_ang_cluster;
+    size_t priority;
+    size_t segment_id;
+
+    Segment_2 reg_segment;
+    AngleClusterH angle_cluster;
+    DistClusterH dist_cluster;
+    size_t angle_cluster_id, dist_cluster_id;
+  };
+
+  static constexpr double pi = 3.14159265358979323846;
   class LineRegulariser {
-    static constexpr double pi = 3.14159265358979323846;
 
-    struct ValueCluster {
-      Vector_2 ref_vec;
-      Vector_2 ref_point;
-      std::vector<size_t> idx;
-    };
-
-    struct linetype {
-      linetype(double angle_, Point_2 midpoint_, double dist_in_ang_cluster_, size_t priority_, size_t segment_id_, double sqlength_) :
-      angle(angle_), midpoint(midpoint_), dist_in_ang_cluster(dist_in_ang_cluster_), priority(priority_), segment_id(segment_id_), sqlength(sqlength_) {};
-      
-      double angle;
-      Point_2 midpoint;
-      double dist_in_ang_cluster;
-      size_t priority;
-      size_t segment_id;
-      double sqlength;
-
-      EK::Segment_2 reg_segment;
-      size_t id_angle_cluster;
-      size_t id_dist_cluster;
-    };
-
-    // typedef std::tuple<double, Point_2, double, size_t, size_t, double> linetype; 
-      // new angle, midpoint, distance in angle cluster, priority, segment_id, sqlength
-    typedef std::vector<EK::Segment_2> vec_ek_seg;
+    typedef std::vector<Segment_2> SegmentVec;
 
     // geoflow::SegmentCollection& input_segments;
     public:
     std::vector<linetype> lines;
-    // vec_ek_seg input_reg_exact;
+    // SegmentVec input_reg_exact;
     double angle_threshold, dist_threshold;
 
-    std::unordered_map<size_t, vec_ek_seg> segments;
+    std::unordered_map<size_t, SegmentVec> segments;
+    std::set<AngleClusterH> angle_clusters;
+    std::set<DistClusterH> dist_clusters;
 
     LineRegulariser() {};
 
@@ -76,8 +137,8 @@ namespace linereg {
         auto l = CGAL::to_double(v.squared_length());
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
-        lines.push_back(linetype(angle,p,0,priority,i++,l));
-        segments[priority].push_back(EK::Segment_2(target,source));
+        lines.push_back(linetype(*edge, angle,p,0,priority,i++,l));
+        segments[priority].push_back(Segment_2(target,source));
       }
     }
 
@@ -91,240 +152,26 @@ namespace linereg {
       }
 
       for(auto& edge : segs) {
-        auto source = EK::Point_2(edge[0][0], edge[0][1]);
-        auto target = EK::Point_2(edge[1][0], edge[1][1]);
+        auto source = Point_2(edge[0][0], edge[0][1]);
+        auto target = Point_2(edge[1][0], edge[1][1]);
         auto v = target-source;
         auto p_ = source + v/2;
         auto p = Point_2(CGAL::to_double(p_.x()),CGAL::to_double(p_.y()));
         auto l = CGAL::to_double(v.squared_length());
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
-        lines.push_back(linetype(angle,p,0,priority,i++,l));
-        segments[priority].push_back(EK::Segment_2(source, target));
+        lines.push_back(linetype(Segment_2(source, target), angle,p,0,priority,i++,l));
+        segments[priority].push_back(Segment_2(source, target));
       }
     }
 
-    vec_ek_seg& get_segments(const size_t& priority) {
+    SegmentVec& get_segments(const size_t& priority) {
       return segments[priority];
     }
 
-    // template<typename element> void get_max(const std::vector<size_t>& idx, const size_t element) {
-      
-    //   for(auto& i : idx) {
-    //     std::get<element>(lines[i]);
-        
-    //   }
-    // }
-
-    void cluster(bool weight_by_len, bool angle_per_distcluster) {
-      // cluster by angle
-      std::vector<size_t> edge_idx(lines.size());
-      for (size_t i=0; i<lines.size(); ++i) {
-        edge_idx[i]=i;
-      }
-      std::sort(edge_idx.begin(), edge_idx.end(), [&lines=lines](size_t a, size_t b) {
-        return lines[a].angle < lines[b].angle;   
-      });
-
-      std::vector<ValueCluster> angle_clusters(1);
-      auto angle_sum = lines[edge_idx[0]].angle;
-      angle_clusters.back().idx.push_back(edge_idx[0]);
-      for(size_t i=1; i < edge_idx.size(); ++i) {
-        auto& edge_id = edge_idx[i];
-        auto& line = lines[edge_id];
-        auto& angle = line.angle;
-        // mean angle
-        // auto repr_angle = angle_sum/angle_clusters.back().idx.size();
-        // median angle
-        auto mid = angle_clusters.back().idx.size()/2;
-        auto repr_angle = lines[angle_clusters.back().idx[mid]].angle;
-        if(std::fmod((angle - repr_angle), pi) < angle_threshold) {
-          angle_clusters.back().idx.push_back(edge_id);
-          angle_sum += angle;
-        } else {
-          angle_clusters.resize(angle_clusters.size()+1);
-          angle_clusters.back().idx.push_back(edge_id);
-          angle_sum = angle;
-        }
-        line.id_angle_cluster = angle_clusters.size()-1;
-      }
-
-      // determine angle for each cluster
-      for(auto& cluster : angle_clusters) {
-        // find maximum priority in this cluster
-        size_t max_pr=0;
-        for(auto& i : cluster.idx)
-          max_pr = std::max(max_pr, lines[i].priority);
-
-        // collect all ids that have the max priority
-        std::vector<size_t> max_idx;
-        for(auto& i : cluster.idx)
-          if (lines[i].priority == max_pr)
-            max_idx.push_back(i);
-
-        // computed average angle weighted by segment length
-        double sum_len=0;
-        double sum_all=0;
-        double max_len=-1;
-        size_t max_len_id;
-        for(auto& i : max_idx) {
-          auto& len = lines[i].sqlength;
-          auto& angle = lines[i].angle;
-          sum_all += len * angle;
-          sum_len += len;
-          if (len > max_len) {
-            max_len = len;
-            max_len_id = i;
-          }
-        }
-        double angle;
-        if (weight_by_len) 
-          angle = sum_all/sum_len;
-        else 
-          angle = lines[max_len_id].angle;
-
-        Vector_2 n(-1.0, std::tan(angle));
-        cluster.ref_vec = n/std::sqrt(n.squared_length()); // normalize
-        
-        // or median angle:
-        // size_t median_id = cluster.idx[cluster.idx.size()/2];
-        // cluster.value = lines[median_id].angle;
-      }
-
-      // cluster parallel lines by distance
-      std::vector<ValueCluster> dist_clusters;
-      for(auto& cluster : angle_clusters) {
-        auto n = cluster.ref_vec;
-        // compute distances along n wrt to first line in cluster
-        auto p = lines[cluster.idx[0]].midpoint;
-        for(auto& i : cluster.idx) {
-          auto q = lines[i].midpoint;
-          auto v = p-q;
-          lines[i].dist_in_ang_cluster = v*n;
-          // distances.push_back(v*n);
-        }
-        // sort by distance, ascending
-        auto dist_idx = cluster.idx;
-        std::sort(dist_idx.begin(), dist_idx.end(), [&lines=lines](size_t a, size_t b){
-            return lines[a].dist_in_ang_cluster < lines[b].dist_in_ang_cluster;
-        });
-        // cluster nearby lines using separation threshold
-        double dist_sum = lines[dist_idx[0]].dist_in_ang_cluster;
-        dist_clusters.resize(dist_clusters.size()+1);
-        dist_clusters.back().ref_vec = n;
-        dist_clusters.back().idx.push_back(dist_idx[0]);
-        for(size_t i=1; i < dist_idx.size(); ++i) {
-          auto& edge_id = dist_idx[i];
-          auto& line = lines[edge_id];
-          // double repr_dist = dist_sum / dist_clusters.back().idx.size();
-          auto mid = dist_clusters.back().idx.size()/2;
-          double repr_dist = lines[dist_clusters.back().idx[mid]].dist_in_ang_cluster;
-          double& dist = line.dist_in_ang_cluster;
-          if (std::abs(repr_dist-dist) < dist_threshold) {
-            dist_clusters.back().idx.push_back(edge_id);
-            dist_sum += dist;
-          } else {
-            dist_clusters.resize(dist_clusters.size()+1);
-            dist_clusters.back().ref_vec = n;
-            dist_clusters.back().idx.push_back(edge_id);
-            dist_sum = dist;
-          }
-          line.id_dist_cluster = dist_clusters.size()-1;
-        }
-      }
-
-      // find direction and center point for each cluster
-      for(auto& cluster : dist_clusters) {
-        // find max priority
-        size_t max_pr=0;
-        for(auto& i : cluster.idx)
-          max_pr = std::max(max_pr, lines[i].priority);
-
-        // collect all ids that have the max priority
-        std::vector<size_t> max_idx;
-        for(auto& i : cluster.idx)
-          if (lines[i].priority == max_pr)
-            max_idx.push_back(i);
-
-        // computed cluster ref point
-        {
-          double sum_len=0;
-          double max_len=-1;
-          size_t max_len_id;
-          Vector_2 sum_all(0,0);
-          for(auto& i : max_idx) {
-            auto& len = lines[i].sqlength;
-            auto& q = lines[i].midpoint;
-            sum_all += len*Vector_2(q.x(), q.y());
-            sum_len += len;
-            if (len > max_len) {
-              max_len = len;
-              max_len_id = i;
-            }
-          }
-          // cluster.distance = sum/cluster.idx.size();
-          if (weight_by_len) 
-            cluster.ref_point = sum_all/sum_len;
-          else {
-            auto& p = lines[max_len_id].midpoint;
-            cluster.ref_point = Vector_2(p.x(), p.y());
-          }
-        }
-        // computed cluster angle
-        if (angle_per_distcluster) {
-          double sum_len=0;
-          double sum_all=0;
-          double max_len=-1;
-          size_t max_len_id;
-          for(auto& i : max_idx) {
-            auto& len = lines[i].sqlength;
-            auto& angle = lines[i].angle;
-            sum_all += len * angle;
-            sum_len += len;
-            if (len > max_len) {
-              max_len = len;
-              max_len_id = i;
-            }
-          }
-          double angle;
-          if (weight_by_len) 
-            angle = sum_all/sum_len;
-          else 
-            angle = lines[max_len_id].angle;
-
-          Vector_2 n(-1.0, std::tan(angle));
-          cluster.ref_vec = n/std::sqrt(n.squared_length());
-        }
-        cluster.ref_vec = Vector_2(cluster.ref_vec.y(), -cluster.ref_vec.x());
-      }
-
-      // project input segments on the cluster lines
-      for(auto& cluster : dist_clusters) {
-        auto ref_v = EK::Vector_2(cluster.ref_vec.x(), cluster.ref_vec.y());
-        auto ref_p = EK::Point_2(cluster.ref_point.x(), cluster.ref_point.y());
-
-        EK::Line_2 ref_line(ref_p, ref_v);
-
-        for(auto& i : cluster.idx) {
-          auto pri = lines[i].priority;
-          if (pri==2) continue; //HACK!
-          auto j = lines[i].segment_id;
-          auto& edge = segments[pri][j];
-          auto s_new = ref_line.projection(edge.source());
-          auto t_new = ref_line.projection(edge.target());
-          auto reg_seg = EK::Segment_2(s_new, t_new);
-          segments[pri][j] = reg_seg;
-          lines[i].reg_segment = reg_seg;
-          // input_segments[i][0] = 
-          //   {float(CGAL::to_double(s_new.x())), float(CGAL::to_double(s_new.y())), 0};
-          // input_segments[i][1] = 
-          //   {float(CGAL::to_double(t_new.x())), float(CGAL::to_double(t_new.y())), 0};
-        }
-      }
-    };
-
+    void perform_angle_clustering();
+    void perform_distance_clustering();
   };
-
   template<class Kernel> void 
   chain(
     const typename Kernel::Segment_2& a, 
