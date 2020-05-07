@@ -584,6 +584,7 @@ namespace geoflow::nodes::stepedge {
   class RegulariseLinesNode:public Node {
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
+    float extension = 1.0;
     bool regularise_lines = false;
 
     public:
@@ -593,7 +594,7 @@ namespace geoflow::nodes::stepedge {
       add_input("ints_segments", typeid(SegmentCollection));
       add_input("footprint", typeid(LinearRing));
 
-      add_vector_output("regularised", typeid(Segment));
+      add_vector_output("regularised_edges", typeid(Segment));
       add_output("edges_out_", typeid(SegmentCollection));
       add_output("priorities", typeid(vec1i));
       add_output("angle_cluster_id", typeid(vec1i));
@@ -601,6 +602,7 @@ namespace geoflow::nodes::stepedge {
       add_output("exact_footprint_out", typeid(linereg::Polygon_with_holes_2));
       
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
+      add_param(ParamFloat(extension, "extension", "Line extension after regularisation"));
       add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
       add_param(ParamBool(regularise_lines, "regularise_lines", "regularise_lines"));
     }

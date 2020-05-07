@@ -15,31 +15,30 @@ namespace linereg {
     return angle_sum/sqlenth_sum;
   }
 
-  double AngleCluster::distance(Cluster<double>* other_cluster) {
-    return std::fabs(value - other_cluster->value);
-  }
-  void AngleCluster::calc_mean_value() {
-    value = calc_mean_angle(lines);
+  Point_2 calc_centroid(const std::vector<linetype*>& lines) {
+    double cx=0, cy=0;
+    for (auto& line : lines) {
+      auto p = line->segment.source();
+      cx += CGAL::to_double(p.x());
+      cy += CGAL::to_double(p.y());
+      p = line->segment.target();
+      cx += CGAL::to_double(p.x());
+      cy += CGAL::to_double(p.y());
+    }
+    size_t np = 2*lines.size();
+    return Point_2(cx/np, cy/np);
   }
 
-  double DistCluster::distance(Cluster<Segment_2>* other_cluster) {
-    return CGAL::to_double(CGAL::squared_distance(value, other_cluster->value));
-  }
-  void DistCluster::calc_mean_value() {
-    // a segment through the length-weighted mean centroid and elongated to 'cover' all the segments
-    double mean_angle = calc_mean_angle(lines);
-
+  // construct a line L with centroid and mean_angle, then project all the segments from lines on L to bound it to a segment
+  Segment_2 calc_segment(Point_2 centroid, double mean_angle, const std::vector<linetype*>& lines, double extension) {
     auto lv = Vector_2(std::tan(mean_angle), 1.0);
     lv = lv / CGAL::sqrt(CGAL::to_double(lv.squared_length()));
 
     bool setminmax=false;
     Point_2 pmin, pmax;
-    double cx=0, cy=0;
     double dmin, dmax;
     for (auto& line : lines) {
       auto p = line->segment.source();
-      cx += CGAL::to_double(p.x());
-      cy += CGAL::to_double(p.y());
       auto d = CGAL::to_double(Vector_2(p.x(),p.y())*lv);
       if (!setminmax) {
         setminmax=true;
@@ -56,8 +55,6 @@ namespace linereg {
       }
 
       p = line->segment.target();
-      cx += CGAL::to_double(p.x());
-      cy += CGAL::to_double(p.y());
       d = CGAL::to_double(Vector_2(p.x(),p.y())*lv);
       if (d < dmin){
         dmin = d;
@@ -68,9 +65,27 @@ namespace linereg {
         pmax = p;
       }
     }
-    size_t np = 2*lines.size();
-    Line_2 l(Point_2(cx/np, cy/np), lv);
-    value = Segment_2(l.projection(pmin), l.projection(pmax));
+    Line_2 l(centroid, lv);
+    pmin = l.projection(pmin) - lv*extension;
+    pmax = l.projection(pmax) + lv*extension;
+    return Segment_2(pmin, pmax);
+  }
+
+  double AngleCluster::distance(Cluster<double>* other_cluster) {
+    return std::fabs(value - other_cluster->value);
+  }
+  void AngleCluster::calc_mean_value() {
+    value = calc_mean_angle(lines);
+  }
+
+  double DistCluster::distance(Cluster<Segment_2>* other_cluster) {
+    return CGAL::to_double(CGAL::squared_distance(value, other_cluster->value));
+  }
+  void DistCluster::calc_mean_value() {
+    // a segment through the length-weighted mean centroid and elongated to 'cover' all the segments
+    double mean_angle = calc_mean_angle(lines);
+    Point_2 centroid = calc_centroid(lines);
+    value = calc_segment(centroid, mean_angle, lines);
   }
 
   template <typename ClusterH> DistanceTable<ClusterH>::DistanceTable(std::set<ClusterH>& clusters) : clusters(clusters) {

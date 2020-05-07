@@ -78,6 +78,10 @@ namespace linereg {
   extern template class DistanceTable<AngleClusterH>;
   extern template class DistanceTable<DistClusterH>;
 
+  double calc_mean_angle(const std::vector<linetype*>& lines);
+  Point_2 calc_centroid(const std::vector<linetype*>& lines);
+  Segment_2 calc_segment(Point_2 centroid, double mean_angle, const std::vector<linetype*>& lines, double extension=0);
+
   struct linetype {
     linetype(Segment_2 segment_, double angle_, Point_2 midpoint_, double dist_in_ang_cluster_, size_t priority_, size_t segment_id_, double sqlength_) :
     segment(segment_), angle(angle_), midpoint(midpoint_), priority(priority_), segment_id(segment_id_), sqlength(sqlength_) {};

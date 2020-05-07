@@ -1828,9 +1828,19 @@ void BuildArrFromLinesNode::process() {
       // Check for 0 segment length (quick fix for linux crash)
       if (i++ == max_arr_complexity) break;
       if (CGAL::squared_distance(s.first,s.second) > 0.001)
-        lines.push_back(Line_2(s.first,s.second));
+        lines.push_back(Segment_2(s.first,s.second));
     }
     insert(arr_base, lines.begin(), lines.end());
+  }
+  {
+    std::vector<Arrangement_2::Halfedge_handle> to_remove;
+    for (auto he : arr_base.edge_handles()) {
+      if (he->face()==he->twin()->face())
+        to_remove.push_back(he);
+    }
+    for (auto he : to_remove) {
+      arr_base.remove_edge(he);
+    }
   }
   output("arrangement").set(arr_base);
 }
@@ -2347,10 +2357,25 @@ void RegulariseLinesNode::process(){
     dist_cluster_ids.push_back(line.dist_cluster_id);
   }
   for(auto& dclust : LR.dist_clusters) {
+    size_t dclust_size = dclust->lines.size();
+    Segment_2 segment;
     //get lines with highest priority
+    size_t max_priority=0;
+    for (auto line : dclust->lines) {
+      if(line->priority > max_priority) max_priority = line->priority;
+    }
+    std::vector<linereg::linetype*> prio_lines;
+    for (auto line : dclust->lines) {
+      if(line->priority == max_priority) {
+        prio_lines.push_back(line);
+      }
+    }
+    //skip if cluster only contains fp segments
+    if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
     //compute mean line with small extensions on both ends
-    //omit if it only contains fp segments
-    auto& segment = dclust->value;
+    double mean_angle = calc_mean_angle(prio_lines);
+    auto centroid = calc_centroid(prio_lines);
+    segment = calc_segment(centroid, mean_angle, dclust->lines, extension);
     auto new_seg = Segment();
     new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
     new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
