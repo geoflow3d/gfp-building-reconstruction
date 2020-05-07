@@ -22,6 +22,7 @@ namespace linereg {
 
   template <typename T> struct Cluster {
     T value;
+    bool has_intersection_line;
     std::vector<linetype*> lines;
     virtual double distance(Cluster<T>* other_cluster)=0;
     virtual void calc_mean_value()=0;
@@ -66,7 +67,7 @@ namespace linereg {
 
     DistanceTable(std::set<ClusterH>& clusters); //computes initial distances
     void merge(ClusterH lhs, ClusterH rhs); // merges two clusters, then removes one from the distances map and update the affected distances
-    std::pair<ClusterPair, double> get_closest_pair(); //returns the cluster pair with the smallest distance
+    typename DistanceMap::iterator get_closest_pair(); //returns the cluster pair with the smallest distance
   };
   
   // extern template class Cluster<double>;

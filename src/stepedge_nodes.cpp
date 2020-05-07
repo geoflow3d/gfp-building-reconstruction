@@ -2372,14 +2372,32 @@ void RegulariseLinesNode::process(){
     }
     //skip if cluster only contains fp segments
     if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
-    //compute mean line with small extensions on both ends
-    double mean_angle = calc_mean_angle(prio_lines);
-    auto centroid = calc_centroid(prio_lines);
-    segment = calc_segment(centroid, mean_angle, dclust->lines, extension);
-    auto new_seg = Segment();
-    new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
-    new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
-    regularised.push_back(new_seg);
+    if(max_priority==2 && (prio_lines.size()>1)) {
+      std::vector<linereg::linetype*> other_lines;
+      for (auto line : dclust->lines) {
+        if(line->priority != 2) {
+          other_lines.push_back(line);
+        }
+      }
+      for (auto line : prio_lines) {
+        double mean_angle = line->angle;
+        auto centroid = line->midpoint;
+        segment = calc_segment(centroid, mean_angle, other_lines, extension);
+        auto new_seg = Segment();
+        new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
+        new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
+        regularised.push_back(new_seg);
+      }
+    } else {
+      //compute mean line with small extensions on both ends
+      double mean_angle = calc_mean_angle(prio_lines);
+      auto centroid = calc_centroid(prio_lines);
+      segment = calc_segment(centroid, mean_angle, dclust->lines, extension);
+      auto new_seg = Segment();
+      new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
+      new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
+      regularised.push_back(new_seg);
+    }
   }
   output("angle_cluster_id").set(angle_cluster_ids);
   output("dist_cluster_id").set(dist_cluster_ids);

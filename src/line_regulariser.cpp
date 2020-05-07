@@ -94,6 +94,8 @@ namespace linereg {
       for(auto cit_b = std::next(cit_a); cit_b != clusters.end(); ++cit_b) {
         auto cluster_a = *cit_a;
         auto cluster_b = *cit_b;
+        // do not create entries for cluster pairs that both have an intersection line, these are not to be merged
+        // if (cluster_a->has_intersection_line && cluster_b->has_intersection_line) continue;
         distances[std::make_pair(cluster_a, cluster_b)] = cluster_a->distance(cluster_b.get());
       }
     }
@@ -102,21 +104,28 @@ namespace linereg {
     // merges two clusters, then removes one from the distances map and update the affected distances
     // merge
     lhs->lines.insert(lhs->lines.end(), rhs->lines.begin(), rhs->lines.end());
+    // lhs->has_intersection_line = lhs->has_intersection_line || rhs->has_intersection_line;
     lhs->calc_mean_value();
 
     clusters.erase(rhs);
-    // iterate distances
-    // if rhs in pair remove element
-    // if lhs in pair update dist
+    // iterate distancetable
+    // if rhs in pair: remove pair
+    // if lhs has intersection line and lhs in a pair: remove pair if the other cluster also has an intersection line. Since clusters that both have intersection line are not te be merged.
     std::vector<typename DistanceMap::iterator> to_remove;
     for (auto it = distances.begin(); it != distances.end(); ++it) {
-      if (it->first.first == rhs || it->first.second == rhs) {
+      bool remove_it = false;
+      if( 
+          (it->first.first == rhs || it->first.second == rhs)
+          // ||
+          // (it->first.first->has_intersection_line && it->first.second->has_intersection_line)
+       ) {
         to_remove.push_back(it);
       }
     }
     for (auto& it : to_remove) {
       distances.erase(it);
     }
+    // if lhs in pair update dist
     for (auto it = distances.begin(); it != distances.end(); ++it) {
       if (it->first.first == lhs || it->first.second == lhs) {
         it->second = it->first.first->distance(it->first.second.get());
@@ -124,14 +133,14 @@ namespace linereg {
     }
   }
   //NB: this will crash if there is only one cluster!!
-  template <typename ClusterH> std::pair<typename DistanceTable<ClusterH>::ClusterPair, double>  DistanceTable<ClusterH>::get_closest_pair() {
+  template <typename ClusterH> typename DistanceTable<ClusterH>::DistanceMap::iterator DistanceTable<ClusterH>::get_closest_pair() {
     auto min_it = distances.begin();
     for(auto it = distances.begin(); it != distances.end(); ++it) {
       if(it->second < min_it->second) {
         min_it = it;
       }
     }
-    return *min_it;
+    return min_it;
   }
 
   template class DistanceTable<AngleClusterH>;
@@ -143,17 +152,19 @@ namespace linereg {
     for(auto& line : lines) {
       auto aclusterh = std::make_shared<AngleCluster>();
       aclusterh->value = line.angle;
+      // aclusterh->has_intersection_line = line.priority==2;
       aclusterh->lines.push_back(&line);
       angle_clusters.insert(aclusterh);
     }
-    // make distance table
-    DistanceTable adt(angle_clusters);
 
     if (angle_clusters.size()>1) {
+      // make distance table
+      DistanceTable adt(angle_clusters);
+
       auto apair = adt.get_closest_pair();
-      while (apair.second < angle_threshold) {
-        adt.merge(apair.first.first, apair.first.second);
-        if (angle_clusters.size()==1) break;
+      while (apair->second < angle_threshold) {
+        adt.merge(apair->first.first, apair->first.second);
+        if (adt.distances.size()==0) break;
         apair = adt.get_closest_pair();
       }
     }
@@ -176,6 +187,7 @@ namespace linereg {
       for(auto& line : aclusterh->lines) {
         auto dclusterh = std::make_shared<DistCluster>();
         dclusterh->value = line->segment;
+        // dclusterh->has_intersection_line = line->priority==2;
         dclusterh->lines.push_back(line);
         dclusters.insert(dclusterh);
       }
@@ -186,9 +198,9 @@ namespace linereg {
 
         // do clustering
         auto dpair = ddt.get_closest_pair();
-        while (dpair.second < dist_threshold) {
-          ddt.merge(dpair.first.first, dpair.first.second);
-          if (dclusters.size()==1) break;
+        while (dpair->second < dist_threshold) {
+          ddt.merge(dpair->first.first, dpair->first.second);
+          if (ddt.distances.size()==0) break;
           dpair = ddt.get_closest_pair();
         }
       }
