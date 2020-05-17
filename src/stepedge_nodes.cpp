@@ -428,6 +428,10 @@ void Arr2LinearRingsNode::process(){
   // input_attr_map["building_id"] = &attr_objectid_term;
 
   int j=0;
+  auto& plane_a = vector_output("plane_a");
+  auto& plane_b = vector_output("plane_b");
+  auto& plane_c = vector_output("plane_c");
+  auto& plane_d = vector_output("plane_d");
   for (auto face: arr.face_handles()){
     if(
       !(only_in_footprint && !face->data().in_footprint)
@@ -437,6 +441,12 @@ void Arr2LinearRingsNode::process(){
       LinearRing polygon;
       arrangementface_to_polygon(face, polygon);
       linear_rings.push_back(polygon);
+      
+      // plane paramters
+      plane_a.push_back(float(CGAL::to_double(face->data().plane.a())));
+      plane_b.push_back(float(CGAL::to_double(face->data().plane.b())));
+      plane_c.push_back(float(CGAL::to_double(face->data().plane.c())));
+      plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
 
       // attributes specific to each roofpart
       input_attr_map["hoogte_abs"]->push_back((float)face->data().elevation_avg);

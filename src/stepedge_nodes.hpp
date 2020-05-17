@@ -141,6 +141,10 @@ namespace geoflow::nodes::stepedge {
       add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
+      add_vector_output("plane_a", typeid(float));
+      add_vector_output("plane_b", typeid(float));
+      add_vector_output("plane_c", typeid(float));
+      add_vector_output("plane_d", typeid(float));
     }
     void process();
   };
