@@ -55,6 +55,7 @@ geoflow_create_plugin(
   src/Raster.cpp
   src/heightfield_nodes.cpp
   src/polygon_triangulate.cpp
+  src/line_regulariser.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

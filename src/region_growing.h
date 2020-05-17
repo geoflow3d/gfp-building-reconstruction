@@ -54,7 +54,7 @@ namespace linedect {
     LineDetector(vector<Point> &points, vector<vector<size_t>> neighbours);
     vector<size_t> get_point_indices(size_t shape_id);
     geoflow::Segment project(const size_t i1, const size_t i2);
-    SCK::Segment_2 project_cgal(const size_t i1, const size_t i2, float extension);
+    SCK::Segment_3 project_cgal(const size_t i1, const size_t i2, float extension);
     size_t get_bounded_edges(geoflow::SegmentCollection& edges);
     std::vector<size_t> detect();
 

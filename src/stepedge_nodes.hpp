@@ -141,6 +141,10 @@ namespace geoflow::nodes::stepedge {
       add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
+      add_vector_output("plane_a", typeid(float));
+      add_vector_output("plane_b", typeid(float));
+      add_vector_output("plane_c", typeid(float));
+      add_vector_output("plane_d", typeid(float));
     }
     void process();
   };
@@ -285,7 +289,7 @@ namespace geoflow::nodes::stepedge {
     //   ImGui::Text("Arrangement valid? %s", arr_is_valid? "yes" : "no");
     //   ImGui::Text("vcount: %d, ecount: %d", vcount, ecount);
     // }
-    void arr_snapclean(Arrangement_2& arr);
+    // void arr_snapclean(Arrangement_2& arr);
     void arr_snapclean_from_fp(Arrangement_2& arr);
     void arr_process(Arrangement_2& arr);
     void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points);
@@ -295,17 +299,24 @@ namespace geoflow::nodes::stepedge {
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
+    // bool snap_clean = true;
+    // bool snap_detect_only = false;
+    // float snap_dist = 1.0;
     public:
 
     using Node::Node;
     void init() {
-      add_vector_input("lines", typeid(Segment));
+      add_vector_input("lines", {typeid(Segment), typeid(linereg::Segment_2)});
       add_input("footprint", {typeid(linereg::Polygon_with_holes_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
       add_output("arr_complexity", typeid(int));
 
       add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
+
+      // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
+      // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
+      // add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
     }
     void process();
   };
@@ -417,6 +428,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_input("edge_points", {typeid(PointCollection), typeid(LinearRingCollection)});
       add_input("roofplane_ids", typeid(vec1i));
+      add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("edge_segments", typeid(SegmentCollection));
       add_output("lines3d", typeid(SegmentCollection));
       add_output("ring_edges", typeid(SegmentCollection));
@@ -436,7 +448,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(remove_overlap, "remove_overlap", "Remove overlap"));
     }
     inline void detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out);
-    inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, SegmentCollection& segments_out);
+    inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, Plane&, SegmentCollection& segments_out);
     inline void detect_lines(linedect::LineDetector& LD);
     void process();
   };
@@ -581,39 +593,29 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
-  struct LineCluster {
-    //                source_id, target_id, is_footprint
-    typedef std::tuple<size_t, size_t, bool> SegmentTuple; 
-    Vector_2 ref_vec; // direction of reference line for this cluster (exact_exact arrangent traits)
-    Point_2 ref_point; // reference point on reference line
-    vec1f vertices; // stored as distances from ref_point in direction of ref_vec
-    std::vector<SegmentTuple> segments;
-  };
-
-  struct ValueCluster {
-    Vector_2 ref_vec;
-    Vector_2 ref_point;
-    std::vector<size_t> idx;
-  };
-
   class RegulariseLinesNode:public Node {
-    static constexpr double pi = 3.14159265358979323846;
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
+    float extension = 1.0;
 
     public:
     using Node::Node;
     void init() {
       add_input("edge_segments", typeid(SegmentCollection));
-      add_input("footprint", typeid(LinearRing));
-      add_output("edges_out", typeid(LineStringCollection));
-      add_output("merged_edges_out", typeid(LineStringCollection));
-      add_output("cluster_labels", typeid(vec1i));
-      // add_output("footprint_labels", typeid(vec1i));
-      // add_output("line_clusters", TT_any); // ie a LineCluster
-      // add_output("tmp_vec3f", typeid(vec3f));
+      add_input("ints_segments", typeid(SegmentCollection));
+      // add_input("footprint", typeid(LinearRing));
+
+      add_vector_output("regularised_edges", typeid(Segment));
+      add_vector_output("exact_regularised_edges", typeid(linereg::Segment_2));
+      add_output("edges_out_", typeid(SegmentCollection));
+      add_output("priorities", typeid(vec1i));
+      add_output("angle_cluster_id", typeid(vec1i));
+      add_output("dist_cluster_id", typeid(vec1i));
+      add_output("exact_footprint_out", typeid(linereg::Polygon_with_holes_2));
+      
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
-      add_param(ParamBoundedFloat(angle_threshold, 0.01, pi, "angle_threshold", "Angle threshold"));
+      add_param(ParamFloat(extension, "extension", "Line extension after regularisation"));
+      add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
     }
     void process();
   };
@@ -639,7 +641,10 @@ namespace geoflow::nodes::stepedge {
       // add_input("edge_segments", typeid(SegmentCollection));
       add_input("footprint", typeid(LinearRing));
       add_vector_output("edges_out", typeid(Segment));
+      add_output("edges_out_", typeid(SegmentCollection));
       add_output("priorities", typeid(vec1i));
+      add_output("angle_cluster_id", typeid(vec1i));
+      add_output("dist_cluster_id", typeid(vec1i));
       // add_output("rings_out", typeid(LinearRingCollection));
       // add_output("footprint_out", typeid(LinearRing));
       add_output("rings_out", typeid(LinearRingCollection));
