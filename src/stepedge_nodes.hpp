@@ -295,9 +295,9 @@ namespace geoflow::nodes::stepedge {
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
-    bool snap_clean = true;
-    bool snap_detect_only = false;
-    float snap_dist = 1.0;
+    // bool snap_clean = true;
+    // bool snap_detect_only = false;
+    // float snap_dist = 1.0;
     public:
 
     using Node::Node;
@@ -310,9 +310,9 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
 
-      add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
-      add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
-      add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
+      // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
+      // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
+      // add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
     }
     void process();
   };
@@ -424,6 +424,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_input("edge_points", {typeid(PointCollection), typeid(LinearRingCollection)});
       add_input("roofplane_ids", typeid(vec1i));
+      add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("edge_segments", typeid(SegmentCollection));
       add_output("lines3d", typeid(SegmentCollection));
       add_output("ring_edges", typeid(SegmentCollection));
@@ -443,7 +444,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(remove_overlap, "remove_overlap", "Remove overlap"));
     }
     inline void detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out);
-    inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, SegmentCollection& segments_out);
+    inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, Plane&, SegmentCollection& segments_out);
     inline void detect_lines(linedect::LineDetector& LD);
     void process();
   };
@@ -598,7 +599,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_input("edge_segments", typeid(SegmentCollection));
       add_input("ints_segments", typeid(SegmentCollection));
-      add_input("footprint", typeid(LinearRing));
+      // add_input("footprint", typeid(LinearRing));
 
       add_vector_output("regularised_edges", typeid(Segment));
       add_vector_output("exact_regularised_edges", typeid(linereg::Segment_2));

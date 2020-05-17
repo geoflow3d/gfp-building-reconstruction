@@ -196,65 +196,76 @@ namespace linereg {
   };
   template<class Kernel> void 
   chain(
-    const typename Kernel::Segment_2& a, 
-    const typename Kernel::Segment_2& b, 
-    typename CGAL::Polygon_2<Kernel>& ring, 
+    const typename Kernel::Plane_3& plane, 
+    const typename Kernel::Segment_3& a, 
+    const typename Kernel::Segment_3& b, 
+    std::vector<typename Kernel::Point_3>& ring_pts, 
     const float& snap_threshold) {
 
-    auto l_a = a.supporting_line();
-    auto l_b = b.supporting_line();
-    typename Kernel::Segment_2 s(a.target(), b.source());
+    typedef typename Kernel::Segment_2 Segment_2;
+    typedef typename Kernel::Point_2 Point_2;
+    typedef typename Kernel::Point_3 Point_3;
+    typedef typename Kernel::Plane_3 Plane_3;
+
+    auto a_2d = Segment_2(Point_2(a.source().x(), a.source().y()), Point_2(a.target().x(), a.target().y()));
+    auto b_2d = Segment_2(Point_2(b.source().x(), b.source().y()), Point_2(b.target().x(), b.target().y()));
+
+    auto l_a = a_2d.supporting_line();
+    auto l_b = b_2d.supporting_line();
+    Segment_2 s(a_2d.target(), b_2d.source());
     auto result = CGAL::intersection(l_a, l_b);
     if (result) {
-      if (auto p = boost::get<typename Kernel::Point_2>(&*result)) {
+      if (auto p = boost::get<Point_2>(&*result)) {
         if (CGAL::squared_distance(*p, s) < snap_threshold) {
-          ring.push_back(*p);
+          double z = -plane.a()/plane.c() * p->x() - plane.b()/plane.c()*p->y() - plane.d()/plane.c();
+          ring_pts.push_back( Point_3(p->x(), p->y(), z) );
+          // ring_pts.push_back( plane.to_3d(*p) );
         } else {
-          ring.push_back(a.target());
-          ring.push_back(b.source());
+          ring_pts.push_back(a.target());
+          ring_pts.push_back(b.source());
         }
       }
     // } else if (auto l = boost::get<K::Line_2>(&*result)) {
-
-    // }
     } else { // there is no intersection
-      ring.push_back(a.target());
-      ring.push_back(b.source());
+      ring_pts.push_back(a.target());
+      ring_pts.push_back(b.source());
     }
   }
 
   // void chain(Segment& a, Segment& b, LinearRing& ring, const float& snap_threshold) {
-  template <class Kernel> inline void check_dist(const CGAL::Polygon_2<Kernel>& pos, CGAL::Polygon_2<Kernel>& pot, const size_t a, const size_t b) {
-    auto d = CGAL::squared_distance(pos.vertex(a), pos.vertex(b));
-    if (d > 1E-6) pot.push_back(pos.vertex(a));
+  template <class Kernel> inline void check_dist(std::vector<typename Kernel::Point_3>& iring, std::vector<typename Kernel::Point_3>& aring, const size_t a, const size_t b) {
+    auto d = CGAL::squared_distance(iring[a], iring[b]);
+    if (d > 1E-6) aring.push_back(iring[a]);
   }
   
-  template<class Kernel> CGAL::Polygon_2<Kernel> 
+  // template<class Kernel> CGAL::Polygon_2<Kernel> 
+  template<class Kernel> std::vector<typename Kernel::Point_3>
   chain_ring(
-    const std::vector<size_t>& idx, 
-    const std::vector<typename Kernel::Segment_2>& segments, 
+    const std::vector<size_t>& idx,
+    const typename Kernel::Plane_3& plane,
+    const std::vector<typename Kernel::Segment_3>& segments, 
     const float& snap_threshold) {
 
-    typename CGAL::Polygon_2<Kernel>  ring, fixed_ring;
+    std::vector<typename Kernel::Point_3> ring_points, new_ring_points;
 
     if (idx.size()>1) { // we need at least 2 segments
       for (size_t i=1; i<idx.size(); ++i) {
-        chain<Kernel>(segments[idx[i-1]], segments[idx[i]], ring, snap_threshold);
+        chain<Kernel>(plane, segments[idx[i-1]], segments[idx[i]], ring_points, snap_threshold);
       }
-      chain<Kernel>(segments[idx[idx.size()-1]], segments[idx[0]], ring, snap_threshold);
+      chain<Kernel>(plane, segments[idx[idx.size()-1]], segments[idx[0]], ring_points, snap_threshold);
 
       // get rid of segments with zero length (ie duplicate points)
       // check again the size, to ignore degenerate case of input ring that consists of 3 co-linear segments (would get chained to eg 0 vertices)
-      if (ring.size()>2) {
-        for (size_t i=1; i<ring.size(); ++i) {
-          check_dist<Kernel>(ring, fixed_ring, i-1, i);
+      if (ring_points.size()>2) {
+        for (size_t i=1; i<ring_points.size(); ++i) {
+          check_dist<Kernel>(ring_points, new_ring_points, i-1, i);
         }
-        check_dist<Kernel>(ring, fixed_ring, ring.size()-1, 0);
+        check_dist<Kernel>(ring_points, new_ring_points, ring_points.size()-1, 0);
       }
 
       // NOTE: at this point there can still be vertices between co-linear segments (ie 3 consecutive points on the same line)
     }
 
-    return fixed_ring;
+    return new_ring_points;
   }
 }

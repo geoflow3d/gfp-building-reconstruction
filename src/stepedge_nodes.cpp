@@ -1854,7 +1854,7 @@ void BuildArrFromLinesNode::process() {
     }
   }
 
-  if (snap_clean) arr_snapclean(arr_base, snap_dist, snap_detect_only);
+  // if (snap_clean) arr_snapclean(arr_base, snap_dist, snap_detect_only);
 
   output("arrangement").set(arr_base);
 }
@@ -1923,7 +1923,7 @@ inline void DetectLinesNode::detect_lines(linedect::LineDetector& LD) {
     LD.detect();
   }
 }
-inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, SegmentCollection& segments_out) {
+inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, Plane& plane, SegmentCollection& segments_out) {
   LD.dist_thres = dist_thres * dist_thres;
   LD.N = k;
   auto& c_upper = min_cnt_range.second;
@@ -2004,7 +2004,7 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
       }
     }
     if (perform_chaining) {
-      std::vector<SCK::Segment_2> prechain_segments;
+      std::vector<SCK::Segment_3> prechain_segments;
       std::vector<size_t> idx; size_t idcnt=0;
       for (auto& [i0,i1] : sorted_segments) {
         // segments_out.push_back( LD.project(i0, i1) );
@@ -2012,22 +2012,38 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
         idx.push_back(idcnt++);
       }
       // TODO: chain the ring? for better regularisation results
-      auto chained_segments = linereg::chain_ring<SCK>(idx, prechain_segments, snap_threshold);
+      SegmentCollection new_ring;
+      auto chained_ring_pts = linereg::chain_ring<SCK>(idx, SCK::Plane_3(plane.a(), plane.b(), plane.c(), plane.d()), prechain_segments, snap_threshold);
 
-      // for (auto e=prechain_segments.begin(); e!=prechain_segments.end(); ++e) {
-      for (auto e=chained_segments.edges_begin(); e!=chained_segments.edges_end(); ++e) {
+      auto first = chained_ring_pts.begin();
+      for (auto pit=std::next(first); pit!=chained_ring_pts.end(); ++pit) {
+        auto p2 = *pit;
+        auto p1 = *std::prev(pit);
         segments_out.push_back({
           arr3f{
-            float(CGAL::to_double(e->source().x())),
-            float(CGAL::to_double(e->source().y())),
-            0},
+            float(CGAL::to_double(p1.x())),
+            float(CGAL::to_double(p1.y())),
+            float(CGAL::to_double(p1.z()))},
           arr3f{
-            float(CGAL::to_double(e->target().x())),
-            float(CGAL::to_double(e->target().y())),
-            0},
+            float(CGAL::to_double(p2.x())),
+            float(CGAL::to_double(p2.y())),
+            float(CGAL::to_double(p2.z()))},
         });
       }
-      return chained_segments.size();
+      auto p1 = *chained_ring_pts.rbegin();
+      auto p2 = *first;
+      segments_out.push_back({
+        arr3f{
+          float(CGAL::to_double(p1.x())),
+          float(CGAL::to_double(p1.y())),
+          float(CGAL::to_double(p1.z()))},
+        arr3f{
+          float(CGAL::to_double(p2.x())),
+          float(CGAL::to_double(p2.y())),
+          float(CGAL::to_double(p2.z()))},
+      });
+
+      return segments_out.size();
     } else {
       for (const auto& e : sorted_segments) {
         segments_out.push_back(
@@ -2042,6 +2058,7 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
 
 void DetectLinesNode::process(){
   auto input_geom = input("edge_points");
+  auto planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   
 
   SegmentCollection edge_segments, lines3d;
@@ -2095,7 +2112,7 @@ void DetectLinesNode::process(){
         
         linedect::LineDetector LD(cgal_pts);
         // SegmentCollection ring_edges;
-        auto n_detected = detect_lines_ring_m2(LD, edge_segments);
+        auto n_detected = detect_lines_ring_m2(LD, planes[plane_id].first, edge_segments);
         LD.get_bounded_edges(lines3d);
 
         for (size_t j=0; j<n_detected; ++j) {
@@ -2312,30 +2329,30 @@ void RegulariseLinesNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto edges = input("edge_segments").get<SegmentCollection>();
   auto ints_segments = input("ints_segments").get<SegmentCollection>();
-  auto footprint = input("footprint").get<LinearRing>();
+  // auto footprint = input("footprint").get<LinearRing>();
   // auto ring_id = input("ring_id").get<vec1i>();
   // auto ring_order = input("ring_order").get<vec1i>();
 
-  linereg::Polygon_2 cgal_footprint;
-  std::vector<linereg::Polygon_2> ek_holes;
-  for (auto& p : footprint) {
-    cgal_footprint.push_back(linereg::Point_2(p[0], p[1]));
-  }
-  for (auto& ring : footprint.interior_rings()) {
-    linereg::Polygon_2 ek_hole;
-    for (auto& p : ring) {
-      ek_hole.push_back(linereg::Point_2(p[0], p[1]));
-    }
-    ek_holes.push_back(ek_hole);
-  }
+  // linereg::Polygon_2 cgal_footprint;
+  // std::vector<linereg::Polygon_2> ek_holes;
+  // for (auto& p : footprint) {
+  //   cgal_footprint.push_back(linereg::Point_2(p[0], p[1]));
+  // }
+  // for (auto& ring : footprint.interior_rings()) {
+  //   linereg::Polygon_2 ek_hole;
+  //   for (auto& p : ring) {
+  //     ek_hole.push_back(linereg::Point_2(p[0], p[1]));
+  //   }
+  //   ek_holes.push_back(ek_hole);
+  // }
 
   // get clusters from line regularisation 
   auto LR = linereg::LineRegulariser();
   LR.add_segments(0,edges);
-  LR.add_segments(1,cgal_footprint, (double) 0);
-  for (auto& hole : ek_holes) {
-    LR.add_segments(1,hole, (double) 0);
-  }
+  // LR.add_segments(1,cgal_footprint, (double) 0);
+  // for (auto& hole : ek_holes) {
+  //   LR.add_segments(1,hole, (double) 0);
+  // }
   LR.add_segments(2,ints_segments);
   LR.dist_threshold = dist_threshold*dist_threshold;
   LR.angle_threshold = angle_threshold;
@@ -2346,7 +2363,7 @@ void RegulariseLinesNode::process(){
   LR.perform_distance_clustering();
   std::cout << "...clustering complete\n";
 
-  output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
+  // output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
 
   auto& regularised = vector_output("regularised_edges");
   auto& regularised_exact = vector_output("exact_regularised_edges");
