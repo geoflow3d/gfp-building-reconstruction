@@ -1366,7 +1366,7 @@ void BuildArrFromRingsExactNode::arr_snapclean_from_fp(Arrangement_2& arr) {
   output("snap_fp_to_v").set(snap_to_v);
   output("snap_fp_to_e").set(snap_to_e);
 }
-void BuildArrFromRingsExactNode::arr_snapclean(Arrangement_2& arr) {
+void arr_snapclean(Arrangement_2& arr, float& snap_dist, bool& snap_detect_only) {
   typedef Arrangement_2::Traits_2 AT;
   typedef std::variant<Arrangement_2::Vertex_handle, Arrangement_2::Halfedge_handle> Candidate;
   typedef std::unordered_map<Arrangement_2::Vertex_handle, std::map<double,Candidate>> CandidateMap;
@@ -1487,9 +1487,9 @@ void BuildArrFromRingsExactNode::arr_snapclean(Arrangement_2& arr) {
     }
   }
 
-  output("snap_v").set(snap_v);
-  output("snap_to_v").set(snap_to_v);
-  output("snap_to_e").set(snap_to_e);
+  // output("snap_v").set(snap_v);
+  // output("snap_to_v").set(snap_to_v);
+  // output("snap_to_e").set(snap_to_e);
 }
 
 
@@ -1718,7 +1718,7 @@ void BuildArrFromRingsExactNode::process() {
       }
     }
   }
-  if(snap_clean) arr_snapclean(arr_base);
+  if(snap_clean) arr_snapclean(arr_base, snap_dist, snap_detect_only);
   if(snap_clean_fp) arr_snapclean_from_fp(arr_base);
 
   if(extrude_unsegmented && points_per_plane.count(-1)) {
@@ -1804,34 +1804,45 @@ void BuildArrFromLinesNode::process() {
   
   typedef std::pair<Point_2, Point_2> PointPair;
 
-  std::vector<PointPair> segments;
-  for(size_t i=0; i<lines_term.size(); ++i) {
-    auto& s = lines_term.get<Segment>(i);
-    Point_2 a(s[0][0],s[0][1]);
-    Point_2 b(s[1][0],s[1][1]);
-    segments.push_back(std::make_pair(a,b));
-  }
 
   int arr_complexity = lines_term.size();
   output("arr_complexity").set(arr_complexity);
 
-  if (arr_complexity > max_arr_complexity) {
-    std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
-      return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
-    });
-  }
-
-  {
-    std::vector<X_monotone_curve_2> lines;
-    size_t i=0;
-    for(auto& s : segments) {
-      // Check for 0 segment length (quick fix for linux crash)
-      if (i++ == max_arr_complexity) break;
-      if (CGAL::squared_distance(s.first,s.second) > 0.001)
-        lines.push_back(Segment_2(s.first,s.second));
+  if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
+    for(size_t i=0; i<lines_term.size(); ++i) {
+      auto& s = lines_term.get<linereg::Segment_2>(i);
+      insert(arr_base, s);
     }
-    insert(arr_base, lines.begin(), lines.end());
+
+  } else {
+
+    std::vector<PointPair> segments;
+    for(size_t i=0; i<lines_term.size(); ++i) {
+      auto& s = lines_term.get<Segment>(i);
+      Point_2 a(s[0][0],s[0][1]);
+      Point_2 b(s[1][0],s[1][1]);
+      segments.push_back(std::make_pair(a,b));
+    }
+
+    if (arr_complexity > max_arr_complexity) {
+      std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
+        return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
+      });
+    }
+
+    {
+      std::vector<X_monotone_curve_2> lines;
+      size_t i=0;
+      for(auto& s : segments) {
+        // Check for 0 segment length (quick fix for linux crash)
+        if (i++ == max_arr_complexity) break;
+        if (CGAL::squared_distance(s.first,s.second) > 0.001) lines.push_back(Segment_2(s.first,s.second));
+      }
+      insert(arr_base, lines.begin(), lines.end());
+    }
   }
+  
+  //remove dangling edges
   {
     std::vector<Arrangement_2::Halfedge_handle> to_remove;
     for (auto he : arr_base.edge_handles()) {
@@ -1842,6 +1853,9 @@ void BuildArrFromLinesNode::process() {
       arr_base.remove_edge(he);
     }
   }
+
+  if (snap_clean) arr_snapclean(arr_base, snap_dist, snap_detect_only);
+
   output("arrangement").set(arr_base);
 }
 
@@ -2335,16 +2349,13 @@ void RegulariseLinesNode::process(){
   output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
 
   auto& regularised = vector_output("regularised_edges");
+  auto& regularised_exact = vector_output("exact_regularised_edges");
   SegmentCollection edges_out_;
   vec1i priorities, angle_cluster_ids, dist_cluster_ids;
   // we should iterate of the distance clusters and output one segment per cluster
   for(auto& line : LR.lines) {
     linereg::Segment_2 segment;
-    if (regularise_lines) {
-      segment = line.dist_cluster->value;
-    } else {
-      segment = line.segment;
-    }
+    segment = line.segment;
     auto new_seg = Segment();
     new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
     new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
@@ -2370,8 +2381,12 @@ void RegulariseLinesNode::process(){
         prio_lines.push_back(line);
       }
     }
-    //skip if cluster only contains fp segments
-    if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
+    // TODO: split clusters using common planes if intersection segment(s) are present? 
+    // TODO: compute distance clusters with 3D dists? 
+    // TODO: output exact segments? quick solve of spikes?
+    // TODO: performance optimise clustering algo
+    // //skip if cluster only contains fp segments
+    // if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
     if(max_priority==2 && (prio_lines.size()>1)) {
       std::vector<linereg::linetype*> other_lines;
       for (auto line : dclust->lines) {
@@ -2387,6 +2402,7 @@ void RegulariseLinesNode::process(){
         new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
         new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
         regularised.push_back(new_seg);
+        regularised_exact.push_back(segment);
       }
     } else {
       //compute mean line with small extensions on both ends
@@ -2397,6 +2413,7 @@ void RegulariseLinesNode::process(){
       new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
       new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
       regularised.push_back(new_seg);
+      regularised_exact.push_back(segment);
     }
   }
   output("angle_cluster_id").set(angle_cluster_ids);

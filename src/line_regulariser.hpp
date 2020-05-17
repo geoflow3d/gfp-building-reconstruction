@@ -6,6 +6,8 @@
 #include <CGAL/Polygon_with_holes_2.h>
 #include <geoflow/geoflow.hpp>
 
+#include <boost/heap/fibonacci_heap.hpp>
+
 namespace linereg {
   typedef CGAL::Exact_predicates_exact_constructions_kernel K;
   // typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
@@ -39,35 +41,50 @@ namespace linereg {
   template <typename ClusterH> struct DistanceTable {
     typedef std::pair<ClusterH, ClusterH> ClusterPair;
 
-    // define has function such that the same hash results regardless of the order of cluster handles in the pair
-    struct KeyHash {
-      size_t operator()(const ClusterPair& key) const {
-        if (key.first.get() < key.second.get())
-          return std::hash<ClusterH>()(key.first) ^
-            (std::hash<ClusterH>()(key.second) << 1);
-        else
-          return std::hash<ClusterH>()(key.second) ^
-            (std::hash<ClusterH>()(key.first) << 1);
-
+    // fibonacci heap from boost
+    struct ClusterPairDist {
+      ClusterPairDist(ClusterPair p, double d) : clusters(p), dist(d){}
+      ClusterPair clusters;
+      double dist;
+      
+      bool operator<(ClusterPairDist const & rhs) const
+      {
+        return dist > rhs.dist;
       }
     };
-    // True equality function is needed to deal with collisions
-    struct KeyEqual {
-      bool operator()(const ClusterPair& lhs, const ClusterPair& rhs) const {
-        return 
-          ((lhs.first==rhs.first) && (lhs.second==rhs.second)) 
-          ||
-          ((lhs.first==rhs.second) && (lhs.second==rhs.first));
-      }
-    };
-    typedef std::unordered_map<ClusterPair, double, KeyHash, KeyEqual> DistanceMap;
+    typedef boost::heap::fibonacci_heap<ClusterPairDist> DistanceHeap;
+    typedef typename DistanceHeap::handle_type heap_handle;
 
-    DistanceMap distances;
+    // define hash function such that the same hash results regardless of the order of cluster handles in the pair
+    // struct KeyHash {
+    //   size_t operator()(const ClusterPair& key) const {
+    //     if (key.first.get() < key.second.get())
+    //       return std::hash<ClusterH>()(key.first) ^
+    //         (std::hash<ClusterH>()(key.second) << 1);
+    //     else
+    //       return std::hash<ClusterH>()(key.second) ^
+    //         (std::hash<ClusterH>()(key.first) << 1);
+
+    //   }
+    // };
+    // // True equality function is needed to deal with collisions
+    // struct KeyEqual {
+    //   bool operator()(const ClusterPair& lhs, const ClusterPair& rhs) const {
+    //     return 
+    //       ((lhs.first==rhs.first) && (lhs.second==rhs.second)) 
+    //       ||
+    //       ((lhs.first==rhs.second) && (lhs.second==rhs.first));
+    //   }
+    // };
+    typedef std::unordered_map<ClusterH, std::list<std::shared_ptr<heap_handle>>> Cluster2DistPairMap;
+
+    Cluster2DistPairMap cluster_to_dist_pairs;
+    DistanceHeap distances;
     std::set<ClusterH>& clusters;
 
     DistanceTable(std::set<ClusterH>& clusters); //computes initial distances
     void merge(ClusterH lhs, ClusterH rhs); // merges two clusters, then removes one from the distances map and update the affected distances
-    typename DistanceMap::iterator get_closest_pair(); //returns the cluster pair with the smallest distance
+    ClusterPairDist get_closest_pair(); //returns the cluster pair with the smallest distance
   };
   
   // extern template class Cluster<double>;

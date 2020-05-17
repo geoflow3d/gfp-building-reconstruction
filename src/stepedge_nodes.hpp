@@ -285,7 +285,7 @@ namespace geoflow::nodes::stepedge {
     //   ImGui::Text("Arrangement valid? %s", arr_is_valid? "yes" : "no");
     //   ImGui::Text("vcount: %d, ecount: %d", vcount, ecount);
     // }
-    void arr_snapclean(Arrangement_2& arr);
+    // void arr_snapclean(Arrangement_2& arr);
     void arr_snapclean_from_fp(Arrangement_2& arr);
     void arr_process(Arrangement_2& arr);
     void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points);
@@ -295,17 +295,24 @@ namespace geoflow::nodes::stepedge {
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
+    bool snap_clean = true;
+    bool snap_detect_only = false;
+    float snap_dist = 1.0;
     public:
 
     using Node::Node;
     void init() {
-      add_vector_input("lines", typeid(Segment));
+      add_vector_input("lines", {typeid(Segment), typeid(linereg::Segment_2)});
       add_input("footprint", {typeid(linereg::Polygon_with_holes_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
       add_output("arr_complexity", typeid(int));
 
       add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
+
+      add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
+      add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
+      add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
     }
     void process();
   };
@@ -585,7 +592,6 @@ namespace geoflow::nodes::stepedge {
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
     float extension = 1.0;
-    bool regularise_lines = false;
 
     public:
     using Node::Node;
@@ -595,6 +601,7 @@ namespace geoflow::nodes::stepedge {
       add_input("footprint", typeid(LinearRing));
 
       add_vector_output("regularised_edges", typeid(Segment));
+      add_vector_output("exact_regularised_edges", typeid(linereg::Segment_2));
       add_output("edges_out_", typeid(SegmentCollection));
       add_output("priorities", typeid(vec1i));
       add_output("angle_cluster_id", typeid(vec1i));
@@ -604,7 +611,6 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
       add_param(ParamFloat(extension, "extension", "Line extension after regularisation"));
       add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
-      add_param(ParamBool(regularise_lines, "regularise_lines", "regularise_lines"));
     }
     void process();
   };

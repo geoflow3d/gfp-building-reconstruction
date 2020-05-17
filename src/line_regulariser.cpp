@@ -96,7 +96,15 @@ namespace linereg {
         auto cluster_b = *cit_b;
         // do not create entries for cluster pairs that both have an intersection line, these are not to be merged
         // if (cluster_a->has_intersection_line && cluster_b->has_intersection_line) continue;
-        distances[std::make_pair(cluster_a, cluster_b)] = cluster_a->distance(cluster_b.get());
+        // push distance to heap
+        auto hhandle = distances.push(ClusterPairDist(
+          std::make_pair(cluster_a, cluster_b),
+          cluster_a->distance(cluster_b.get())
+        ));
+        // store handle for both clusters
+        auto hh = std::make_shared<heap_handle>(hhandle);
+        cluster_to_dist_pairs[cluster_a].push_back(hh);
+        cluster_to_dist_pairs[cluster_b].push_back(hh);
       }
     }
   }
@@ -107,40 +115,36 @@ namespace linereg {
     // lhs->has_intersection_line = lhs->has_intersection_line || rhs->has_intersection_line;
     lhs->calc_mean_value();
 
-    clusters.erase(rhs);
     // iterate distancetable
     // if rhs in pair: remove pair
     // if lhs has intersection line and lhs in a pair: remove pair if the other cluster also has an intersection line. Since clusters that both have intersection line are not te be merged.
-    std::vector<typename DistanceMap::iterator> to_remove;
-    for (auto it = distances.begin(); it != distances.end(); ++it) {
-      bool remove_it = false;
-      if( 
-          (it->first.first == rhs || it->first.second == rhs)
-          // ||
-          // (it->first.first->has_intersection_line && it->first.second->has_intersection_line)
-       ) {
-        to_remove.push_back(it);
+    auto& rhs_hhandles = cluster_to_dist_pairs[rhs];
+    for (auto& hhandle : cluster_to_dist_pairs[rhs]) {
+      if (hhandle.use_count()==2) {
+        distances.erase(*hhandle);
       }
     }
-    for (auto& it : to_remove) {
-      distances.erase(it);
-    }
-    // if lhs in pair update dist
-    for (auto it = distances.begin(); it != distances.end(); ++it) {
-      if (it->first.first == lhs || it->first.second == lhs) {
-        it->second = it->first.first->distance(it->first.second.get());
+    clusters.erase(rhs);
+    cluster_to_dist_pairs.erase(rhs);
+
+    auto& lhs_hhandles = cluster_to_dist_pairs[lhs];
+    auto i = lhs_hhandles.begin();
+    while (i != lhs_hhandles.end()) {
+      // we check the use count of the shared ptr to our heap handle. There should be exactly 2 for the case where both clusters still exist, otherwise one has been merged before and the heap handle was also erased before
+      if (i->use_count()!=2)
+      {
+        lhs_hhandles.erase(i++);
+      } else {
+        // dereference 3 times! iterator->shared_ptr->heap_handle->heap_value Notice -> is not implemented on the heap_handle, so we must use * for the last dereference here
+        (***i).dist = (***i).clusters.first->distance((***i).clusters.second.get());
+        distances.update(*(*i));
+        ++i;
       }
     }
   }
-  //NB: this will crash if there is only one cluster!!
-  template <typename ClusterH> typename DistanceTable<ClusterH>::DistanceMap::iterator DistanceTable<ClusterH>::get_closest_pair() {
-    auto min_it = distances.begin();
-    for(auto it = distances.begin(); it != distances.end(); ++it) {
-      if(it->second < min_it->second) {
-        min_it = it;
-      }
-    }
-    return min_it;
+  template <typename ClusterH> typename DistanceTable<ClusterH>::ClusterPairDist DistanceTable<ClusterH>::get_closest_pair() {
+    ClusterPairDist min_pair = distances.top(); //distances.pop(); <- do not pop here; the node will be removed later in the merge function!
+    return min_pair;
   }
 
   template class DistanceTable<AngleClusterH>;
@@ -162,8 +166,8 @@ namespace linereg {
       DistanceTable adt(angle_clusters);
 
       auto apair = adt.get_closest_pair();
-      while (apair->second < angle_threshold) {
-        adt.merge(apair->first.first, apair->first.second);
+      while (apair.dist < angle_threshold) {
+        adt.merge(apair.clusters.first, apair.clusters.second);
         if (adt.distances.size()==0) break;
         apair = adt.get_closest_pair();
       }
@@ -198,8 +202,8 @@ namespace linereg {
 
         // do clustering
         auto dpair = ddt.get_closest_pair();
-        while (dpair->second < dist_threshold) {
-          ddt.merge(dpair->first.first, dpair->first.second);
+        while (dpair.dist < dist_threshold) {
+          ddt.merge(dpair.clusters.first, dpair.clusters.second);
           if (ddt.distances.size()==0) break;
           dpair = ddt.get_closest_pair();
         }
