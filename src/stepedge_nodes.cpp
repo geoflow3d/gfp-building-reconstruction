@@ -2015,10 +2015,24 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
       SegmentCollection new_ring;
       auto chained_ring_pts = linereg::chain_ring<SCK>(idx, SCK::Plane_3(plane.a(), plane.b(), plane.c(), plane.d()), prechain_segments, snap_threshold);
 
-      auto first = chained_ring_pts.begin();
-      for (auto pit=std::next(first); pit!=chained_ring_pts.end(); ++pit) {
-        auto p2 = *pit;
-        auto p1 = *std::prev(pit);
+      if (chained_ring_pts.size() > 2) {
+        auto first = chained_ring_pts.begin();
+        for (auto pit=std::next(first); pit!=chained_ring_pts.end(); ++pit) {
+          auto p2 = *pit;
+          auto p1 = *std::prev(pit);
+          segments_out.push_back({
+            arr3f{
+              float(CGAL::to_double(p1.x())),
+              float(CGAL::to_double(p1.y())),
+              float(CGAL::to_double(p1.z()))},
+            arr3f{
+              float(CGAL::to_double(p2.x())),
+              float(CGAL::to_double(p2.y())),
+              float(CGAL::to_double(p2.z()))},
+          });
+        }
+        auto p1 = *chained_ring_pts.rbegin();
+        auto p2 = *first;
         segments_out.push_back({
           arr3f{
             float(CGAL::to_double(p1.x())),
@@ -2030,18 +2044,6 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
             float(CGAL::to_double(p2.z()))},
         });
       }
-      auto p1 = *chained_ring_pts.rbegin();
-      auto p2 = *first;
-      segments_out.push_back({
-        arr3f{
-          float(CGAL::to_double(p1.x())),
-          float(CGAL::to_double(p1.y())),
-          float(CGAL::to_double(p1.z()))},
-        arr3f{
-          float(CGAL::to_double(p2.x())),
-          float(CGAL::to_double(p2.y())),
-          float(CGAL::to_double(p2.z()))},
-      });
 
       return segments_out.size();
     } else {
