@@ -2369,9 +2369,9 @@ void RegulariseLinesNode::process(){
   LR.dist_threshold = dist_threshold*dist_threshold;
   LR.angle_threshold = angle_threshold;
 
-  std::cout << "angle clustering...\n";
+  std::cout << "angle clustering...";
   LR.perform_angle_clustering();
-  std::cout << "distance clustering...\n";
+  std::cout << "distance clustering...";
   LR.perform_distance_clustering();
   std::cout << "...clustering complete\n";
 
