@@ -88,23 +88,25 @@ namespace linereg {
     value = calc_segment(centroid, mean_angle, lines);
   }
 
-  template <typename ClusterH> DistanceTable<ClusterH>::DistanceTable(std::set<ClusterH>& clusters) : clusters(clusters) {
+  template <typename ClusterH> DistanceTable<ClusterH>::DistanceTable(std::set<ClusterH>& clusters) : clusters(clusters) {};
+  template <typename ClusterH> void DistanceTable<ClusterH>::add_cluster_pair(ClusterH cluster_a, ClusterH cluster_b) {
+    // do not create entries for cluster pairs that both have an intersection line, these are not to be merged
+    // if (cluster_a->has_intersection_line && cluster_b->has_intersection_line) continue;
+    // push distance to heap
+    auto hhandle = distances.push(ClusterPairDist(
+      std::make_pair(cluster_a, cluster_b),
+      cluster_a->distance(cluster_b.get())
+    ));
+    // store handle for both clusters
+    auto hh = std::make_shared<heap_handle>(hhandle);
+    cluster_to_dist_pairs[cluster_a].push_back(hh);
+    cluster_to_dist_pairs[cluster_b].push_back(hh);
+  }
+  template <typename ClusterH> void DistanceTable<ClusterH>::initialise() {
     // compute only half of the distance table, since the other half will be exactly the same
     for(auto cit_a = clusters.begin(); cit_a != clusters.end(); ++cit_a) {
       for(auto cit_b = std::next(cit_a); cit_b != clusters.end(); ++cit_b) {
-        auto cluster_a = *cit_a;
-        auto cluster_b = *cit_b;
-        // do not create entries for cluster pairs that both have an intersection line, these are not to be merged
-        // if (cluster_a->has_intersection_line && cluster_b->has_intersection_line) continue;
-        // push distance to heap
-        auto hhandle = distances.push(ClusterPairDist(
-          std::make_pair(cluster_a, cluster_b),
-          cluster_a->distance(cluster_b.get())
-        ));
-        // store handle for both clusters
-        auto hh = std::make_shared<heap_handle>(hhandle);
-        cluster_to_dist_pairs[cluster_a].push_back(hh);
-        cluster_to_dist_pairs[cluster_b].push_back(hh);
+        add_cluster_pair(*cit_a, *cit_b);
       }
     }
   }
@@ -147,8 +149,86 @@ namespace linereg {
     return min_pair;
   }
 
-  template class DistanceTable<AngleClusterH>;
-  template class DistanceTable<DistClusterH>;
+  // template class DistanceTable<AngleClusterH>;
+  template struct DistanceTable<DistClusterH>;
+
+  AngleDistanceTable::AngleDistanceTable(std::set<AngleClusterH>& clusters) : DistanceTable<AngleClusterH>(clusters) {
+    std::vector<AngleClusterH> sorted(clusters.begin(), clusters.end());
+    // sort by orientation
+    std::sort(sorted.begin(), sorted.end(), [](AngleClusterH& a, AngleClusterH& b) {
+      return a->value < b->value;   
+    });
+    // compute cluster pair from last to first
+    add_cluster_pair(*sorted.rbegin(), *sorted.begin());
+    // if clusters.size()>2 also compute cluster pairs for all other consecutive pairs
+    if (clusters.size() > 2) {
+      auto last = std::prev(sorted.end());
+      for(auto cit = sorted.begin(); cit != last; ++cit) {
+          add_cluster_pair(*cit, *std::next(cit));
+      }
+    }
+  }
+  void AngleDistanceTable::merge(AngleClusterH lhs, AngleClusterH rhs) {
+    // merges two clusters, then removes one from the distances map and update the affected distances
+    // merge
+    lhs->lines.insert(lhs->lines.end(), rhs->lines.begin(), rhs->lines.end());
+    // lhs->has_intersection_line = lhs->has_intersection_line || rhs->has_intersection_line;
+    lhs->calc_mean_value();
+
+    // find rhs_next
+    AngleClusterH rhs_next;
+    auto& rhs_hhandles = cluster_to_dist_pairs[rhs];
+    bool f0 = (***rhs_hhandles.begin()).clusters.first == lhs;
+    bool s0 = (***rhs_hhandles.begin()).clusters.second == lhs;
+    // bool f1 = (***rhs_hhandles.rbegin()).clusters.first == lhs;
+    // bool s1 = (***rhs_hhandles.rbegin()).clusters.second == lhs;
+    if (f0||s0) {
+      if ((***rhs_hhandles.rbegin()).clusters.first == rhs) {
+        rhs_next = (***rhs_hhandles.rbegin()).clusters.second;
+      } else {
+        rhs_next = (***rhs_hhandles.rbegin()).clusters.first;
+      }
+    } else {
+      if ((***rhs_hhandles.rbegin()).clusters.first == rhs) {
+        rhs_next = (***rhs_hhandles.begin()).clusters.second;
+      } else {
+        rhs_next = (***rhs_hhandles.begin()).clusters.first;
+      }
+    }
+
+    // remove rhs from datastructures
+    clusters.erase(rhs);
+    cluster_to_dist_pairs.erase(rhs);
+
+    // update lhs
+    auto& lhs_hhandles = cluster_to_dist_pairs[lhs];
+    std::shared_ptr<heap_handle> lhs_to_rhs_next;
+    for (auto& hhandle : lhs_hhandles) {
+      if (hhandle.use_count()==2) {
+        (**hhandle).dist = (**hhandle).clusters.first->distance((**hhandle).clusters.second.get());
+        distances.update(*hhandle);
+      } else {
+        lhs_to_rhs_next = hhandle;
+        distances.update(*hhandle, ClusterPairDist(std::make_pair(lhs, rhs_next), lhs->distance(rhs_next.get())));
+      }
+    }
+
+    // update rhs_next
+    auto& rhs_next_hhandles = cluster_to_dist_pairs[rhs_next];
+    auto i = rhs_next_hhandles.begin();
+    while (i != rhs_next_hhandles.end()) {
+      // remove the distpair to our former rhs
+      if (i->use_count()!=2)
+      {
+        rhs_next_hhandles.erase(i++);
+        distances.erase(**i);
+      } else {
+        ++i;
+      }
+    }
+    // push the new dist to lhs
+    rhs_next_hhandles.push_back(lhs_to_rhs_next);
+  }
 
   void LineRegulariser::perform_angle_clustering() {
     //make clusters
@@ -163,7 +243,8 @@ namespace linereg {
 
     if (angle_clusters.size()>1) {
       // make distance table
-      DistanceTable adt(angle_clusters);
+      AngleDistanceTable adt(angle_clusters);
+      adt.initialise();
 
       auto apair = adt.get_closest_pair();
       while (apair.dist < angle_threshold) {
@@ -199,6 +280,7 @@ namespace linereg {
       if (dclusters.size()>1) {
         // make distance table
         DistanceTable ddt(dclusters);
+        ddt.initialise();
 
         // do clustering
         auto dpair = ddt.get_closest_pair();

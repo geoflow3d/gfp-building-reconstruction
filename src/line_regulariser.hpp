@@ -46,6 +46,10 @@ namespace linereg {
       ClusterPairDist(ClusterPair p, double d) : clusters(p), dist(d){}
       ClusterPair clusters;
       double dist;
+
+      bool has_cluster(ClusterH& cluster) {
+        return clusters.first == cluster || clusters.second == cluster;
+      }
       
       bool operator<(ClusterPairDist const & rhs) const
       {
@@ -83,7 +87,9 @@ namespace linereg {
     std::set<ClusterH>& clusters;
 
     DistanceTable(std::set<ClusterH>& clusters); //computes initial distances
-    void merge(ClusterH lhs, ClusterH rhs); // merges two clusters, then removes one from the distances map and update the affected distances
+    void add_cluster_pair(ClusterH cluster_a, ClusterH cluster_b); // create cluster pair and insert it
+    virtual void initialise();
+    virtual void merge(ClusterH lhs, ClusterH rhs); // merges two clusters, then removes one from the distances map and update the affected distances
     ClusterPairDist get_closest_pair(); //returns the cluster pair with the smallest distance
   };
   
@@ -93,8 +99,14 @@ namespace linereg {
   typedef std::shared_ptr<AngleCluster> AngleClusterH;
   typedef std::shared_ptr<DistCluster> DistClusterH;
 
-  extern template class DistanceTable<AngleClusterH>;
+  // extern template class DistanceTable<AngleClusterH>;
   extern template class DistanceTable<DistClusterH>;
+
+  // specialised class for angle cluster, so that we can override the creation and merge function for more optimised code
+  struct AngleDistanceTable : DistanceTable<AngleClusterH> {
+    AngleDistanceTable(std::set<AngleClusterH>& clusters); //computes initial distances
+    void merge(AngleClusterH lhs, AngleClusterH rhs); // merges two clusters, then removes one from the distances map and update 
+  };
 
   double calc_mean_angle(const std::vector<linetype*>& lines);
   Point_2 calc_centroid(const std::vector<linetype*>& lines);
