@@ -185,7 +185,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_walls, "do_walls", "Do walls"));
       add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
       add_param(ParamBool(do_floor, "do_floor", "Do floor"));
-      add_param(ParamBool(LoD2, "LoD2", "LoD2"));
+      add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
       // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
       add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
@@ -388,7 +388,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
-      add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges"));
+      add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges (check for LoD1.3)"));
       add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
     }
     void process();
@@ -507,13 +507,13 @@ namespace geoflow::nodes::stepedge {
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
 
       add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
-      add_param(ParamFloat(horiz_min_count, "horiz_min_count", "Min horiz point count"));
-      add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "K estimate normal"));
-      add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Knn plane segmentation"));
-      add_param(ParamInt(metrics_plane_min_points, "metrics_plane_min_points", "Plane min points"));
+      add_param(ParamFloat(horiz_min_count, "horiz_min_count", "Mininmal point count for horizontal planes"));
+      add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
+      add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Number of neighbours used during region growing plane detection"));
+      add_param(ParamInt(metrics_plane_min_points, "metrics_plane_min_points", "Minimum number of points in a plane"));
       add_param(ParamFloat(metrics_plane_epsilon, "metrics_plane_epsilon", "Plane epsilon"));
-      add_param(ParamFloat(metrics_plane_normal_threshold, "metrics_plane_normal_threshold", "Plane normal thres"));
-      add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Is horizontal"));
+      add_param(ParamFloat(metrics_plane_normal_threshold, "metrics_plane_normal_threshold", "Plane normal angle threshold"));
+      add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Threshold for horizontal plane detection (expressed as angle wrt unit verctor in +z direction)"));
       add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
       add_param(ParamInt(n_refit, "n_refit", "Refit every n points"));
       add_param(ParamBoundedFloat(roof_percentile, 0, 1, "roof_percentile",  "Roof elevation percentile"));
