@@ -21,12 +21,13 @@ set_target_properties(
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
   execute_process(
-    COMMAND             git submodule update --init region-grower
+    COMMAND             git submodule update --init region-grower glm
     WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/thirdparty
     )
-endif()  
+endif()
 
-find_package(glm REQUIRED)
+set(GLM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/thirdparty/glm)
+
 find_package(LASlib REQUIRED)
 find_package(CGAL QUIET COMPONENTS Core REQUIRED)
 # PDAL
@@ -64,11 +65,11 @@ target_include_directories(gfp_buildingreconstruction PRIVATE
   thirdparty/earcut
   thirdparty/region-grower
   ${PDAL_INCLUDE_DIRS}
+  ${GLM_INCLUDE_DIRECTORIES}
 )
 target_link_libraries( gfp_buildingreconstruction PRIVATE
   geoflow-core
   ptinpoly
-  glm
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
   ${PDAL_LIBRARIES} 

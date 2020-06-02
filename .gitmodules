@@ -1,3 +1,6 @@
 [submodule "thirdparty/region-grower"]
 	path = thirdparty/region-grower
 	url = https://github.com/Ylannl/region-grower.git
+[submodule "thirdparty/glm"]
+	path = thirdparty/glm
+	url = https://github.com/g-truc/glm.git
