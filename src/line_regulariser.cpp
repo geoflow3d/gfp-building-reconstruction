@@ -152,7 +152,7 @@ namespace linereg {
   // template class DistanceTable<AngleClusterH>;
   template struct DistanceTable<DistClusterH>;
 
-  AngleDistanceTable::AngleDistanceTable(std::set<AngleClusterH>& clusters) : DistanceTable<AngleClusterH>(clusters) {
+  void AngleDistanceTable::initialise() {
     std::vector<AngleClusterH> sorted(clusters.begin(), clusters.end());
     // sort by orientation
     std::sort(sorted.begin(), sorted.end(), [](AngleClusterH& a, AngleClusterH& b) {

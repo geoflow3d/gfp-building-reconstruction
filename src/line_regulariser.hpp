@@ -104,7 +104,8 @@ namespace linereg {
 
   // specialised class for angle cluster, so that we can override the creation and merge function for more optimised code
   struct AngleDistanceTable : DistanceTable<AngleClusterH> {
-    AngleDistanceTable(std::set<AngleClusterH>& clusters); //computes initial distances
+    using DistanceTable<AngleClusterH>::DistanceTable;
+    void initialise(); //computes initial distances
     void merge(AngleClusterH lhs, AngleClusterH rhs); // merges two clusters, then removes one from the distances map and update 
   };
 
