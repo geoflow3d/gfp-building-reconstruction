@@ -2749,17 +2749,19 @@ void PlaneIntersectNode::process() {
           auto tx = float(CGAL::to_double(ppmax.x()));
           auto ty = float(CGAL::to_double(ppmax.y()));
           if (!((std::isinf(sx) || std::isinf(sy)) || (std::isinf(tx) || std::isinf(ty)))) {
-            arr3f source = {
-              sx,
-              sy,
-              float(CGAL::to_double(ppmin.z()))
-            };
-            arr3f target = {
-              tx,
-              ty,
-              float(CGAL::to_double(ppmax.z()))
-            };
-            lines.push_back({source,target});
+            if(CGAL::squared_distance(ppmin, ppmax) > 1E-10) {
+              arr3f source = {
+                sx,
+                sy,
+                float(CGAL::to_double(ppmin.z()))
+              };
+              arr3f target = {
+                tx,
+                ty,
+                float(CGAL::to_double(ppmax.z()))
+              };
+              lines.push_back({source,target});
+            }
           }
         }
       }
