@@ -2369,7 +2369,7 @@ void RegulariseLinesNode::process(){
   LR.dist_threshold = dist_threshold*dist_threshold;
   LR.angle_threshold = angle_threshold;
 
-  std::cout << "angle clustering...";
+  std::cout << "\nangle clustering...";
   LR.perform_angle_clustering();
   std::cout << "distance clustering...";
   LR.perform_distance_clustering();
@@ -2378,7 +2378,9 @@ void RegulariseLinesNode::process(){
   // output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
 
   auto& regularised = vector_output("regularised_edges");
+  regularised.touch();
   auto& regularised_exact = vector_output("exact_regularised_edges");
+  regularised_exact.touch();
   SegmentCollection edges_out_;
   vec1i priorities, angle_cluster_ids, dist_cluster_ids;
   // we should iterate of the distance clusters and output one segment per cluster

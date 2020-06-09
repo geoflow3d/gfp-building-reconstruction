@@ -318,6 +318,13 @@ namespace geoflow::nodes::stepedge {
       // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
       // add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
     }
+    bool inputs_valid() override {
+      for (auto& [name,iT] : input_terminals) {
+        if (!iT->is_touched())
+          return false;
+      }
+      return true;
+    }
     void process();
   };
 
