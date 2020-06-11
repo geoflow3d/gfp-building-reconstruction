@@ -28,10 +28,13 @@ jobs:
           echo $env:VCPKG_INSTALLATION_ROOT
           $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
           vcpkg install cgal boost-geometry glm
-      - name: Install Geoflow
+      - name: Install fetch
         run: |
-          Invoke-WebRequest https://github.com/geoflow3d/geoflow/releases/download/v0.1.5/Geoflow-win64.exe -OutFile geoflow-setup.exe
-          .\geoflow-setup.exe /S
+          Invoke-WebRequest https://github.com/gruntwork-io/fetch/releases/download/v0.3.7/fetch_windows_amd64.exe -OutFile fetch.exe
+      - name: Install latest Geoflow
+        run: |
+          .\fetch.exe --repo="https://github.com/geoflow3d/geoflow" --tag=">=0.1.4" --release-asset="Geoflow-win64.exe" .\
+          .\Geoflow-win64.exe /S
       - name: Build
         run: |
           mkdir build
