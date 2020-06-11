@@ -846,4 +846,65 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class FacesSelectorNode:public Node {
+    // float dupe_threshold = 1E-5;
+    public:
+    using Node::Node;
+    bool inputs_valid() {
+      auto& selectInput = input("selectAB");
+      if (!selectInput.has_data()) {
+        return false;
+      } else {
+        bool selectAB = selectInput.get<bool>();
+        if (selectAB) {
+          return vector_input("faces_A").has_data();
+        } else {
+          return vector_input("faces_B").has_data();
+        }
+      }
+    }
+    void init() {
+      add_input("selectAB", typeid(bool));
+      add_vector_input("faces_A", typeid(LinearRing));
+      add_vector_input("faces_B", typeid(LinearRing));
+      add_vector_output("faces", typeid(LinearRing));
+    }
+    void process() {
+      auto selectAB = input("selectAB").get<bool>();
+      if (selectAB) {
+        vector_output("faces") = vector_input("faces_A").get_data_vec();
+      } else {
+        vector_output("faces") = vector_input("faces_B").get_data_vec();
+      }
+    };
+  };
+
+
+  class AttributeTesterNode:public Node {
+    std::string attribute_name;
+    public:
+    using Node::Node;
+    void init() {
+      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_output("result", typeid(bool));
+
+      add_param(ParamString(attribute_name, "attribute_name", "Attribute name (should be a boolean attribute)"));
+
+    }
+    void process() {
+      bool result = false;
+      for (auto &iterm : poly_input("attributes").sub_terminals()) {
+        if (iterm->get_name() == attribute_name) {
+          if (iterm->accepts_type(typeid(bool))) {
+            std::cout << "Detected attribute of type bool\n";
+            result = iterm->get<bool>();
+          } else {
+            std::cout << "Attribute type is not bool\n";
+          }
+        }
+      }
+      output("result").set(result);
+    };
+  };
+
 }
