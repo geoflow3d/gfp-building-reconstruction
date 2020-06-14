@@ -53,6 +53,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       // add_input("points", TT_any);
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+      add_input("skip", typeid(bool));
       add_output("alpha_rings", typeid(LinearRingCollection));
       add_output("edge_points", typeid(PointCollection));
       add_output("alpha_edges", typeid(LineStringCollection));
@@ -65,6 +66,14 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(thres_alpha, "thres_alpha", "thres_alpha"));
       add_param(ParamBool(optimal_alpha, "optimal_alpha", "optimal_alpha"));
       add_param(ParamBool(optimal_only_if_needed, "optimal_only_if_needed", "optimal_only_if_needed"));
+    }
+    
+    bool inputs_valid() {
+      auto& skipInput = input("skip");
+      if (skipInput.has_data() && input("pts_per_roofplane").has_data()) {
+        return !skipInput.get<bool>();
+      }
+      return false;
     }
 
     // void before_gui(){
@@ -134,10 +143,10 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("arrangement", typeid(Arrangement_2));
-      add_vector_input("floor_elevation", typeid(float));
-      add_vector_input("mesh_error", typeid(float));
-      add_vector_input("roof_type", typeid(int));
-      add_vector_input("arr_complexity", typeid(int));
+      // add_vector_input("floor_elevation", typeid(float));
+      // add_vector_input("mesh_error", typeid(float));
+      // add_vector_input("roof_type", typeid(int));
+      // add_vector_input("arr_complexity", typeid(int));
       add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
@@ -511,6 +520,7 @@ namespace geoflow::nodes::stepedge {
       add_output("roof_elevation", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
       add_output("slant_roofplane_cnt", typeid(float));
+      add_output("total_roofplane_cnt", typeid(int));
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
 
       add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
@@ -847,7 +857,6 @@ namespace geoflow::nodes::stepedge {
   };
 
   class FacesSelectorNode:public Node {
-    // float dupe_threshold = 1E-5;
     public:
     using Node::Node;
     bool inputs_valid() {
@@ -904,6 +913,45 @@ namespace geoflow::nodes::stepedge {
         }
       }
       output("result").set(result);
+    };
+  };
+
+  class AttrRingsSelectorNode:public Node {
+    public:
+    using Node::Node;
+    bool inputs_valid() {
+      auto& selectInput = input("selectAB");
+      if (!selectInput.has_data()) {
+        return false;
+      } else {
+        bool selectAB = selectInput.get<bool>();
+        if (selectAB) {
+          return vector_input("linear_rings_A").has_data() && poly_input("attributes_A").has_data();
+        } else {
+          return vector_input("linear_rings_B").has_data() && poly_input("attributes_B").has_data();
+        }
+      }
+    }
+    void init() {
+      add_input("selectAB", typeid(bool));
+      add_vector_input("linear_rings_A", typeid(LinearRing));
+      add_vector_input("linear_rings_B", typeid(LinearRing));
+      add_poly_input("attributes_A", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_input("attributes_B", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+
+      add_vector_output("linear_rings", typeid(LinearRing));
+      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+    }
+    void process() {
+      auto selectAB = input("selectAB").get<bool>();
+      auto& out_attributes = poly_output("attributes");
+      if (selectAB) {
+        vector_output("linear_rings") = vector_input("linear_rings_A").get_data_vec();
+        out_attributes = poly_input("attributes_A");
+      } else {
+        vector_output("linear_rings") = vector_input("linear_rings_B").get_data_vec();
+        out_attributes = poly_input("attributes_B");
+      }
     };
   };
 

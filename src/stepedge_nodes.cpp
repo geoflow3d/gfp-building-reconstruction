@@ -396,10 +396,10 @@ void PolygonGrowerNode::process(){
 void Arr2LinearRingsNode::process(){
   auto arr = input("arrangement").get<Arrangement_2>();
 
-  auto& floor_elevation = input("floor_elevation").get<float&>();
-  auto& mesh_error = input("mesh_error").get<float&>();
-  auto& roof_type = input("roof_type").get<int&>();
-  auto& arr_complexity = input("arr_complexity").get<int&>();
+  // auto& floor_elevation = input("floor_elevation").get<float&>();
+  // auto& mesh_error = input("mesh_error").get<float&>();
+  // auto& roof_type = input("roof_type").get<int&>();
+  // auto& arr_complexity = input("arr_complexity").get<int&>();
   auto& attributes_in = poly_input("attributes");
 
   auto& linear_rings = vector_output("linear_rings");
@@ -410,24 +410,24 @@ void Arr2LinearRingsNode::process(){
     auto& oterm = poly_output("attributes").add_vector(iterm->get_name(), iterm->get_type());
     input_attr_map[oterm.get_name()] = &oterm;
   }
-  auto &floor_elevation_term = poly_output("attributes").add_vector("maaiveld_h", typeid(float));
-  input_attr_map["maaiveld_h"] = &floor_elevation_term;
-  auto &attr_error_term = poly_output("attributes").add_vector("rmse", typeid(float));
-  input_attr_map["rmse"] = &attr_error_term;
-  auto &attr_rooftype_term = poly_output("attributes").add_vector("dak_type", typeid(int));
-  input_attr_map["dak_type"] = &attr_rooftype_term;
-  auto &attr_elevation_term = poly_output("attributes").add_vector("hoogte_abs", typeid(float));
-  auto &attr_arr_complexity_term = poly_output("attributes").add_vector("arr_complexity", typeid(int));
-  input_attr_map["arr_complexity"] = &attr_arr_complexity_term;
+  // auto &floor_elevation_term = poly_output("attributes").add_vector("maaiveld_h", typeid(float));
+  // input_attr_map["maaiveld_h"] = &floor_elevation_term;
+  // auto &attr_error_term = poly_output("attributes").add_vector("rmse", typeid(float));
+  // input_attr_map["rmse"] = &attr_error_term;
+  // auto &attr_rooftype_term = poly_output("attributes").add_vector("dak_type", typeid(int));
+  // input_attr_map["dak_type"] = &attr_rooftype_term;
+  // auto &attr_arr_complexity_term = poly_output("attributes").add_vector("arr_complexity", typeid(int));
+  // input_attr_map["arr_complexity"] = &attr_arr_complexity_term;
 
   // attributes specific to each roofpart
-  input_attr_map["hoogte_abs"] = &attr_elevation_term;
-  auto &attr_roofid_term = poly_output("attributes").add_vector("dak_id", typeid(int));
-  input_attr_map["dak_id"] = &attr_roofid_term;
+  auto &attr_elevation_term = poly_output("attributes").add_vector("roof_elevation", typeid(float));
+  input_attr_map["roof_elevation"] = &attr_elevation_term;
+  // auto &attr_roofid_term = poly_output("attributes").add_vector("dak_id", typeid(int));
+  // input_attr_map["dak_id"] = &attr_roofid_term;
   // auto &attr_objectid_term = poly_output("attributes").add_vector("building_id", typeid(int));
   // input_attr_map["building_id"] = &attr_objectid_term;
 
-  int j=0;
+  // int j=0;
   auto& plane_a = vector_output("plane_a");
   auto& plane_b = vector_output("plane_b");
   auto& plane_c = vector_output("plane_c");
@@ -449,16 +449,16 @@ void Arr2LinearRingsNode::process(){
       plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
 
       // attributes specific to each roofpart
-      input_attr_map["hoogte_abs"]->push_back((float)face->data().elevation_avg);
+      input_attr_map["roof_elevation"]->push_back((float)face->data().elevation_avg);
       
-      input_attr_map["dak_id"]->push_back((int)++j);
+      // input_attr_map["dak_id"]->push_back((int)++j);
       // input_attr_map["building_id"]->push_back(int(i+1));
 
       //attributes not specific to roofpart
-      input_attr_map["rmse"]->push_back((float)mesh_error);
-      input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
-      input_attr_map["dak_type"]->push_back((int)roof_type);
-      input_attr_map["arr_complexity"]->push_back(arr_complexity);
+      // input_attr_map["rmse"]->push_back((float)mesh_error);
+      // input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
+      // input_attr_map["dak_type"]->push_back((int)roof_type);
+      // input_attr_map["arr_complexity"]->push_back(arr_complexity);
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
         input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
       }
@@ -2311,6 +2311,7 @@ void DetectPlanesNode::process() {
   output("roof_type").set(building_type);
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
   output("slant_roofplane_cnt").set(float(slant_roofplane_cnt));
+  output("total_roofplane_cnt").set(int(horiz_roofplane_cnt+slant_roofplane_cnt));
   output("roof_pt_cnt").set((int)total_pt_cnt);
 
   vec1i plane_id, is_wall, is_horizontal;
