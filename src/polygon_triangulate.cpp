@@ -14,27 +14,25 @@ namespace geoflow::nodes::stepedge {
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef CGAL::Exact_predicates_tag Tag;
-struct VertexInfoPIT {
-  bool hasPoint;
+struct VertexInfo {
+  bool hasPoint = false;
   geoflow::arr3f point;
-  VertexInfoPIT() : hasPoint(false)
-  {}
+  VertexInfo() : hasPoint(){};
+  void set_point(geoflow::arr3f& p) {
+    hasPoint=true;
+    point = p;
+  };
 };
-struct FaceInfoPIT {
-  // bool processed;
-  int nesting_level;
-  FaceInfoPIT() {
-    // processed = false;
-    // interior = false;
-    nesting_level = -1;
-  }
-  bool in_domain() {
-    return nesting_level % 2 == 1;
+struct FaceInfo {
+  bool interior = false, visited = false;
+  void set_interior(bool is_interior) {
+    visited = true;
+    interior = is_interior;
   }
 };
-typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfoPIT, K> VertexBase;
+typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfo, K> VertexBase;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FaceBase;
-typedef CGAL::Triangulation_face_base_with_info_2<FaceInfoPIT, K, FaceBase> FaceBaseWithInfo;
+typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo, K, FaceBase> FaceBaseWithInfo;
 typedef CGAL::Triangulation_data_structure_2<VertexBase, FaceBaseWithInfo> TriangulationDataStructure;
 typedef CGAL::Constrained_Delaunay_triangulation_2<K, TriangulationDataStructure, Tag> CDT;
 typedef CGAL::Polygon_2<K> Polygon_2;
@@ -54,32 +52,6 @@ glm::vec3 calculate_normal(const LinearRing ring)
   return glm::normalize(normal);
 }
 
-void mark_domains(CDT& ct,
-  CDT::Face_handle start,
-  int index,
-  std::list<CDT::Edge>& border) {
-  if (start->info().nesting_level != -1) {
-    return;
-  }
-  std::list<CDT::Face_handle> queue;
-  queue.push_back(start);
-  while (!queue.empty()) {
-    CDT::Face_handle fh = queue.front();
-    queue.pop_front();
-    if (fh->info().nesting_level == -1) {
-      fh->info().nesting_level = index;
-      for (int i = 0; i < 3; i++) {
-        CDT::Edge e(fh, i);
-        CDT::Face_handle n = fh->neighbor(i);
-        if (n->info().nesting_level == -1) {
-          if (ct.is_constrained(e)) border.push_back(e);
-          else queue.push_back(n);
-        }
-      }
-    }
-  }
-}
-
 /**
  * mark the triangles that are inside the original 2D polygon.
  * explore set of facets connected with non constrained edges,
@@ -90,17 +62,27 @@ void mark_domains(CDT& ct,
  * facets in the domain are those with an odd nesting level.
  */
 void mark_domains(CDT& cdt) {
-  // for (CDT::All_faces_iterator it = cdt.all_faces_begin(); it != cdt.all_faces_end(); ++it) {
-  //   it->info().nesting_level = -1;
-  // }
-  std::list<CDT::Edge> border;
-  mark_domains(cdt, cdt.infinite_face(), 0, border);
-  while (!border.empty()) {
-    CDT::Edge e = border.front();
-    border.pop_front();
-    CDT::Face_handle n = e.first->neighbor(e.second);
-    if (n->info().nesting_level == -1) {
-      mark_domains(cdt, n, e.first->info().nesting_level + 1, border);
+
+  std::list<CDT::Face_handle> explorables;
+  auto fh_inf = cdt.infinite_face();
+  fh_inf->info().set_interior(false);
+  explorables.push_back(fh_inf);
+
+  while (!explorables.empty()) {
+    auto fh = explorables.front();
+    explorables.pop_front();
+    // check the three neighbours
+    for (int i = 0; i < 3; ++i) {
+      CDT::Edge e(fh, i);
+      CDT::Face_handle fh_n = fh->neighbor(i);
+      if (fh_n->info().visited == false) {
+        if (cdt.is_constrained(e)) {
+          fh_n->info().set_interior(!fh_n->info().interior);
+        } else {
+          fh_n->info().set_interior(fh_n->info().interior);
+        }
+        explorables.push_back(fh_n);
+      }
     }
   }
 }
@@ -115,20 +97,18 @@ Polygon_2 project(geoflow::vec3f& ring, Plane_3& plane) {
 
 void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, CDT& cdt) {
   auto pit_last = ring.end()-1;
-  CDT::Vertex_handle new_vh, vh_last, vh = cdt.insert(plane.to_2d(K::Point_3((*pit_last)[0], (*pit_last)[1], (*pit_last)[2])));
+  CDT::Vertex_handle vh_next, vh_last, vh = cdt.insert(plane.to_2d(K::Point_3((*pit_last)[0], (*pit_last)[1], (*pit_last)[2])));
   vh_last = vh;
-  vh->info().point = *pit_last;
-  vh->info().hasPoint = true;
+  vh->info().set_point(*pit_last);
   for (auto pit = ring.begin(); pit != ring.end(); ++pit) {
     if(pit==pit_last){
-      new_vh=vh_last;
+      vh_next=vh_last;
     } else {
-      new_vh = cdt.insert(plane.to_2d(K::Point_3((*pit)[0], (*pit)[1], (*pit)[2])));
-      new_vh->info().point = *pit;
-      new_vh->info().hasPoint = true;
+      vh_next = cdt.insert(plane.to_2d(K::Point_3((*pit)[0], (*pit)[1], (*pit)[2])));
+      vh_next->info().set_point(*pit);
     }
-    cdt.insert_constraint(vh, new_vh);
-    vh = new_vh;
+    cdt.insert_constraint(vh, vh_next);
+    vh = vh_next;
   }
 }
 
@@ -162,16 +142,22 @@ void PolygonTriangulatorNode::process()
   vec3f normals;
   vec1f values_out;
   vec1i ring_ids;
+  vec1i nesting_levels;
+  SegmentCollection edges;
+  vec1i edges_constr;
   size_t vi = 0;
+  auto& dupe_rings = vector_output("dupe_rings");
   for (size_t ri = 0; ri < rings.size(); ++ri)
   {
     auto poly_3d = rings.get<LinearRing>(ri);
     if (poly_3d.size() < 3)
       continue;
 
-    if (has_duplicates(poly_3d, dupe_threshold))
+    if (has_duplicates(poly_3d, dupe_threshold)) {
+      std::cout << "skipping ring with duplicates\n";
+      dupe_rings.push_back(poly_3d);
       continue;
-
+    }
     auto normal = calculate_normal(poly_3d);
     if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){
       std::cout << "degenerate normal: " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
@@ -199,23 +185,37 @@ void PolygonTriangulatorNode::process()
 
     mark_domains(triangulation);
 
+    for (auto& e : triangulation.finite_edges()) {
+      auto source = e.first->vertex(triangulation.cw(e.second))->info().point;
+      auto target = e.first->vertex(triangulation.ccw(e.second))->info().point;
+      edges.push_back({
+        arr3f{source},
+        arr3f{target}
+      });
+      bool constr = triangulation.is_constrained(e);
+      edges_constr.push_back(constr);
+      edges_constr.push_back(constr);
+    }
+
     for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
     fit != triangulation.finite_faces_end(); ++fit) {
-      if (fit->info().in_domain()) {
-        Triangle triangle;
-        triangle = {
-          fit->vertex(0)->info().point, 
-          fit->vertex(1)->info().point, 
-          fit->vertex(2)->info().point
-        };
-        for (size_t j = 0; j < 3; ++j)
-        {
-          normals.push_back({normal.x, normal.y, normal.z});
-          // values_out.push_back(values_in[vi]);
-          ring_ids.push_back(ri);
-        }
-        triangles.push_back(triangle);
+
+      if (!output_all_triangles && !fit->info().interior) continue;
+
+      Triangle triangle;
+      triangle = {
+        fit->vertex(0)->info().point, 
+        fit->vertex(1)->info().point, 
+        fit->vertex(2)->info().point
+      };
+      for (size_t j = 0; j < 3; ++j)
+      {
+        normals.push_back({normal.x, normal.y, normal.z});
+        // values_out.push_back(values_in[vi]);
+        ring_ids.push_back(ri);
+        nesting_levels.push_back(fit->info().interior);
       }
+      triangles.push_back(triangle);
     }
     vi++;
   }
@@ -224,6 +224,9 @@ void PolygonTriangulatorNode::process()
   output("triangles").set(triangles);
   output("normals").set(normals);
   output("ring_ids").set(ring_ids);
+  output("nesting_levels").set(nesting_levels);
+  output("edges").set(edges);
+  output("edges_constr").set(edges_constr);
   // output("valuesf").set(values_out);
 }
 

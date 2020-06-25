@@ -154,6 +154,8 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("plane_b", typeid(float));
       add_vector_output("plane_c", typeid(float));
       add_vector_output("plane_d", typeid(float));
+
+      add_param(ParamBool(only_in_footprint, "only_in_footprint", "Only faces inside the footprint"));
     }
     void process();
   };
@@ -395,7 +397,9 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
+    bool remove_duplicates = true;
     float step_height_threshold = 1.0;
+    int dupe_threshold_exp = 3;
     public:
     using Node::Node;
     void init() {
@@ -405,7 +409,9 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
       add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges (check for LoD1.3)"));
+      add_param(ParamBool(remove_duplicates, "remove_duplicates", "Remove duplicates"));
       add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
+      add_param(ParamBoundedInt(dupe_threshold_exp, 0, 15, "dupe_threshold_exp", "10-base exponent to set duplication threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
     }
     void process();
   };
@@ -845,13 +851,21 @@ namespace geoflow::nodes::stepedge {
 
   class PolygonTriangulatorNode:public Node {
     float dupe_threshold = 1E-5;
+    bool output_all_triangles = false;
     public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
+      add_vector_output("dupe_rings", typeid(LinearRing));
       add_output("triangles", typeid(TriangleCollection));
       add_output("normals", typeid(vec3f));
       add_output("ring_ids", typeid(vec1i));
+      add_output("nesting_levels", typeid(vec1i));
+
+      add_output("edges", typeid(SegmentCollection));
+      add_output("edges_constr", typeid(vec1i));
+
+      add_param(ParamBool(output_all_triangles, "output_all_triangles",  "Also output triangles in holes and outside convex hull."));
     }
     void process();
   };
