@@ -516,6 +516,8 @@ namespace geoflow::nodes::stepedge {
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_output("roof_pt_cnt", typeid(int));
+      add_output("wall_pt_cnt", typeid(int));
+      add_output("unsegmented_pt_cnt", typeid(int));
       add_output("roof_type", typeid(int));
       add_output("roof_elevation", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
@@ -789,6 +791,7 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
+      add_output("data_area", typeid(float));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }

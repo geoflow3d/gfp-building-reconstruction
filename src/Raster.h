@@ -42,7 +42,7 @@ namespace RasterTools {
         Raster(){};
         ~Raster(){};
         void prefill_arrays(alg a);
-        void add_point(double x, double y, double z, alg a);
+        bool add_point(double x, double y, double z, alg a);
         void add_raster(double x, double y, double z, alg a);
         size_t getRow(double x, double y) const;
         size_t getCol(double x, double y) const;

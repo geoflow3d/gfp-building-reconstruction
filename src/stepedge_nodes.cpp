@@ -2247,7 +2247,7 @@ void DetectPlanesNode::process() {
   size_t horiz_roofplane_cnt=0;
   size_t slant_roofplane_cnt=0;
   if (only_horizontal) pts_per_roofplane[-1].second = std::vector<Point>();
-  size_t horiz_pt_cnt=0, total_pt_cnt=0;
+  size_t horiz_pt_cnt=0, total_pt_cnt=0, wall_pt_cnt=0, unsegmented_pt_cnt=0;
   vec1f roof_elevations;
   for(auto region: R.regions){
     auto& plane = region.plane;
@@ -2279,6 +2279,8 @@ void DetectPlanesNode::process() {
       if (is_horizontal) {
         horiz_pt_cnt += segpts.size();
       }
+    } else { // is_wall
+      wall_pt_cnt = region.inliers.size();
     }
     if (is_horizontal)
       ++horiz_roofplane_cnt;
@@ -2313,13 +2315,17 @@ void DetectPlanesNode::process() {
   output("slant_roofplane_cnt").set(float(slant_roofplane_cnt));
   output("total_roofplane_cnt").set(int(horiz_roofplane_cnt+slant_roofplane_cnt));
   output("roof_pt_cnt").set((int)total_pt_cnt);
+  output("wall_pt_cnt").set((int)wall_pt_cnt);
 
   vec1i plane_id, is_wall, is_horizontal;
   for(auto& p : pnl_points) {
-    plane_id.push_back(boost::get<2>(p));
+    auto pid = boost::get<2>(p);
+    if (pid==0) ++unsegmented_pt_cnt;
+    plane_id.push_back(pid);
     is_wall.push_back(boost::get<3>(p));
     is_horizontal.push_back(boost::get<9>(p));
   }
+  output("unsegmented_pt_cnt").set((int)unsegmented_pt_cnt);
   output("pts_per_roofplane").set(pts_per_roofplane);
   output("plane_id").set(plane_id);
   output("is_wall").set(is_wall);
