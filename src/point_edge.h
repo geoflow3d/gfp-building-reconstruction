@@ -316,3 +316,4 @@ void arr_dissolve_seg_edges(Arrangement_2& arr);
 void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge);
 void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold);
 void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside);
+void arr_snap_duplicates(Arrangement_2& arr, double dupe_threshold);

@@ -177,9 +177,53 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
       arr.remove_edge(edge);
     }
   }
-
-
 }
+
+void arr_snap_duplicates(Arrangement_2& arr, double dupe_threshold) {
+  std::vector<Arrangement_2::Halfedge_handle> to_remove;
+  double dupe_threshold_sq = dupe_threshold*dupe_threshold;
+  for (auto he : arr.edge_handles()) {
+    auto source = he->source();
+    auto target = he->target();
+    if (CGAL::squared_distance(source->point(), target->point()) < dupe_threshold_sq) {
+      if ((source->degree()==2 && target->degree()>2) || (target->degree()==2 && source->degree()>2))
+        to_remove.push_back(he);
+      else
+        std::cout << "skipping and edge in duplicate snapping. Degrees are " << target->degree() << " and " << source->degree() << "\n";
+    }
+  }
+  for (auto he : to_remove) {
+    Vertex_handle vy, v_other;
+    Halfedge_handle he_other;
+    auto source = he->source();
+    auto target = he->target();
+    if (source->degree()==2 && target->degree()>2) {
+      vy = target;
+      he_other = he->prev();
+      v_other = he_other->source();
+    } else if (target->degree()==2 && source->degree()>2) {
+      vy = source;
+      he_other = he->next();
+      v_other = he_other->target();
+    }
+    arr.merge_edge(he, he_other, Segment_2(vy->point(), v_other->point()));
+  }
+}
+
+
+// {
+//   for (auto& v :  arr.vertex_handles()){
+//     auto vhe = v->incident_halfedges();
+//     auto vdone = vhe;
+//     // check if v is not on the fp boundary
+//     bool on_fp = false;
+//     do {
+//       on_fp |= (!vhe->face()->data().in_footprint) || (!vhe->twin()->face()->data().in_footprint);
+//     } while (++vhe!=vdone);
+//     if (!on_fp)
+//       vertices_to_snap.push_back(v);
+//   }
+// }
 
 void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside) {
   {

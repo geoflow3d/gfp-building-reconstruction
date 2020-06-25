@@ -657,16 +657,25 @@ void ArrExtruderNode::process(){
 
   // floor
   if (do_floor) {
-    std::cout << "arrangement has " << arr.number_of_unbounded_faces() << "unbounded faces\n";
-    for(Arrangement_2::Hole_iterator hole = unbounded_face->holes_begin(); hole != unbounded_face->holes_end(); ++hole ) {
+    // std::cout << "arrangement has " << arr.number_of_unbounded_faces() << "unbounded faces\n";
+    // there should only be one hole in the unbounded face (building consists of one part)
+    for(Arrangement_2::Hole_iterator floorpart_ = unbounded_face->holes_begin(); floorpart_ != unbounded_face->holes_end(); ++floorpart_ ) {
       LinearRing floor;
-      auto he = *hole;
+      auto he = *floorpart_;
       auto first = he;
       do {
         if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
           floor.push_back(v2p(he->source(), floor_elevation));
         he = he->next();
       } while(he!=first);
+
+      // TODO: get the holes!
+      // for (auto face: arr.face_handles()) {
+      //   if (!face->data().in_footprint) { 
+
+      //   }
+      // }
+
       faces.push_back(floor);
       surface_labels.push_back(int(0));
       mesh.push_polygon(floor);
@@ -2814,6 +2823,9 @@ void ArrDissolveNode::process() {
     arr_dissolve_fp(arr, false, true);
   }
 
+  if (remove_duplicates) {
+    arr_snap_duplicates(arr, (double) std::pow(10,-dupe_threshold_exp));
+  }
   // snap edge shorter than snap_tolerance
   // for (auto he : arr.edge_handles()) {
   //   if(CGAL::squared_distance(he->source()->point(), he->target()->point()) < snap_tolerance) {
