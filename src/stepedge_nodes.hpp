@@ -133,6 +133,10 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh", typeid(Mesh));
     }
 
+    bool inputs_valid() {
+      return input("polygon").has_data() && input("floor_elevation").has_data();
+    }
+
     void process();
   };
 
@@ -196,7 +200,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_floor, "do_floor", "Do floor"));
       add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
       // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
-      add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
+      // add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
     }
     void process();

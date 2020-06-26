@@ -302,7 +302,6 @@ void PolygonExtruderNode::process() {
 
 void LOD1ExtruderNode::process() {
   auto ring = input("polygon").get<LinearRing>();
-  auto h_roof = input("roof_elevation").get<float>();
   auto h_floor = input("floor_elevation").get<float>();
 
   auto& rings_3d = vector_output("3d_polygons");
@@ -318,28 +317,31 @@ void LOD1ExtruderNode::process() {
   for (auto& p : r_floor) p[2] = h_floor;
 
   //roof
-  LinearRing r_roof = ring;
-  for (auto& p : r_roof) p[2] = h_roof;
-  rings_3d.push_back(r_roof);
-  surf_type.push_back(2);
-  mesh.push_polygon(r_roof);
-  // mesh.push_attribute("surface_type", int(2));
-  //walls
-  size_t j_prev = ring.size()-1;
-  for (size_t j=0; j<ring.size(); ++j) {
-    LinearRing wall;
-    wall.push_back(r_floor[j_prev]);
-    wall.push_back(r_floor[j]);
-    wall.push_back(r_roof[j]);
-    wall.push_back(r_roof[j_prev]);
+  if(input("roof_elevation").has_data()) {
+    float h_roof = input("roof_elevation").get<float>();
+    LinearRing r_roof = ring;
+    for (auto& p : r_roof) p[2] = h_roof;
+    rings_3d.push_back(r_roof);
+    surf_type.push_back(2);
+    mesh.push_polygon(r_roof);
+    // mesh.push_attribute("surface_type", int(2));
+    //walls
+    size_t j_prev = ring.size()-1;
+    for (size_t j=0; j<ring.size(); ++j) {
+      LinearRing wall;
+      wall.push_back(r_floor[j_prev]);
+      wall.push_back(r_floor[j]);
+      wall.push_back(r_roof[j]);
+      wall.push_back(r_roof[j_prev]);
 
-    rings_3d.push_back(wall);
-    surf_type.push_back(1);
-    mesh.push_polygon(wall);
-    // mesh.push_attribute("surface_type", int(1));
-    j_prev=j;
+      rings_3d.push_back(wall);
+      surf_type.push_back(1);
+      mesh.push_polygon(wall);
+      // mesh.push_attribute("surface_type", int(1));
+      j_prev=j;
+    }
   }
-
+  
   //floor
   std::reverse(r_floor.begin(), r_floor.end());
   rings_3d.push_back(r_floor);
@@ -673,6 +675,15 @@ void ArrExtruderNode::process(){
       // mesh.push_attribute("surface_type", int(0));
     }
   }
+
+  // check for no detected planes (if one face inside fp has none then all have none)
+  for (const auto f : arr.face_handles()) {
+    if (f->data().in_footprint && f->data().segid==0) {
+      output("mesh").set(mesh);
+      return;
+    }
+  }
+  
 
   // compute all heights for each vertex
   std::unordered_map<Vertex_handle, std::vector<hf_pair>> vertex_columns;
@@ -2306,9 +2317,7 @@ void DetectPlanesNode::process() {
     building_type=2;
   }
 
-  if(!roof_elevations.size())
-    output("roof_elevation").set(float(0));
-  else
+  if(roof_elevations.size())
     output("roof_elevation").set(compute_percentile(roof_elevations, roof_percentile));
   output("roof_type").set(building_type);
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
