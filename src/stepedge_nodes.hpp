@@ -910,7 +910,7 @@ namespace geoflow::nodes::stepedge {
     void process() {
       bool result = false;
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
-        if (iterm->get_name() == attribute_name) {
+        if (iterm->get_name() == manager.substitute_globals(attribute_name)) {
           if (iterm->accepts_type(typeid(bool))) {
             std::cout << "Detected attribute of type bool\n";
             result = iterm->get<bool>();
