@@ -181,6 +181,7 @@ namespace geoflow::nodes::stepedge {
 
     PointCollection grid_points;
     size_t ring_cntr=0;
+    float ringdata_area = 0;
     for(auto& polygon : alpha_rings) {
       auto points_inside = r.rasterise_polygon(polygon);
       // auto dt = alpha_dts[ring_cntr];
@@ -189,7 +190,6 @@ namespace geoflow::nodes::stepedge {
       auto plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
       T.insert(points.begin(), points.end());
       auto as = as::Alpha_shape_2(T, as::FT(thres_alpha), as::Alpha_shape_2::GENERAL);
-
       for (auto& p : points_inside) {
         // grid_points.push_back(p);
         
@@ -205,7 +205,9 @@ namespace geoflow::nodes::stepedge {
         //   face->vertex(2)->point()
         // );
         double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-        r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
+        if (r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX)) {
+          ++ringdata_area; //only count new cells (that were not written to before)
+        }
 
         // do plane projection
         // auto& plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
@@ -225,6 +227,7 @@ namespace geoflow::nodes::stepedge {
         }
       }
     }
+    output("data_area").set(ringdata_area*cellsize*cellsize);
     output("heightfield").set(r);
     output("values").set(values);
     output("grid_points").set(grid_points);

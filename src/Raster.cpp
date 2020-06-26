@@ -42,8 +42,9 @@ namespace RasterTools {
   std::fill(counts_.begin(), counts_.end(), 0);
   }
 
-  void Raster::add_point(double x, double y, double z, alg a)
+  bool Raster::add_point(double x, double y, double z, alg a)
   {
+    bool first = vals_[getLinearCoord(x,y)]==noDataVal_;
     if (a==MIN) {
       min(x,y,z);
     } else if (a==MAX) {
@@ -53,6 +54,7 @@ namespace RasterTools {
     } else if (a==CNT) {
       cnt(x,y);
     }
+    return first;
   }
 
   inline void Raster::avg(double &x, double &y, double &val)

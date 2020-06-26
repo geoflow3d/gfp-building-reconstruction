@@ -133,6 +133,10 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh", typeid(Mesh));
     }
 
+    bool inputs_valid() {
+      return input("polygon").has_data() && input("floor_elevation").has_data();
+    }
+
     void process();
   };
 
@@ -198,7 +202,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_floor, "do_floor", "Do floor"));
       add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
       // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
-      add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
+      // add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
     }
     void process();
@@ -522,6 +526,8 @@ namespace geoflow::nodes::stepedge {
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_output("roof_pt_cnt", typeid(int));
+      add_output("wall_pt_cnt", typeid(int));
+      add_output("unsegmented_pt_cnt", typeid(int));
       add_output("roof_type", typeid(int));
       add_output("roof_elevation", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
@@ -795,6 +801,7 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
+      add_output("data_area", typeid(float));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
@@ -917,7 +924,7 @@ namespace geoflow::nodes::stepedge {
     void process() {
       bool result = false;
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
-        if (iterm->get_name() == attribute_name) {
+        if (iterm->get_name() == manager.substitute_globals(attribute_name)) {
           if (iterm->accepts_type(typeid(bool))) {
             std::cout << "Detected attribute of type bool\n";
             result = iterm->get<bool>();
