@@ -2,6 +2,7 @@
 
 #include <geoflow/geoflow.hpp>
 
+#include "arrangement.hpp"
 #include "point_edge.h"
 #include "line_regulariser.hpp"
 #include "Raster.h"
