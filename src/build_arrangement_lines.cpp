@@ -2,8 +2,120 @@
 
 namespace geoflow::nodes::stepedge {
 
+Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segment, Arrangement_2::Halfedge_handle& edge, double& dist_threshold) {
+  auto& e_source = edge->source()->point();
+  auto& e_target = edge->target()->point();
+  std::cout << "arr_cross_edge:" << std::endl;
+  std::cout << "\te source " << e_source << std::endl;
+  std::cout << "\te target " << e_target << std::endl;
+  auto result = CGAL::intersection(Segment_2(e_source, e_target), segment);
+  if (result) {
+    if (auto p = boost::get<Point_2>(&*result)) {
+      std::cout << "\tp " << *p << std::endl;
+      if (CGAL::squared_distance(*p, e_source) < dist_threshold) {
+        return edge->source();
+      } else if (CGAL::squared_distance(*p, e_target) < dist_threshold) {
+        return edge->target();
+      } else {
+        auto e = arr.split_edge(edge, Segment_2(e_source, *p), Segment_2(*p, e_target));
+        return e->target(); // e->target is the split vertex
+      }
+    }
+  }
+  return Arrangement_2::Vertex_handle();
+}
+
+void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) {
+  std::list<CGAL::Object> zone_elems;
+  
+  Arrangement_2::Halfedge_handle edge;
+  Arrangement_2::Vertex_handle vertex;
+  Arrangement_2::Face_handle face;
+  CGAL::zone(arr, segment, std::back_inserter(zone_elems));
+  std::cout << "Zone has " << zone_elems.size() << " elems\n";
+
+  if (zone_elems.size()==0) {
+    return;
+  } else {
+
+    // collect the vertices in the crossing of segment with the arrangement. Some are existing, some are created in this function.
+    std::list<Arrangement_2::Vertex_handle> vertices;
+    // std::pair<Arrangement_2::Vertex_handle, Arrangement_2::Vertex_handle> vertices;
+    auto p_source = segment.min();
+    auto p_target = segment.max();
+    double dist_threshold = std::pow(10, -dist_threshold_exp);
+    dist_threshold *= dist_threshold; // we compare only squared distances later
+
+    // take care of a first face
+    if(assign(face, zone_elems.front())) {
+      if (zone_elems.size()==1) {
+        arr.insert_in_face_interior(segment, face);
+        zone_elems.pop_front();
+      } else {
+        // remove first face and see what comes next
+        zone_elems.pop_front();
+        if(assign(edge, zone_elems.front())) {
+          vertex = arr_cross_edge(arr, segment, edge, dist_threshold);
+        } else {
+          assign(vertex, zone_elems.front());
+        }
+        arr.insert_from_right_vertex(Segment_2(segment.min(), vertex->point()), vertex);
+        vertices.push_back(vertex);
+      }
+    }
+
+    // collect and create further vertices
+    while (zone_elems.size()) {
+
+      // for a face we only are left with handling the case were face is the last element in the zone, otherwise skip faces
+      if ( assign(face, zone_elems.front()) && (zone_elems.size()==1) ) {
+        auto& v = vertices.back();
+        arr.insert_from_left_vertex(Segment_2(v->point(), segment.max()), v);
+        vertices.pop_back(); //vertices should be empty after this
+
+      // compute intersection and split edge
+      } else if ( assign(edge, zone_elems.front()) ) {
+        vertices.push_back(arr_cross_edge(arr, segment, edge, dist_threshold));
+
+      // vertex is easiest
+      } else if ( assign(vertex, zone_elems.front()) ) {
+        vertices.push_back(vertex);
+      }
+      zone_elems.pop_front();
+      if (vertices.size()==2) {
+        auto& s = vertices.front();
+        auto& t = vertices.back();
+        std::cout << "insert_at_vertices...\n";
+        std::cout << s->point() << std::endl;
+        std::cout << t->point() << std::endl;
+        if(s==t) {
+          std::cout << "same vertex" << std::endl;
+        } else {
+          arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
+        }
+        vertices.pop_front();
+      }
+    }
+  }
+
+  // size_t v_cnt=0, f_cnt=0, e_cnt=0;
+  // for ( auto& object : zone_elems ) {
+  //   if ( assign(face, object) ) {
+  //     // std::cout << "Zone face, segid= " << face->data().segid << "\n";
+  //     ++f_cnt;
+  //   } else if ( assign(edge, object) ) {
+  //     // std::cout << "Zone edge\n";
+  //     ++e_cnt;
+  //   } else if ( assign(vertex, object) ) {
+  //     // std::cout << "Zone vertex\n";
+  //     ++v_cnt;
+  //   }
+  // }
+}
+
 void BuildArrFromLinesNode::process() {
   
+  // prepare footprint segments
   auto fp_term = input("footprint");
   linereg::Polygon_with_holes_2 footprint;
   if (fp_term.is_connected_type(typeid(linereg::Polygon_with_holes_2)))
@@ -17,6 +129,7 @@ void BuildArrFromLinesNode::process() {
     footprint = linereg::Polygon_with_holes_2(poly2);
   }
 
+  // insert footprint segments
   Arrangement_2 arr_base;
   Face_split_observer obs (arr_base);
   {
@@ -33,11 +146,9 @@ void BuildArrFromLinesNode::process() {
     obs.set_hole_mode(false);
   }
 
-  // output only empty footprint if there are too many lines/faces (makes the graph-cut optimisation too slow)
   auto& lines_term = vector_input("lines");
   
   typedef std::pair<Point_2, Point_2> PointPair;
-
 
   int arr_complexity = lines_term.size();
   output("arr_complexity").set(arr_complexity);
@@ -45,11 +156,10 @@ void BuildArrFromLinesNode::process() {
   if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
     for(size_t i=0; i<lines_term.size(); ++i) {
       auto& s = lines_term.get<linereg::Segment_2>(i);
-      insert(arr_base, s);
+      arr_insert(arr_base, s, dist_threshold_exp);
+      // insert(arr_base, s);
     }
-
   } else {
-
     std::vector<PointPair> segments;
     for(size_t i=0; i<lines_term.size(); ++i) {
       auto& s = lines_term.get<Segment>(i);

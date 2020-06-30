@@ -315,6 +315,8 @@ namespace geoflow::nodes::stepedge {
   class BuildArrFromLinesNode:public Node {
     float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
+    int dist_threshold_exp = 5;
+    int angle_threshold_exp = 5;
     // bool snap_clean = true;
     // bool snap_detect_only = false;
     // float snap_dist = 1.0;
@@ -329,6 +331,8 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
+      add_param(ParamBoundedInt(dist_threshold_exp, 0, 15, "dist_threshold_exp", "10-base exponent to set distance threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
+      add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
 
       // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
       // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
