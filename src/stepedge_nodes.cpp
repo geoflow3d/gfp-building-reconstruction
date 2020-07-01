@@ -2178,9 +2178,9 @@ void ArrDissolveNode::process() {
     arr_dissolve_fp(arr, false, true);
   }
 
-  if (remove_duplicates) {
-    arr_snap_duplicates(arr, (double) std::pow(10,-dupe_threshold_exp));
-  }
+  // if (remove_duplicates) {
+  //   arr_snap_duplicates(arr, (double) std::pow(10,-dupe_threshold_exp));
+  // }
   // snap edge shorter than snap_tolerance
   // for (auto he : arr.edge_handles()) {
   //   if(CGAL::squared_distance(he->source()->point(), he->target()->point()) < snap_tolerance) {

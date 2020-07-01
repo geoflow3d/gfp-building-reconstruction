@@ -313,10 +313,11 @@ namespace geoflow::nodes::stepedge {
   };
 
   class BuildArrFromLinesNode:public Node {
-    float rel_area_thres = 0.1;
+    // float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
-    int dist_threshold_exp = 5;
-    int angle_threshold_exp = 5;
+    int dist_threshold_exp = 4;
+    float fp_extension = 0.001;
+    // int angle_threshold_exp = 5;
     // bool snap_clean = true;
     // bool snap_detect_only = false;
     // float snap_dist = 1.0;
@@ -329,10 +330,11 @@ namespace geoflow::nodes::stepedge {
       add_output("arrangement", typeid(Arrangement_2));
       add_output("arr_complexity", typeid(int));
 
-      add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
+      // add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
+      add_param(ParamBoundedFloat(fp_extension, 0.0, 0.01,  "fp_extension", "extend each footprint segment on both sides with this distance"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
       add_param(ParamBoundedInt(dist_threshold_exp, 0, 15, "dist_threshold_exp", "10-base exponent to set distance threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
-      add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
+      // add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
 
       // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
       // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
@@ -406,9 +408,9 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
-    bool remove_duplicates = true;
+    // bool remove_duplicates = true;
     float step_height_threshold = 1.0;
-    int dupe_threshold_exp = 3;
+    // int dupe_threshold_exp = 3;
     public:
     using Node::Node;
     void init() {
@@ -418,9 +420,9 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
       add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges (check for LoD1.3)"));
-      add_param(ParamBool(remove_duplicates, "remove_duplicates", "Remove duplicates"));
+      // add_param(ParamBool(remove_duplicates, "remove_duplicates", "Remove duplicates"));
       add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
-      add_param(ParamBoundedInt(dupe_threshold_exp, 0, 15, "dupe_threshold_exp", "10-base exponent to set duplication threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
+      // add_param(ParamBoundedInt(dupe_threshold_exp, 0, 15, "dupe_threshold_exp", "10-base exponent to set duplication threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
     }
     void process();
   };

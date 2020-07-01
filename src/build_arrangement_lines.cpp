@@ -5,13 +5,14 @@ namespace geoflow::nodes::stepedge {
 Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segment, Arrangement_2::Halfedge_handle& edge, double& dist_threshold) {
   auto& e_source = edge->source()->point();
   auto& e_target = edge->target()->point();
-  std::cout << "arr_cross_edge:" << std::endl;
-  std::cout << "\te source " << e_source << std::endl;
-  std::cout << "\te target " << e_target << std::endl;
+  // std::cout << "arr_cross_edge:" << std::endl;
+  // std::cout << "\te source " << e_source << std::endl;
+  // std::cout << "\te target " << e_target << std::endl;
   auto result = CGAL::intersection(Segment_2(e_source, e_target), segment);
   if (result) {
     if (auto p = boost::get<Point_2>(&*result)) {
-      std::cout << "\tp " << *p << std::endl;
+      // std::cout << "\tp " << *p << std::endl;
+      // check if point of intersection is practically at the same coordinates of one of the edge's end points
       if (CGAL::squared_distance(*p, e_source) < dist_threshold) {
         return edge->source();
       } else if (CGAL::squared_distance(*p, e_target) < dist_threshold) {
@@ -25,6 +26,17 @@ Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segme
   return Arrangement_2::Vertex_handle();
 }
 
+bool arr_edge_exists(Arrangement_2& arr, Arrangement_2::Vertex_handle s, Arrangement_2::Vertex_handle t) {
+  auto he = s->incident_halfedges();
+  auto first = he;
+  do {
+    if (he->source()==t) {
+      return true;
+    }
+  } while (++he!=first);
+  return false;
+}
+
 void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) {
   std::list<CGAL::Object> zone_elems;
   
@@ -32,7 +44,8 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
   Arrangement_2::Vertex_handle vertex;
   Arrangement_2::Face_handle face;
   CGAL::zone(arr, segment, std::back_inserter(zone_elems));
-  std::cout << "Zone has " << zone_elems.size() << " elems\n";
+  // std::cout << "Zone has " << zone_elems.size() << " elems\n";
+  // std::cout << "segment vector: " << segment.to_vector() << "\n";
 
   if (zone_elems.size()==0) {
     return;
@@ -75,21 +88,28 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
 
       // compute intersection and split edge
       } else if ( assign(edge, zone_elems.front()) ) {
+        // std::cout << "crossing edge...\n";
+        // std::cout << "edge source: " << edge->source()->point() << "\n";
+        // std::cout << "edge target: " << edge->target()->point() << "\n";
+        // std::cout << "edge vector: " << edge->to_vector() << "\n";
         vertices.push_back(arr_cross_edge(arr, segment, edge, dist_threshold));
 
       // vertex is easiest
       } else if ( assign(vertex, zone_elems.front()) ) {
+        // std::cout << "crossing vertex...\n";
         vertices.push_back(vertex);
       }
       zone_elems.pop_front();
       if (vertices.size()==2) {
         auto& s = vertices.front();
         auto& t = vertices.back();
-        std::cout << "insert_at_vertices...\n";
-        std::cout << s->point() << std::endl;
-        std::cout << t->point() << std::endl;
+        // std::cout << "insert_at_vertices...\n";
+        // std::cout << s->point() << std::endl;
+        // std::cout << t->point() << std::endl;
         if(s==t) {
-          std::cout << "same vertex" << std::endl;
+          // std::cout << "same vertex" << std::endl;
+        } else if (arr_edge_exists(arr,s,t)) {
+          // std::cout << "edge already exists" << std::endl;
         } else {
           arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
         }
@@ -113,6 +133,16 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
   // }
 }
 
+void arr_extend_insert_segment(Arrangement_2& arr, Segment_2 segment, const float& extension) {
+  auto lv = segment.to_vector();
+  lv = lv / CGAL::sqrt(CGAL::to_double(lv.squared_length()));
+  
+  insert(arr, Segment_2(
+    segment.source()-lv*extension,
+    segment.target()+lv*extension
+  ));
+}
+
 void BuildArrFromLinesNode::process() {
   
   // prepare footprint segments
@@ -133,15 +163,20 @@ void BuildArrFromLinesNode::process() {
   Arrangement_2 arr_base;
   Face_split_observer obs (arr_base);
   {
-    insert(arr_base, footprint.outer_boundary().edges_begin(), footprint.outer_boundary().edges_end());
+    // insert(arr_base, footprint.outer_boundary().edges_begin(), footprint.outer_boundary().edges_end());
     // arr_insert_polygon(arr_base, footprint);
     // insert_non_intersecting_curves(arr_base, footprint.edges_begin(), footprint.edges_end());
-    if (!footprint.outer_boundary().is_simple()) {
-      arr_filter_biggest_face(arr_base, rel_area_thres);
+    // if (!footprint.outer_boundary().is_simple()) {
+    //   arr_filter_biggest_face(arr_base, rel_area_thres);
+    // }
+    for(auto e = footprint.outer_boundary().edges_begin(); e != footprint.outer_boundary().edges_end(); ++e) {
+      arr_extend_insert_segment(arr_base, *e, fp_extension);
     }
     obs.set_hole_mode(true);
     for(auto hole = footprint.holes_begin(); hole != footprint.holes_end(); ++hole) {
-      insert(arr_base, hole->edges_begin(), hole->edges_end());
+      for(auto e = hole->edges_begin(); e != hole->edges_end(); ++e) {
+        arr_extend_insert_segment(arr_base, *e, fp_extension);
+      }
     }
     obs.set_hole_mode(false);
   }
