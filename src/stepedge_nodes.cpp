@@ -310,8 +310,6 @@ void LOD1ExtruderNode::process() {
   Mesh mesh;
   // mesh.create_attribute_field<int>("surface_type");
 
-  //TODO: we need to consider holes
-
   //floor
   LinearRing r_floor = ring;
   for (auto& p : r_floor) p[2] = h_floor;

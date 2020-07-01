@@ -25,9 +25,13 @@ struct VertexInfo {
 };
 struct FaceInfo {
   bool interior = false, visited = false;
+  int nesting_level = -1;
   void set_interior(bool is_interior) {
     visited = true;
     interior = is_interior;
+  }
+  bool in_domain() {
+    return nesting_level % 2 == 1;
   }
 };
 typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfo, K> VertexBase;
@@ -61,31 +65,81 @@ glm::vec3 calculate_normal(const LinearRing ring)
  * to constrained edges bounding the former set and increase the nesting level by 1.
  * facets in the domain are those with an odd nesting level.
  */
-void mark_domains(CDT& cdt) {
-
-  std::list<CDT::Face_handle> explorables;
-  auto fh_inf = cdt.infinite_face();
-  fh_inf->info().set_interior(false);
-  explorables.push_back(fh_inf);
-
-  while (!explorables.empty()) {
-    auto fh = explorables.front();
-    explorables.pop_front();
-    // check the three neighbours
-    for (int i = 0; i < 3; ++i) {
-      CDT::Edge e(fh, i);
-      CDT::Face_handle fh_n = fh->neighbor(i);
-      if (fh_n->info().visited == false) {
-        if (cdt.is_constrained(e)) {
-          fh_n->info().set_interior(!fh_n->info().interior);
-        } else {
-          fh_n->info().set_interior(fh_n->info().interior);
+ void mark_domains(CDT& ct,
+  CDT::Face_handle start,
+  int index,
+  std::list<CDT::Edge>& border) {
+  if (start->info().nesting_level != -1) {
+    return;
+  }
+  std::list<CDT::Face_handle> queue;
+  queue.push_back(start);
+  while (!queue.empty()) {
+    CDT::Face_handle fh = queue.front();
+    queue.pop_front();
+    if (fh->info().nesting_level == -1) {
+      fh->info().nesting_level = index;
+      for (int i = 0; i < 3; i++) {
+        CDT::Edge e(fh, i);
+        CDT::Face_handle n = fh->neighbor(i);
+        if (n->info().nesting_level == -1) {
+          if (ct.is_constrained(e)) border.push_back(e);
+          else queue.push_back(n);
         }
-        explorables.push_back(fh_n);
       }
     }
   }
 }
+
+/**
+ * mark the triangles that are inside the original 2D polygon.
+ * explore set of facets connected with non constrained edges,
+ * and attribute to each such set a nesting level.
+ * start from facets incident to the infinite vertex, with a nesting
+ * level of 0. Then recursively consider the non-explored facets incident
+ * to constrained edges bounding the former set and increase the nesting level by 1.
+ * facets in the domain are those with an odd nesting level.
+ */
+void mark_domains(CDT& cdt) {
+  // for (CDT::All_faces_iterator it = cdt.all_faces_begin(); it != cdt.all_faces_end(); ++it) {
+  //   it->info().nesting_level = -1;
+  // }
+  std::list<CDT::Edge> border;
+  mark_domains(cdt, cdt.infinite_face(), 0, border);
+  while (!border.empty()) {
+    CDT::Edge e = border.front();
+    border.pop_front();
+    CDT::Face_handle n = e.first->neighbor(e.second);
+    if (n->info().nesting_level == -1) {
+      mark_domains(cdt, n, e.first->info().nesting_level + 1, border);
+    }
+  }
+}
+// void mark_domains(CDT& cdt) {
+
+//   std::list<CDT::Face_handle> explorables;
+//   auto fh_inf = cdt.infinite_face();
+//   fh_inf->info().set_interior(false);
+//   explorables.push_back(fh_inf);
+
+//   while (!explorables.empty()) {
+//     auto fh = explorables.front();
+//     explorables.pop_front();
+//     // check the three neighbours
+//     for (int i = 0; i < 3; ++i) {
+//       CDT::Edge e(fh, i);
+//       CDT::Face_handle fh_n = fh->neighbor(i);
+//       if (fh_n->info().visited == false) {
+//         if (cdt.is_constrained(e)) {
+//           fh_n->info().set_interior(!fh_n->info().interior);
+//         } else {
+//           fh_n->info().set_interior(fh_n->info().interior);
+//         }
+//         explorables.push_back(fh_n);
+//       }
+//     }
+//   }
+// }
 
 Polygon_2 project(geoflow::vec3f& ring, Plane_3& plane) {
   Polygon_2 poly_2d;
@@ -175,7 +229,7 @@ void PolygonTriangulatorNode::process()
     project_and_insert(poly_3d, plane, triangulation);
     // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     for (auto& ring : poly_3d.interior_rings()) {
-      project_and_insert(poly_3d, plane, triangulation);
+      project_and_insert(ring, plane, triangulation);
       // poly_2d = project(poly_3d, plane);
       // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
     }
@@ -200,7 +254,7 @@ void PolygonTriangulatorNode::process()
     for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
     fit != triangulation.finite_faces_end(); ++fit) {
 
-      if (!output_all_triangles && !fit->info().interior) continue;
+      if (!output_all_triangles && !fit->info().in_domain()) continue;
 
       Triangle triangle;
       triangle = {
@@ -213,7 +267,7 @@ void PolygonTriangulatorNode::process()
         normals.push_back({normal.x, normal.y, normal.z});
         // values_out.push_back(values_in[vi]);
         ring_ids.push_back(ri);
-        nesting_levels.push_back(fit->info().interior);
+        nesting_levels.push_back(fit->info().nesting_level);
       }
       triangles.push_back(triangle);
     }
