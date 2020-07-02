@@ -697,11 +697,19 @@ void ArrExtruderNode::process(){
       } while(he!=first);
 
       // TODO: get the holes!
-      // for (auto face: arr.face_handles()) {
-      //   if (!face->data().in_footprint) { 
-
-      //   }
-      // }
+      for (auto face: arr.face_handles()) {
+        if (face->data().is_footprint_hole) {
+          vec3f hole;
+          auto he = face->outer_ccb();
+          auto first = he;
+          do {
+            if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
+              hole.push_back(v2p(he->source(), floor_elevation));
+            he = he->next();
+          } while(he!=first);
+          floor.interior_rings().push_back(hole);
+        }
+      }
 
       faces.push_back(floor);
       surface_labels.push_back(int(0));

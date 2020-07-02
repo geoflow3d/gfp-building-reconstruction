@@ -26,6 +26,7 @@ typedef Traits_2::Point_2                             Point_2;
 struct FaceInfo {
   bool is_finite=false;
   bool in_footprint=false;
+  bool is_footprint_hole=false;
   float elevation_avg=0;
   float elevation_min, elevation_max;
   int segid=0;
@@ -147,8 +148,10 @@ public:
       new_face->data().in_footprint = true;
     else if(old_face->data().in_footprint) {
       new_face->data().in_footprint = !hole_mode;
+      new_face->data().is_footprint_hole = hole_mode;
     } else {
       new_face->data().in_footprint = false;
+      new_face->data().is_footprint_hole = old_face->data().is_footprint_hole;
     }
     n_faces++;
   }
