@@ -156,7 +156,15 @@ void BuildArrFromLinesNode::process() {
     for (auto& p : lr) {
       poly2.push_back(linereg::Point_2(p[0], p[1]));
     }
-    footprint = linereg::Polygon_with_holes_2(poly2);
+    std::vector<linereg::Polygon_2> holes;
+    for (auto& lr_hole : lr.interior_rings()) {
+      linereg::Polygon_2 hole;
+      for (auto& p : lr_hole) {
+        hole.push_back(linereg::Point_2(p[0], p[1]));
+      }
+      holes.push_back(hole);
+    }
+    footprint = linereg::Polygon_with_holes_2(poly2, holes.begin(), holes.end());
   }
 
   // insert footprint segments
