@@ -229,7 +229,7 @@ void OptimiseArrangmentGridNode::process() {
     }
   }
 
-  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+  // std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // don't bother if there are no planes or faces
   if (points_per_plane.size()==0 || faces.size()==0) {
     arr_dissolve_fp(arr, true, true);
@@ -372,7 +372,7 @@ void OptimiseArrangmentNode::process() {
       // also compute average elevation for all inliers (needed for LoD1.3 later)
     }
   }
-  std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
+  // std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // if (faces.size() > max_face_complexity) {
 
   //   return
