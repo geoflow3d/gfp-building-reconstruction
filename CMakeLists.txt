@@ -60,6 +60,7 @@ geoflow_create_plugin(
   src/build_arrangement_lines.cpp
   src/build_arrangement_rings.cpp
   src/arrangement.cpp
+  src/polygon_offset.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

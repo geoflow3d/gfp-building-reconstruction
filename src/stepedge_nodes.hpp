@@ -983,4 +983,18 @@ namespace geoflow::nodes::stepedge {
     };
   };
 
+  class PolygonOffsetNode:public Node {
+    public:
+    using Node::Node;
+    float offset = 5;
+
+    void init() {
+      add_vector_input("polygons", typeid(LinearRing));
+      add_vector_output("offset_polygons", typeid(LinearRing));
+
+      add_param(ParamBoundedFloat(offset, -10, 10, "offset",  "offset"));   
+    }
+    void process();
+  };
+
 }
