@@ -209,37 +209,37 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
-  class ExtruderNode:public Node {
-    bool do_walls=true, do_roofs=true;
-    bool in_footprint = false;
-    bool LoD2 = false;
-    float base_elevation = 0;
-    float nodata_elevation = 3;
+  // class ExtruderNode:public Node {
+  //   bool do_walls=true, do_roofs=true;
+  //   bool in_footprint = false;
+  //   bool LoD2 = false;
+  //   float base_elevation = 0;
+  //   float nodata_elevation = 3;
 
-    public:
-    using Node::Node;
-    void init() {
-      add_input("arrangement", typeid(Arrangement_2));
-      add_output("cell_id_vec1i", typeid(vec1i));
-      add_output("plane_id", typeid(vec1i));
-      add_output("rms_errors", typeid(vec1f));
-      add_output("max_errors", typeid(vec1f));
-      add_output("elevations", typeid(vec1f));
-      add_output("segment_coverages", typeid(vec1f));
-      add_output("triangles", typeid(TriangleCollection));
-      add_output("normals_vec3f", typeid(vec3f));
-      add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
-      add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
+  //   public:
+  //   using Node::Node;
+  //   void init() {
+  //     add_input("arrangement", typeid(Arrangement_2));
+  //     add_output("cell_id_vec1i", typeid(vec1i));
+  //     add_output("plane_id", typeid(vec1i));
+  //     add_output("rms_errors", typeid(vec1f));
+  //     add_output("max_errors", typeid(vec1f));
+  //     add_output("elevations", typeid(vec1f));
+  //     add_output("segment_coverages", typeid(vec1f));
+  //     add_output("triangles", typeid(TriangleCollection));
+  //     add_output("normals_vec3f", typeid(vec3f));
+  //     add_output("labels_vec1i", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
+  //     add_output("face_ids", typeid(vec1i)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
 
-      add_param(ParamBool(do_walls, "do_walls", "Do walls"));
-      add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
-      add_param(ParamBool(in_footprint, "in_footprint", "in_footprint"));
-      add_param(ParamBool(LoD2, "LoD2", "LoD2"));
-      add_param(ParamFloat(base_elevation, "base_elevation", "Base elevation"));
-      add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
-    }
-    void process();
-  };
+  //     add_param(ParamBool(do_walls, "do_walls", "Do walls"));
+  //     add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
+  //     add_param(ParamBool(in_footprint, "in_footprint", "in_footprint"));
+  //     add_param(ParamBool(LoD2, "LoD2", "LoD2"));
+  //     add_param(ParamFloat(base_elevation, "base_elevation", "Base elevation"));
+  //     add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
+  //   }
+  //   void process();
+  // };
 
   class PolygonGrowerNode:public Node {
     float extension = 0.1;
@@ -567,18 +567,19 @@ namespace geoflow::nodes::stepedge {
     std::string filepaths = "";
     float cellsize = 50.0;
     float buffer = 1.0;
-    float ground_percentile=0.1;
+    // float ground_percentile=0.1;
     public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
+      add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
 
       add_param(ParamPath(filepaths, "las_filepaths", "LAS filepaths"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
-      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
+      // // add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };
@@ -589,19 +590,20 @@ namespace geoflow::nodes::stepedge {
     std::string filter_limits = "Classification[2:2],Classification[6:6]";
     float cellsize = 50.0;
     float buffer = 1.0;
-    float ground_percentile=0.1;
+    // float ground_percentile=0.1;
   public:
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
+      add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
 
       add_param(ParamPath(dirpath, "dirpath", "EPT directory"));
       // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
-      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
+      // add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };

@@ -36,10 +36,11 @@ pGridSet build_grid(const vec3f& ring) {
 class PointsInPolygonsCollector  {
   gfSingleFeatureInputTerminal& polygons;
   gfSingleFeatureOutputTerminal& point_clouds;
+  gfSingleFeatureOutputTerminal& ground_point_clouds;
   gfSingleFeatureOutputTerminal& ground_elevations;
 
   // ground elevations
-  std::vector<std::vector<float>> point_clouds_ground;
+  // std::vector<std::vector<float>> point_clouds_ground;
   RasterTools::Raster pindex;
   std::vector<std::vector<size_t>> pindex_vals;
   std::vector<pGridSet> poly_grids;
@@ -48,10 +49,11 @@ class PointsInPolygonsCollector  {
   Box completearea_bb;
   float min_ground_elevation = std::numeric_limits<float>::max();
 
-  PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
-  : polygons(polygons), point_clouds(point_clouds), ground_elevations(ground_elevations) {
-    point_clouds_ground.resize(polygons.size());
+  PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
+  : polygons(polygons), point_clouds(point_clouds), ground_point_clouds(ground_point_clouds), ground_elevations(ground_elevations) {
+    // point_clouds_ground.resize(polygons.size());
     point_clouds.resize<PointCollection>(polygons.size());
+    ground_point_clouds.resize<PointCollection>(polygons.size());
 
     // make a vector of BOX2D for the set of input polygons
     // build point in polygon grids
@@ -120,11 +122,12 @@ class PointsInPolygonsCollector  {
     //    grid cell.
     pPipoint pipoint = new Pipoint{point[0],point[1]};
     for(size_t& poly_i : pindex_vals[lincoord]) {
-      if (point_class == 2) {
-        point_clouds_ground[poly_i].push_back(point[2]);
-        min_ground_elevation = std::min(min_ground_elevation, point[2]);
-      } else if (point_class == 6) {
-        if (GridTest(poly_grids[poly_i], pipoint)) {
+      if (GridTest(poly_grids[poly_i], pipoint)) {
+        if (point_class == 2) {
+          // point_clouds_ground[poly_i].push_back(point[2]);
+          min_ground_elevation = std::min(min_ground_elevation, point[2]);
+          ground_point_clouds.get<PointCollection&>(poly_i).push_back(point);
+        } else if (point_class == 6) {
           point_clouds.get<PointCollection&>(poly_i).push_back(point);
         }
       }
@@ -132,14 +135,18 @@ class PointsInPolygonsCollector  {
     delete pipoint;
   }
 
-  void compute_ground_elevation(float& ground_percentile) {
-    // Compute median ground height per grid cell and store it for each polygon
-    std::cout <<"Computing the median ground elevation per polygon..." << std::endl;
-    for (auto& z_vec : point_clouds_ground) {
-      // Median for odd-number of elements
+  void compute_ground_elevation() {
+    // Compute average elevation per polygon
+    std::cout <<"Computing the average elevation per polygon..." << std::endl;
+    for (size_t i=0; i<ground_point_clouds.size(); ++i) {
+      auto& gpt = ground_point_clouds.get<PointCollection&>(i);
       float ground_ele = min_ground_elevation;
-      if (z_vec.size()!=0) {
-        ground_ele = compute_percentile(z_vec, ground_percentile);
+      if (gpt.size()!=0) {
+        double sum_all = 0;
+        for(auto& p : gpt) {
+          sum_all += p[2];
+        }
+        ground_ele = sum_all/gpt.size();
       } else {
         std::cout << "no ground pts found for polygon\n";
       }
@@ -166,9 +173,10 @@ void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
 
   auto& point_clouds = vector_output("point_clouds");
+  auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
+  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
 
   for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
   {
@@ -193,7 +201,7 @@ void LASInPolygonsNode::process() {
     delete lasreader;
   }
 
-  pip_collector.compute_ground_elevation(ground_percentile);
+  pip_collector.compute_ground_elevation();
 }
 
 #ifdef GFP_WITH_PDAL
@@ -204,9 +212,10 @@ void EptInPolygonsNode::process()
 
   // Prepare outputs
   auto& point_clouds = vector_output("point_clouds");
+  auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_elevations, cellsize, buffer};
+  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
 
   std::string ept_path = "ept://" + manager.substitute_globals(dirpath);
   {
@@ -272,7 +281,7 @@ void EptInPolygonsNode::process()
     }
   }
 
-  pip_collector.compute_ground_elevation(ground_percentile);
+  pip_collector.compute_ground_elevation();
 }
 #endif
 

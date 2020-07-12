@@ -1,10 +1,3 @@
-#include <earcut.hpp>
-
-// DEBUG: write polygon WKT with ground height to file
-#include <iostream>
-#include <fstream>
-// end DEBUG
-
 // #include "nlohmann/json.hpp"
 // using json = nlohmann::json;
 
@@ -48,189 +41,7 @@ vertex get_normal(vertex v0, vertex v1, vertex v2) {
 #include <stack>
 #include <utility>
 
-namespace as {
-
-  class AlphaShapeRegionGrower {
-    Alpha_shape_2 &A;
-    enum Mode {
-      ALPHA, // stop at alpha boundary
-      EXTERIOR // stop at faces labels as exterior
-    };
-    int label_cnt; // label==-1 means exterior, -2 mean never visiter, 0+ means a regular region
-    public:
-    std::unordered_map<Face_handle, int> face_map;
-    std::unordered_map<int, Vertex_handle> region_map; //label: (boundary vertex)
-    AlphaShapeRegionGrower(Alpha_shape_2& as) : A(as), label_cnt(0) {};
-
-    void grow() {
-      std::stack<Face_handle> seeds;
-      for (auto fh = A.all_faces_begin(); fh!=A.all_faces_end(); ++fh) {
-        seeds.push(fh);
-        face_map[fh] = -2;
-      }
-      auto inf_face = A.infinite_face();
-      face_map[inf_face] = -1;
-      grow_region(inf_face, ALPHA); // this sets label of exterior faces to -1
-      while (!seeds.empty()) {
-        auto fh = seeds.top(); seeds.pop();
-        if (face_map[fh] == -2) {
-          face_map[fh] = label_cnt;
-          grow_region(fh, EXTERIOR);
-          ++label_cnt;
-        }
-      }
-    }
-
-    void grow_region (Face_handle face_handle, Mode mode) {
-      std::stack<Face_handle> candidates;
-      candidates.push(face_handle);
-
-      while(candidates.size()>0) {
-        auto fh = candidates.top(); candidates.pop();
-        // check the 3 neighbors of this face
-        for (int i=0; i<3; ++i) {
-          auto e = std::make_pair(fh,i);
-          auto neighbor = fh->neighbor(i);
-
-          if (mode == ALPHA) {
-            // add neighbor if it is not on the ohter side of alpha boundary
-            // check if this neighbor hasn't been visited before
-            if (face_map[neighbor] == -2) {
-              auto edge_class = A.classify(e);
-              if ( ! (edge_class == Alpha_shape_2::REGULAR || edge_class == Alpha_shape_2::SINGULAR) ) {
-                face_map[neighbor] = -1;
-                candidates.push(neighbor);
-              }
-            }
-          } else if (mode == EXTERIOR) {
-            // check if this neighbor hasn't been visited before and is not exterior
-            if (face_map[neighbor] == -2) {
-              face_map[neighbor] = label_cnt;
-              candidates.push(neighbor);
-            // if it is exterior, we store this boundary edge
-            } else if (face_map[neighbor] == -1) {
-              if( region_map.find(label_cnt)==region_map.end() ) {
-                region_map[label_cnt] = fh->vertex(A.cw(i));
-              }
-            }
-          }
-
-        }
-      }
-    }
-  };
-}
 namespace geoflow::nodes::stepedge {
-
-void AlphaShapeNode::process(){
-  auto points_per_segment = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
-
-  PointCollection edge_points, boundary_points;
-  LineStringCollection alpha_edges;
-  LinearRingCollection alpha_rings;
-  TriangleCollection alpha_triangles;
-  std::vector<as::Triangulation_2> alpha_dts;
-  vec1i segment_ids, plane_idx;
-  for (auto& it : points_per_segment ) {
-    if (it.first == -1) continue; // skip points if they put at index -1 (eg if we care not about slanted surfaces for ring extraction)
-    auto points = it.second.second;
-    as::Triangulation_2 T;
-    T.insert(points.begin(), points.end());
-    as::Alpha_shape_2 A(T,
-                as::FT(thres_alpha),
-                as::Alpha_shape_2::GENERAL);
-    
-    double optimal_alpha = thres_alpha;
-    if (optimal_alpha && optimal_only_if_needed) {
-      optimal_alpha = std::max(float(*A.find_optimal_alpha(1)), thres_alpha);
-    } else if (optimal_alpha) {
-      optimal_alpha = *A.find_optimal_alpha(1);
-    }
-    A.set_alpha(as::FT(optimal_alpha));
-
-    for (auto it = A.alpha_shape_vertices_begin(); it!=A.alpha_shape_vertices_end(); it++) {
-      auto p = (*it)->point();
-      edge_points.push_back({float(p.x()), float(p.y()), float(p.z())});
-    }
-    for (auto it = A.alpha_shape_edges_begin(); it!=A.alpha_shape_edges_end(); it++) {
-      auto p1 = it->first->vertex(A.cw(it->second))->point();
-      auto p2 = it->first->vertex(A.ccw(it->second))->point();
-
-      alpha_edges.push_back({
-        {float(p1.x()), float(p1.y()), float(p1.z())},
-        {float(p2.x()), float(p2.y()), float(p2.z())}
-      });
-    }
-    
-    // flood filling 
-    auto grower = as::AlphaShapeRegionGrower(A);
-    grower.grow();
-
-    for (auto fh = A.finite_faces_begin(); fh != A.finite_faces_end(); ++fh) {
-        arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), float (fh->vertex(0)->point().z())};
-        arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), float (fh->vertex(1)->point().z())};
-        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
-        };
-      alpha_triangles.push_back({ p0,p1,p2 });
-      segment_ids.push_back(grower.face_map[fh]);
-      segment_ids.push_back(grower.face_map[fh]);
-      segment_ids.push_back(grower.face_map[fh]);
-    }
-
-    for (auto& kv : grower.region_map) {
-      auto region_label = kv.first;
-      auto v_start = kv.second;
-      boundary_points.push_back({
-        float(v_start->point().x()),
-        float(v_start->point().y()),
-        float(v_start->point().z())
-      });
-
-      // find edges of outer boundary in order
-      LinearRing ring;
-
-      ring.push_back( {float(v_start->point().x()), float(v_start->point().y()), float(v_start->point().z())} );
-      // secondly, walk along the entire boundary starting from v_start
-      as::Vertex_handle v_next, v_prev = v_start, v_cur = v_start;
-      size_t v_cntr = 0;
-      do {
-        as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
-        do {
-          // find the vertex on the other side of the incident edge ec
-          auto v = ec->first->vertex(A.cw(ec->second));
-          if (v_cur == v) v = ec->first->vertex(A.ccw(ec->second));
-          // find labels of two adjacent faces
-          auto label1 = grower.face_map[ ec->first ];
-          auto label2 = grower.face_map[ ec->first->neighbor(ec->second) ];
-          // check if the edge is on the boundary of the region and if we are not going backwards
-          bool exterior = label1==-1 || label2==-1;
-          bool region = label1==region_label || label2==region_label;
-          if(( exterior && region )  && (v != v_prev)) {
-            v_next = v;
-            ring.push_back( {float(v_next->point().x()), float(v_next->point().y()), float(v_next->point().z())} );
-            break;
-          }
-        } while (++ec != done);
-        v_prev = v_cur;
-        v_cur = v_next;
-
-      } while (v_next != v_start);
-      // finally, store the ring 
-      alpha_rings.push_back(ring);
-      plane_idx.push_back(it.first);
-      alpha_dts.push_back(T);
-    }
-  }
-  
-  output("alpha_rings").set(alpha_rings);
-  output("alpha_edges").set(alpha_edges);
-  output("alpha_triangles").set(alpha_triangles);
-  output("alpha_dts").set(alpha_dts);
-  output("segment_ids").set(segment_ids);
-  output("edge_points").set(edge_points);
-  output("boundary_points").set(boundary_points);
-  output("roofplane_ids").set(plane_idx);
-}
 
 void Ring2SegmentsNode::process() {
   auto rings = input("rings").get<LinearRingCollection>();
@@ -994,241 +805,241 @@ void ArrExtruderNode::process(){
   
 }
 
-void ExtruderNode::process(){
-  // if (!(do_walls || do_roofs)) return;
-  // Set up vertex data (and buffer(s)) and attribute pointers
-  // auto polygons = std::any_cast<input("polygons").get<vec2f>>();
-  // auto elevations = std::any_cast<input("elevations").get<float>>();
-  auto arr = input("arrangement").get<Arrangement_2>();
+// void ExtruderNode::process(){
+//   // if (!(do_walls || do_roofs)) return;
+//   // Set up vertex data (and buffer(s)) and attribute pointers
+//   // auto polygons = std::any_cast<input("polygons").get<vec2f>>();
+//   // auto elevations = std::any_cast<input("elevations").get<float>>();
+//   auto arr = input("arrangement").get<Arrangement_2>();
 
-  TriangleCollection triangles;
-  vec3f normals;
-  vec1i cell_id_vec1i, plane_id, face_ids;
-  vec1i labels;
-  vec1f rms_errors, max_errors, segment_coverages, elevations;
-  using N = uint32_t;
+//   TriangleCollection triangles;
+//   vec3f normals;
+//   vec1i cell_id_vec1i, plane_id, face_ids;
+//   vec1i labels;
+//   vec1f rms_errors, max_errors, segment_coverages, elevations;
+//   using N = uint32_t;
   
-  size_t cell_id=0, pid, face_id=0; // face_id==0 is the floor
-  float rms_error, max_error, segment_coverage;
-  for (auto face: arr.face_handles()) {
-    // bool extract = param<bool>("in_footprint") ? face->data().in_footprint : face->data().is_finite;
-    bool extract = face->data().in_footprint;
-    if(extract) {
-      cell_id++;
-      rms_error = face->data().rms_error_to_avg;
-      max_error = face->data().max_error;
-      segment_coverage = face->data().segid_coverage;
-      pid = face->data().segid;
-      if (pid==0) {
-        face->data().plane = Plane(Kernel::Point_3(0,0,nodata_elevation), Kernel::Direction_3(0,0,1));
-        face->data().elevation_avg = nodata_elevation;
-      }
+//   size_t cell_id=0, pid, face_id=0; // face_id==0 is the floor
+//   float rms_error, max_error, segment_coverage;
+//   for (auto face: arr.face_handles()) {
+//     // bool extract = param<bool>("in_footprint") ? face->data().in_footprint : face->data().is_finite;
+//     bool extract = face->data().in_footprint;
+//     if(extract) {
+//       cell_id++;
+//       rms_error = face->data().rms_error_to_avg;
+//       max_error = face->data().max_error;
+//       segment_coverage = face->data().segid_coverage;
+//       pid = face->data().segid;
+//       if (pid==0) {
+//         face->data().plane = Plane(Kernel::Point_3(0,0,nodata_elevation), Kernel::Direction_3(0,0,1));
+//         face->data().elevation_avg = nodata_elevation;
+//       }
 
-      vec2f polygon, vertices;
-      arrangementface_to_polygon(face, polygon);
-      std::vector<N> indices = mapbox::earcut<N>(std::vector<vec2f>({polygon}));
-      for(auto i : indices) {
-        vertices.push_back({polygon[i]});
-      }
-      // floor triangles
-      for (size_t i=0; i<indices.size()/3; ++i) {
-        Triangle triangle;
-        for (size_t j=0; j<3; ++j) {
-          triangle[j] = {vertices[i*3+j][0], vertices[i*3+j][1], base_elevation};
-          labels.push_back(0);
-          normals.push_back({0,0,-1});
-          cell_id_vec1i.push_back(cell_id);
-          plane_id.push_back(pid);
-          face_ids.push_back(0);
-          rms_errors.push_back(rms_error);
-          elevations.push_back(face->data().elevation_avg);
-          max_errors.push_back(max_error);
-          segment_coverages.push_back(segment_coverage);
-        }
-        triangles.push_back(triangle);
-      }
-      if (do_roofs) {
-        // roof triangles
-        ++face_id;
-        auto& plane = face->data().plane;
-        arr3f roof_normal = {0,0,1};
-        if (LoD2) {
-          auto n_ = plane.orthogonal_vector();
-          if(n_*Vector(0.0f,0.0f,1.0f) <0) n_*=-1;
-          n_ = n_/CGAL::sqrt(n_.squared_length());
-          roof_normal = {float(n_.x()), float(n_.y()), float(n_.z())};
-        }
-        for (size_t i=0; i<indices.size()/3; ++i) {
-          Triangle triangle;
-          for (size_t j=0; j<3; ++j) {
-            auto& px = vertices[i*3+j][0];
-            auto& py = vertices[i*3+j][1];
-            float h;
-            if (LoD2) {
-              h = (plane.a()*px + plane.b()*py + plane.d()) / (-plane.c());
-            } else {
-              h = face->data().elevation_avg;
-            }
-            triangle[j] = {px, py, h};
-            labels.push_back(1);
-            normals.push_back(roof_normal);
-            cell_id_vec1i.push_back(cell_id);
-            face_ids.push_back(face_id);
-            plane_id.push_back(pid);
-            // rms_errors.push_back(rms_error);
-            rms_errors.push_back(rms_error);
-            elevations.push_back(face->data().elevation_avg);
-            max_errors.push_back(max_error);
-            segment_coverages.push_back(segment_coverage);
-          }
-          triangles.push_back(triangle);
-        }
-      }
-    }
-  }
-  if (do_walls) {
-    vertex n;
-    for (auto edge : arr.edge_handles()) {
-      // skip if faces on both sides of this edge are not finite
-      bool fp_u = edge->twin()->face()->data().in_footprint;
-      bool fp_l = edge->face()->data().in_footprint;
-      auto plane_u = edge->twin()->face()->data().plane;
-      auto plane_l = edge->face()->data().plane;
-      if (fp_u || fp_l) {
-        ++face_id;
-        auto& source = edge->source()->point();
-        auto& target = edge->target()->point();
-        int wall_label = 2;
-        if (fp_u && fp_l)
-          wall_label = 3;
+//       vec2f polygon, vertices;
+//       arrangementface_to_polygon(face, polygon);
+//       std::vector<N> indices = mapbox::earcut<N>(std::vector<vec2f>({polygon}));
+//       for(auto i : indices) {
+//         vertices.push_back({polygon[i]});
+//       }
+//       // floor triangles
+//       for (size_t i=0; i<indices.size()/3; ++i) {
+//         Triangle triangle;
+//         for (size_t j=0; j<3; ++j) {
+//           triangle[j] = {vertices[i*3+j][0], vertices[i*3+j][1], base_elevation};
+//           labels.push_back(0);
+//           normals.push_back({0,0,-1});
+//           cell_id_vec1i.push_back(cell_id);
+//           plane_id.push_back(pid);
+//           face_ids.push_back(0);
+//           rms_errors.push_back(rms_error);
+//           elevations.push_back(face->data().elevation_avg);
+//           max_errors.push_back(max_error);
+//           segment_coverages.push_back(segment_coverage);
+//         }
+//         triangles.push_back(triangle);
+//       }
+//       if (do_roofs) {
+//         // roof triangles
+//         ++face_id;
+//         auto& plane = face->data().plane;
+//         arr3f roof_normal = {0,0,1};
+//         if (LoD2) {
+//           auto n_ = plane.orthogonal_vector();
+//           if(n_*Vector(0.0f,0.0f,1.0f) <0) n_*=-1;
+//           n_ = n_/CGAL::sqrt(n_.squared_length());
+//           roof_normal = {float(n_.x()), float(n_.y()), float(n_.z())};
+//         }
+//         for (size_t i=0; i<indices.size()/3; ++i) {
+//           Triangle triangle;
+//           for (size_t j=0; j<3; ++j) {
+//             auto& px = vertices[i*3+j][0];
+//             auto& py = vertices[i*3+j][1];
+//             float h;
+//             if (LoD2) {
+//               h = (plane.a()*px + plane.b()*py + plane.d()) / (-plane.c());
+//             } else {
+//               h = face->data().elevation_avg;
+//             }
+//             triangle[j] = {px, py, h};
+//             labels.push_back(1);
+//             normals.push_back(roof_normal);
+//             cell_id_vec1i.push_back(cell_id);
+//             face_ids.push_back(face_id);
+//             plane_id.push_back(pid);
+//             // rms_errors.push_back(rms_error);
+//             rms_errors.push_back(rms_error);
+//             elevations.push_back(face->data().elevation_avg);
+//             max_errors.push_back(max_error);
+//             segment_coverages.push_back(segment_coverage);
+//           }
+//           triangles.push_back(triangle);
+//         }
+//       }
+//     }
+//   }
+//   if (do_walls) {
+//     vertex n;
+//     for (auto edge : arr.edge_handles()) {
+//       // skip if faces on both sides of this edge are not finite
+//       bool fp_u = edge->twin()->face()->data().in_footprint;
+//       bool fp_l = edge->face()->data().in_footprint;
+//       auto plane_u = edge->twin()->face()->data().plane;
+//       auto plane_l = edge->face()->data().plane;
+//       if (fp_u || fp_l) {
+//         ++face_id;
+//         auto& source = edge->source()->point();
+//         auto& target = edge->target()->point();
+//         int wall_label = 2;
+//         if (fp_u && fp_l)
+//           wall_label = 3;
 
-        float u1z,u2z,l1z,l2z;
-        if(LoD2){
-          u1z = 
-          (plane_u.a()*CGAL::to_double(source.x()) + plane_u.b()*CGAL::to_double(source.y()) + plane_u.d()) / (-plane_u.c());
-          u2z = 
-          (plane_u.a()*CGAL::to_double(target.x()) + plane_u.b()*CGAL::to_double(target.y()) + plane_u.d()) / (-plane_u.c());
-          l1z = 
-          (plane_l.a()*CGAL::to_double(source.x()) + plane_l.b()*CGAL::to_double(source.y()) + plane_l.d()) / (-plane_l.c());
-          l2z = 
-          (plane_l.a()*CGAL::to_double(target.x()) + plane_l.b()*CGAL::to_double(target.y()) + plane_l.d()) / (-plane_l.c());
-        } else {
-          l1z = l2z = edge->face()->data().elevation_avg;
-          u1z = u2z = edge->twin()->face()->data().elevation_avg;
-        }
-        // set base (ground) elevation to vertices adjacent to a face oustide the building fp
-        if (fp_u && !fp_l) l1z=l2z=base_elevation;
-        if (!fp_u && fp_l) u1z=u2z=base_elevation;
-        // push 2 triangles to form the quad between lower and upper edges
-        // notice that this is not always topologically correct, but fine for visualisation
+//         float u1z,u2z,l1z,l2z;
+//         if(LoD2){
+//           u1z = 
+//           (plane_u.a()*CGAL::to_double(source.x()) + plane_u.b()*CGAL::to_double(source.y()) + plane_u.d()) / (-plane_u.c());
+//           u2z = 
+//           (plane_u.a()*CGAL::to_double(target.x()) + plane_u.b()*CGAL::to_double(target.y()) + plane_u.d()) / (-plane_u.c());
+//           l1z = 
+//           (plane_l.a()*CGAL::to_double(source.x()) + plane_l.b()*CGAL::to_double(source.y()) + plane_l.d()) / (-plane_l.c());
+//           l2z = 
+//           (plane_l.a()*CGAL::to_double(target.x()) + plane_l.b()*CGAL::to_double(target.y()) + plane_l.d()) / (-plane_l.c());
+//         } else {
+//           l1z = l2z = edge->face()->data().elevation_avg;
+//           u1z = u2z = edge->twin()->face()->data().elevation_avg;
+//         }
+//         // set base (ground) elevation to vertices adjacent to a face oustide the building fp
+//         if (fp_u && !fp_l) l1z=l2z=base_elevation;
+//         if (!fp_u && fp_l) u1z=u2z=base_elevation;
+//         // push 2 triangles to form the quad between lower and upper edges
+//         // notice that this is not always topologically correct, but fine for visualisation
         
-        // define four points of the quad between upper and lower edge
-        std::array<float,3> l1,l2,u1,u2;
-        l1 = {
-          float(CGAL::to_double(source.x())),
-          float(CGAL::to_double(source.y())),
-          l1z
-        };
-        l2 = {
-          float(CGAL::to_double(target.x())),
-          float(CGAL::to_double(target.y())),
-          l2z
-        };
-        u1 = {
-          float(CGAL::to_double(source.x())),
-          float(CGAL::to_double(source.y())),
-          u1z
-        };
-        u2 = {
-          float(CGAL::to_double(target.x())),
-          float(CGAL::to_double(target.y())),
-          u2z
-        };
+//         // define four points of the quad between upper and lower edge
+//         std::array<float,3> l1,l2,u1,u2;
+//         l1 = {
+//           float(CGAL::to_double(source.x())),
+//           float(CGAL::to_double(source.y())),
+//           l1z
+//         };
+//         l2 = {
+//           float(CGAL::to_double(target.x())),
+//           float(CGAL::to_double(target.y())),
+//           l2z
+//         };
+//         u1 = {
+//           float(CGAL::to_double(source.x())),
+//           float(CGAL::to_double(source.y())),
+//           u1z
+//         };
+//         u2 = {
+//           float(CGAL::to_double(target.x())),
+//           float(CGAL::to_double(target.y())),
+//           u2z
+//         };
 
-        // 1st triangle
-        triangles.push_back({u1,l2,l1});
-        labels.push_back(wall_label);
-        // triangles.push_back(l2);
-        labels.push_back(wall_label);
-        // triangles.push_back(l1);
-        labels.push_back(wall_label);
-        face_ids.push_back(face_id);
-        face_ids.push_back(face_id);
-        face_ids.push_back(face_id);
+//         // 1st triangle
+//         triangles.push_back({u1,l2,l1});
+//         labels.push_back(wall_label);
+//         // triangles.push_back(l2);
+//         labels.push_back(wall_label);
+//         // triangles.push_back(l1);
+//         labels.push_back(wall_label);
+//         face_ids.push_back(face_id);
+//         face_ids.push_back(face_id);
+//         face_ids.push_back(face_id);
 
-        n = get_normal(u1,l2,l1);
-        normals.push_back(n);
-        normals.push_back(n);
-        normals.push_back(n);
+//         n = get_normal(u1,l2,l1);
+//         normals.push_back(n);
+//         normals.push_back(n);
+//         normals.push_back(n);
 
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        max_errors.push_back(-1);
-        max_errors.push_back(-1);
-        max_errors.push_back(-1);
-        segment_coverages.push_back(-1);
-        segment_coverages.push_back(-1);
-        segment_coverages.push_back(-1);
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         max_errors.push_back(-1);
+//         max_errors.push_back(-1);
+//         max_errors.push_back(-1);
+//         segment_coverages.push_back(-1);
+//         segment_coverages.push_back(-1);
+//         segment_coverages.push_back(-1);
 
-        // 2nd triangle
-        triangles.push_back({u1,u2,l2});
-        labels.push_back(wall_label);
-        // triangles.push_back(u2);
-        labels.push_back(wall_label);
-        // triangles.push_back(l2);
-        labels.push_back(wall_label);
-        face_ids.push_back(face_id);
-        face_ids.push_back(face_id);
-        face_ids.push_back(face_id);
+//         // 2nd triangle
+//         triangles.push_back({u1,u2,l2});
+//         labels.push_back(wall_label);
+//         // triangles.push_back(u2);
+//         labels.push_back(wall_label);
+//         // triangles.push_back(l2);
+//         labels.push_back(wall_label);
+//         face_ids.push_back(face_id);
+//         face_ids.push_back(face_id);
+//         face_ids.push_back(face_id);
 
-        n = get_normal(u1,u2,l2);
-        normals.push_back(n);
-        normals.push_back(n);
-        normals.push_back(n);
+//         n = get_normal(u1,u2,l2);
+//         normals.push_back(n);
+//         normals.push_back(n);
+//         normals.push_back(n);
 
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        cell_id_vec1i.push_back(0);
-        plane_id.push_back(0);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        rms_errors.push_back(-1);
-        elevations.push_back(-1);
-        max_errors.push_back(-1);
-        max_errors.push_back(-1);
-        max_errors.push_back(-1);
-        segment_coverages.push_back(-1);
-        segment_coverages.push_back(-1);
-        segment_coverages.push_back(-1);
-      }
-    }
-  }
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         cell_id_vec1i.push_back(0);
+//         plane_id.push_back(0);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         rms_errors.push_back(-1);
+//         elevations.push_back(-1);
+//         max_errors.push_back(-1);
+//         max_errors.push_back(-1);
+//         max_errors.push_back(-1);
+//         segment_coverages.push_back(-1);
+//         segment_coverages.push_back(-1);
+//         segment_coverages.push_back(-1);
+//       }
+//     }
+//   }
   
-  output("normals_vec3f").set(normals);
-  output("cell_id_vec1i").set(cell_id_vec1i);
-  output("plane_id").set(plane_id);
-  output("rms_errors").set(rms_errors);
-  output("max_errors").set(max_errors);
-  output("elevations").set(elevations);
-  output("segment_coverages").set(segment_coverages);
-  output("triangles").set(triangles);
-  output("labels_vec1i").set(labels);
-  output("face_ids").set(face_ids);
-}
+//   output("normals_vec3f").set(normals);
+//   output("cell_id_vec1i").set(cell_id_vec1i);
+//   output("plane_id").set(plane_id);
+//   output("rms_errors").set(rms_errors);
+//   output("max_errors").set(max_errors);
+//   output("elevations").set(elevations);
+//   output("segment_coverages").set(segment_coverages);
+//   output("triangles").set(triangles);
+//   output("labels_vec1i").set(labels);
+//   output("face_ids").set(face_ids);
+// }
 
 void LinearRingtoRingsNode::process(){
   auto lr = input("linear_ring").get<LinearRing>();

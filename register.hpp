@@ -6,7 +6,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<AlphaShapeNode>("AlphaShape");
     node_register.register_node<PolygonExtruderNode>("PolygonExtruder");
     node_register.register_node<Arr2LinearRingsNode>("Arr2LinearRings");
-    node_register.register_node<ExtruderNode>("Extruder");
+    // node_register.register_node<ExtruderNode>("Extruder");
     node_register.register_node<LinearRingtoRingsNode>("LinearRingtoRings");
     node_register.register_node<BuildArrFromRingsExactNode>("BuildArrFromRings");
     node_register.register_node<BuildArrFromLinesNode>("BuildArrFromLines");
