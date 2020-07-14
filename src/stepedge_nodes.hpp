@@ -999,4 +999,19 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+
+  class CityGMLMeshWriterNode:public Node {
+    static const int FLOOR=0, ROOF=1, OUTERWALL=2, INNERWALL=3;
+    public:
+    using Node::Node;
+    std::string filepath;
+
+    void init() {
+      add_vector_input("mesh", typeid(Mesh));
+
+      add_param(ParamPath(filepath, "filepath",  "filepath"));   
+    }
+    void process();
+  };
+
 }
