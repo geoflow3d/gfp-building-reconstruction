@@ -138,7 +138,7 @@ void LOD1ExtruderNode::process() {
     }
     rings_3d.push_back(r_roof);
     surf_type.push_back(2);
-    mesh.push_polygon(r_roof);
+    mesh.push_polygon(r_roof, int(1));
     // mesh.push_attribute("surface_type", int(2));
 
     //walls
@@ -152,7 +152,7 @@ void LOD1ExtruderNode::process() {
 
       rings_3d.push_back(wall);
       surf_type.push_back(1);
-      mesh.push_polygon(wall);
+      mesh.push_polygon(wall, int(2));
 
       // mesh.push_attribute("surface_type", int(1));
       j_prev=j;
@@ -169,7 +169,7 @@ void LOD1ExtruderNode::process() {
 
         rings_3d.push_back(wall);
         surf_type.push_back(1);
-        mesh.push_polygon(wall);
+        mesh.push_polygon(wall, int(2));
         j_prev=j;
       }
     }
@@ -182,7 +182,7 @@ void LOD1ExtruderNode::process() {
   }
   rings_3d.push_back(r_floor);
   surf_type.push_back(0);
-  mesh.push_polygon(r_floor);
+  mesh.push_polygon(r_floor, int(0));
   // mesh.push_attribute("surface_type", int(0));
 
   output("surface_types").set(surf_type);
@@ -524,7 +524,7 @@ void ArrExtruderNode::process(){
 
       faces.push_back(floor);
       surface_labels.push_back(int(0));
-      mesh.push_polygon(floor);
+      mesh.push_polygon(floor, int(0));
       // mesh.push_attribute("surface_type", int(0));
     }
   }
@@ -632,7 +632,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2b));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a>h2b)) {
@@ -646,7 +646,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a<h1b) and (h2a>h2b)) {
@@ -680,11 +680,11 @@ void ArrExtruderNode::process(){
         
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
         faces.push_back(wall_face_2);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_2);
+        mesh.push_polygon(wall_face_2, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a<h2b)) {
@@ -718,11 +718,11 @@ void ArrExtruderNode::process(){
         
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
         faces.push_back(wall_face_2);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_2);
+        mesh.push_polygon(wall_face_2, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a>h1b) and (h2a==h2b)) {
@@ -733,7 +733,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h1a<h1b) and (h2a==h2b)) {
@@ -744,7 +744,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v2,h2a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h2b>h2a) and (h1a==h1b)) {
@@ -755,7 +755,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       } else 
       if ((h2b<h2a) and (h1a==h1b)) {
@@ -766,7 +766,7 @@ void ArrExtruderNode::process(){
         wall_face_1.push_back(v2p(v1,h1a));
         faces.push_back(wall_face_1);
         surface_labels.push_back(wall_label);
-        mesh.push_polygon(wall_face_1);
+        mesh.push_polygon(wall_face_1, wall_label);
         // mesh.push_attribute("surface_type", wall_label);
       }
     }
@@ -792,7 +792,7 @@ void ArrExtruderNode::process(){
         if (roofpart.size()>2) {
           faces.push_back(roofpart);
           surface_labels.push_back(int(1));
-          mesh.push_polygon(roofpart);
+          mesh.push_polygon(roofpart, int(1));
           // mesh.push_attribute("surface_type", int(1));
         }
 
