@@ -5,6 +5,9 @@ namespace geoflow::nodes::stepedge {
   void CityGMLMeshWriterNode::process() {
     auto& meshes = vector_input("mesh");
 
+    // get output file path
+    auto filepath = manager.substitute_globals(filepath_);
+
     //write citygml header
 
     for (size_t i=0; i< meshes.size(); ++i) {

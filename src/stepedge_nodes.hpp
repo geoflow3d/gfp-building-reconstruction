@@ -1004,12 +1004,12 @@ namespace geoflow::nodes::stepedge {
     static const int FLOOR=0, ROOF=1, OUTERWALL=2, INNERWALL=3;
     public:
     using Node::Node;
-    std::string filepath;
+    std::string filepath_;
 
     void init() {
       add_vector_input("mesh", typeid(Mesh));
 
-      add_param(ParamPath(filepath, "filepath",  "filepath"));   
+      add_param(ParamPath(filepath_, "filepath",  "filepath"));   
     }
     void process();
   };
