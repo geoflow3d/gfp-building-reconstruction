@@ -69,7 +69,7 @@ namespace as {
       do {
         as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
         do {
-          if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
+          // if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
           // std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
           // find the vertex on the other side of the incident edge ec
           auto v = ec->first->vertex(A.cw(ec->second));
@@ -196,14 +196,14 @@ namespace as {
               neighbor->info().label = label_cnt;
               candidates.push(neighbor);
             // if it is exterior/hole, we find extract a ring
-            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label =< HOLE) {
+            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label <= HOLE) {
               if( region_map.find(label_cnt)==region_map.end() ) {
                 region_map[label_cnt] = geoflow::LinearRing();
               }
               auto ring_vertex = fh->vertex(A.cw(i));
               if (neighbor->info().label == EXTERIOR && !neighbor->info().incident_ring_is_extracted) { // if it is exterior, we find extract the exterior ring
                 extract_ring(ring_vertex, label_cnt, EXTERIOR, region_map[label_cnt]);
-              } else if (neighbor->info().label =< HOLE && !neighbor->info().incident_ring_is_extracted) { // if it is a hole, we extract the interior ring
+              } else if (neighbor->info().label <= HOLE && !neighbor->info().incident_ring_is_extracted) { // if it is a hole, we extract the interior ring
                 geoflow::vec3f interior_ring;
                 extract_ring(ring_vertex, label_cnt, neighbor->info().label, interior_ring);
                 region_map[label_cnt].interior_rings().push_back(interior_ring);
