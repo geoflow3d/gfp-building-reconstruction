@@ -7,38 +7,6 @@
 #include "line_regulariser.hpp"
 #include "Raster.h"
 
-// 2D alpha shapes
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/Alpha_shape_2.h>
-#include <CGAL/Alpha_shape_vertex_base_2.h>
-#include <CGAL/Alpha_shape_face_base_2.h>
-#include <CGAL/Projection_traits_xy_3.h>
-
-namespace as {
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-  typedef CGAL::Projection_traits_xy_3<K>								       Gt;
-  typedef K::FT                                                FT;
-  // typedef K::Point_2                                           Point;
-  // typedef K::Segment_2                                         Segment;
-  typedef CGAL::Alpha_shape_vertex_base_2<Gt>                  Vb;
-  typedef CGAL::Alpha_shape_face_base_2<Gt>                    Fb;
-  // class AlphaShapeFaceWithLabel : public Fb {
-  //   public: 
-  //   int label = 0;
-  //   bool visited = false;
-  //   // using Fb::Fb;
-  // };
-  typedef CGAL::Triangulation_data_structure_2<Vb,Fb>          Tds;
-  typedef CGAL::Delaunay_triangulation_2<Gt,Tds>               Triangulation_2;
-  typedef CGAL::Alpha_shape_2<Triangulation_2>                 Alpha_shape_2;
-  typedef Alpha_shape_2::Vertex_handle                        Vertex_handle;
-  typedef Alpha_shape_2::Edge                                 Edge;
-  typedef Alpha_shape_2::Face_handle                          Face_handle;
-  typedef Alpha_shape_2::Vertex_circulator                    Vertex_circulator;
-  typedef Alpha_shape_2::Edge_circulator                      Edge_circulator;
-}
-
-
 namespace geoflow::nodes::stepedge {
 
   float compute_percentile(std::vector<float>& z_vec, float percentile);
@@ -55,11 +23,11 @@ namespace geoflow::nodes::stepedge {
       // add_input("points", TT_any);
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_input("skip", typeid(bool));
-      add_output("alpha_rings", typeid(LinearRingCollection));
+      add_vector_output("alpha_rings", typeid(LinearRing));
       add_output("edge_points", typeid(PointCollection));
       add_output("alpha_edges", typeid(LineStringCollection));
       add_output("alpha_triangles", typeid(TriangleCollection));
-      add_output("alpha_dts", typeid(std::vector<as::Triangulation_2>));
+      // add_output("alpha_dts", typeid(std::vector<as::Triangulation_2>));
       add_output("segment_ids", typeid(vec1i));
       add_output("boundary_points", typeid(PointCollection));
       add_output("roofplane_ids", typeid(vec1i));
@@ -459,7 +427,7 @@ namespace geoflow::nodes::stepedge {
 
     using Node::Node;
     void init() {
-      add_input("edge_points", {typeid(PointCollection), typeid(LinearRingCollection)});
+      add_vector_input("edge_points", {typeid(LinearRing)});
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("edge_segments", typeid(SegmentCollection));
@@ -728,8 +696,8 @@ namespace geoflow::nodes::stepedge {
         {typeid(IndexedPlanesWithPoints)});
       add_input("plane_adj", 
         {typeid(std::map<size_t, std::map<size_t, size_t>>)});
-      add_input("alpha_rings", 
-        {typeid(LinearRingCollection)});
+      // add_vector_input("alpha_rings", 
+        // {typeid(LinearRing)});
 
       add_output("lines", typeid(SegmentCollection));
 
@@ -800,8 +768,8 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() {
-      add_input("alpha_rings", typeid(LinearRingCollection));
-      add_input("alpha_dts", typeid(std::vector<as::Triangulation_2>));
+      add_vector_input("alpha_rings", typeid(LinearRing));
+      // add_input("alpha_dts", typeid(std::vector<as::Triangulation_2>));
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       // add_input("heightfield", typeid(RasterTools::Raster));

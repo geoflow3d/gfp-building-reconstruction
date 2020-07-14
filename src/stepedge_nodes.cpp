@@ -1248,7 +1248,7 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
 }
 
 void DetectLinesNode::process(){
-  auto input_geom = input("edge_points");
+  auto input_geom = vector_input("edge_points");
   auto planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   
 
@@ -1256,71 +1256,70 @@ void DetectLinesNode::process(){
   vec1i ring_order, ring_id, is_start;
   std::unordered_map<size_t,std::vector<size_t>> ring_idx;
   // fit lines in all input points
-  if (input_geom.is_connected_type(typeid(PointCollection))) {
-    std::vector<linedect::Point> cgal_pts;
-    auto points = input_geom.get<PointCollection>();
-    for( auto& p : points ) {
-      cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
-    }
-    linedect::LineDetector LD(cgal_pts);
-    detect_lines(LD);
-    LD.get_bounded_edges(edge_segments);
+  // if (input_geom.is_connected_type(typeid(PointCollection))) {
+  //   std::vector<linedect::Point> cgal_pts;
+  //   auto points = input_geom.get<PointCollection>();
+  //   for( auto& p : points ) {
+  //     cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
+  //   }
+  //   linedect::LineDetector LD(cgal_pts);
+  //   detect_lines(LD);
+  //   LD.get_bounded_edges(edge_segments);
 
   // fit lines per ring
-  } else if (input_geom.is_connected_type(typeid(LinearRingCollection))) {
-    auto rings = input_geom.get<LinearRingCollection>();
-    auto roofplane_ids = input("roofplane_ids").get<vec1i>();
-    int n = k;
-    
-    size_t ring_cntr=0;
-    size_t seg_cntr=0, plane_id;
-    for (auto& ring : rings) {
-      plane_id = roofplane_ids[ring_cntr++];
-      std::vector<linedect::Point> cgal_pts;
-      for( auto& p : ring ) {
-        cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
-      }
+  // } else if (input_geom.is_connected_type(typeid(LinearRingCollection))) {
+  auto roofplane_ids = input("roofplane_ids").get<vec1i>();
+  int n = k;
+  
+  size_t seg_cntr=0, plane_id;
+  for (size_t i=0; i<input_geom.size(); ++i) {
+    auto& ring = input_geom.get<LinearRing>(i);
+    plane_id = roofplane_ids[i];
+    std::vector<linedect::Point> cgal_pts;
+    for( auto& p : ring ) {
+      cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
+    }
 
-      if (linear_knn) {
-        int kb = n/2; //backward neighbors
-        int kf = n-kb-1; //forward neighbours
+    if (linear_knn) {
+      int kb = n/2; //backward neighbors
+      int kf = n-kb-1; //forward neighbours
 
-        linedect::NeighbourVec neighbours;
-        for( int i=0; i<ring.size(); ++i ) {
-          std::vector<size_t> idx;
-          for (int j = i-kb; j <= i+kf; ++j) {
-            if (j<0)
-              idx.push_back( n+(j%n) );
-            else
-              idx.push_back( j%n );
-          }
-          neighbours.push_back(idx);
+      linedect::NeighbourVec neighbours;
+      for( int i=0; i<ring.size(); ++i ) {
+        std::vector<size_t> idx;
+        for (int j = i-kb; j <= i+kf; ++j) {
+          if (j<0)
+            idx.push_back( n+(j%n) );
+          else
+            idx.push_back( j%n );
         }
-        linedect::LineDetector LD(cgal_pts, neighbours);
-        detect_lines(LD);
-        LD.get_bounded_edges(edge_segments);
-      } else {
-        
-        linedect::LineDetector LD(cgal_pts);
-        // SegmentCollection ring_edges;
-        auto n_detected = detect_lines_ring_m2(LD, planes[plane_id].first, edge_segments);
-        LD.get_bounded_edges(lines3d);
-
-        for (size_t j=0; j<n_detected; ++j) {
-          // edge_segments.push_back(ring_edges[j]);
-          ring_idx[plane_id].push_back(seg_cntr++);
-          ring_order.push_back(j);
-          ring_id.push_back(plane_id);
-          ring_order.push_back(j);
-          ring_id.push_back(plane_id);
-          is_start.push_back(1);
-          is_start.push_back(0);
-        }
-        // std::cout << "number of shapes: " << LD.segment_shapes.size() <<"\n";
-        // std::cout << "number of segments: " << order_cnt <<"\n";
+        neighbours.push_back(idx);
       }
+      linedect::LineDetector LD(cgal_pts, neighbours);
+      detect_lines(LD);
+      LD.get_bounded_edges(edge_segments);
+    } else {
+      
+      linedect::LineDetector LD(cgal_pts);
+      // SegmentCollection ring_edges;
+      auto n_detected = detect_lines_ring_m2(LD, planes[plane_id].first, edge_segments);
+      LD.get_bounded_edges(lines3d);
+
+      for (size_t j=0; j<n_detected; ++j) {
+        // edge_segments.push_back(ring_edges[j]);
+        ring_idx[plane_id].push_back(seg_cntr++);
+        ring_order.push_back(j);
+        ring_id.push_back(plane_id);
+        ring_order.push_back(j);
+        ring_id.push_back(plane_id);
+        is_start.push_back(1);
+        is_start.push_back(0);
+      }
+      // std::cout << "number of shapes: " << LD.segment_shapes.size() <<"\n";
+      // std::cout << "number of segments: " << order_cnt <<"\n";
     }
   }
+  // }
 
   output("edge_segments").set(edge_segments);
   output("lines3d").set(lines3d);
@@ -1886,7 +1885,7 @@ bool get_line_extend(
 void PlaneIntersectNode::process() {
   auto pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto plane_adj = input("plane_adj").get<std::map<size_t, std::map<size_t, size_t>>>();
-  auto alpha_rings = input("alpha_rings").get<LinearRingCollection>();
+  // // auto& alpha_rings = vector_input("alpha_rings");//.get<LinearRingCollection>();
 
   float min_dist_to_line_sq = min_dist_to_line*min_dist_to_line;
 
@@ -1895,7 +1894,7 @@ void PlaneIntersectNode::process() {
   for(auto& [id_hi, ids_lo] : plane_adj) {
     auto& plane_hi = pts_per_roofplane[id_hi].first;
     auto& plane_pts_hi = pts_per_roofplane[id_hi].second;
-    // auto& alpha_ring = alpha_rings[ring_cntr++];
+    // // auto& alpha_ring = alpha_rings.get<LinearRing>(ring_cntr++);
     for (auto& [id_lo, cnt] : ids_lo) {
       // skip plain pairs with  low number of neighbouring points
       if (cnt < min_neighb_pts) continue;

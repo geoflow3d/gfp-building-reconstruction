@@ -1,6 +1,8 @@
 // triangulation
+#include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Triangulation_hierarchy_2.h>
+#include <CGAL/Projection_traits_xy_3.h>
 
 #include "stepedge_nodes.hpp"
 
@@ -110,11 +112,11 @@ namespace geoflow::nodes::stepedge {
       for(size_t row=0; row<r.dimy_; ++row) {
         auto p = r.getPointFromRasterCoords(col, row);
         // do linear TIN interpolation
-        auto face = dt.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
+        auto face = dt.locate(K::Point_3(double(p[0]),double(p[1]),0));
         if (face==nullptr) continue;
         if (dt.is_infinite(face)) continue;
         if (face->info().is_big) continue;
-        CGAL::Plane_3<as::K> plane(
+        CGAL::Plane_3<K> plane(
           face->vertex(0)->point(),
           face->vertex(1)->point(),
           face->vertex(2)->point()
@@ -164,32 +166,34 @@ namespace geoflow::nodes::stepedge {
   }
 
   void SegmentRasteriseNode::process() {
-    auto& alpha_rings = input("alpha_rings").get<LinearRingCollection&>();
+    auto& alpha_rings = vector_input("alpha_rings");
     // auto& alpha_dts = input("alpha_dts").get<std::vector<as::Triangulation_2>&>();
     auto& roofplane_ids = input("roofplane_ids").get<vec1i&>();
     auto& pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints&>();
     RasterTools::Raster r;
-    // if (input("heightfield").has_connection()) {
-      // r = input("heightfield").get<RasterTools::Raster>();
-    // } else {
-      auto box = alpha_rings.box();
-      auto boxmin = box.min();
-      auto boxmax = box.max();
-      r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);
-      r.prefill_arrays(RasterTools::MAX);
-    // }
+
+    Box box;
+    for(size_t i=0; i< alpha_rings.size(); ++i){
+      auto alpha_ring = alpha_rings.get<LinearRing>(i);
+      box.add(alpha_ring.box());
+    }
+    auto boxmin = box.min();
+    auto boxmax = box.max();
+    r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);
+    r.prefill_arrays(RasterTools::MAX);
+
 
     PointCollection grid_points;
-    size_t ring_cntr=0;
     float ringdata_area = 0;
-    for(auto& polygon : alpha_rings) {
+    for(size_t i=0; i< alpha_rings.size(); ++i) {
+      auto polygon = alpha_rings.get<LinearRing>(i);
       auto points_inside = r.rasterise_polygon(polygon);
-      // auto dt = alpha_dts[ring_cntr];
-      as::Triangulation_2 T;
-      auto points = pts_per_roofplane[roofplane_ids[ring_cntr]].second;
-      auto plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
-      T.insert(points.begin(), points.end());
-      auto as = as::Alpha_shape_2(T, as::FT(thres_alpha), as::Alpha_shape_2::GENERAL);
+      // auto dt = alpha_dts[i];
+      // as::Triangulation_2 T;
+      auto points = pts_per_roofplane[roofplane_ids[i]].second;
+      auto plane = pts_per_roofplane[roofplane_ids[i]].first;
+      // T.insert(points.begin(), points.end());
+      // auto as = as::Alpha_shape_2(T, as::FT(thres_alpha), as::Alpha_shape_2::GENERAL);
       for (auto& p : points_inside) {
         // grid_points.push_back(p);
         
@@ -210,11 +214,10 @@ namespace geoflow::nodes::stepedge {
         }
 
         // do plane projection
-        // auto& plane = pts_per_roofplane[roofplane_ids[ring_cntr]].first;
+        // auto& plane = pts_per_roofplane[roofplane_ids[i]].first;
         // double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
         // r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
       }
-      ++ring_cntr;
     }
     vec1f values;
     double nodata = r.getNoDataVal();

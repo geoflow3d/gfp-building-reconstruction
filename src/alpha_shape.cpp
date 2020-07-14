@@ -1,33 +1,163 @@
 #include "stepedge_nodes.hpp"
 
+// 2D alpha shapes
+#include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/Triangulation_face_base_with_info_2.h>
+#include <CGAL/Alpha_shape_2.h>
+#include <CGAL/Alpha_shape_vertex_base_2.h>
+#include <CGAL/Alpha_shape_face_base_2.h>
+#include <CGAL/Projection_traits_xy_3.h>
+
 namespace as {
+  static const int EXTERIOR=-1, NEVER_VISITED=-2, HOLE=-3;
+
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+  typedef CGAL::Projection_traits_xy_3<K>								       Gt;
+  typedef K::FT                                                FT;
+  // typedef K::Point_2                                           Point;
+  // typedef K::Segment_2                                         Segment;
+  typedef CGAL::Alpha_shape_vertex_base_2<Gt>                  Vb;
+  struct FaceInfo {
+    int label = NEVER_VISITED;
+    bool incident_ring_is_extracted = false;
+  };
+  typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo,K>    Fbb;
+  typedef CGAL::Alpha_shape_face_base_2<Gt,Fbb>                    Fb;
+  // class Fbb : public Fb {
+  //   public: 
+  //   int label = 0;
+  //   bool visited = false;
+  //   using Fb::Fb;
+  // };
+  typedef CGAL::Triangulation_data_structure_2<Vb,Fb>          Tds;
+  typedef CGAL::Delaunay_triangulation_2<Gt,Tds>               Triangulation_2;
+  typedef CGAL::Alpha_shape_2<Triangulation_2>                 Alpha_shape_2;
+  typedef Alpha_shape_2::Vertex_handle                        Vertex_handle;
+  typedef Alpha_shape_2::Edge                                 Edge;
+  typedef Alpha_shape_2::Face_handle                          Face_handle;
+  typedef Alpha_shape_2::Vertex_handle                        Vertex_handle;
+  typedef Alpha_shape_2::Vertex_circulator                    Vertex_circulator;
+  typedef Alpha_shape_2::Edge_circulator                      Edge_circulator;
 
   class AlphaShapeRegionGrower {
     Alpha_shape_2 &A;
     enum Mode {
-      ALPHA, // stop at alpha boundary
-      EXTERIOR // stop at faces labels as exterior
+      LABEL_INFINITE_FACE, // stop at alpha boundary
+      LABEL_INTERIOR_FACE, // stop at faces labels as exterior
+      LABEL_HOLE_FACE
     };
-    int label_cnt; // label==-1 means exterior, -2 mean never visiter, 0+ means a regular region
+    int label_cnt = 0; // label==-1 means exterior, -2 mean never visited, -3 means a hole, 0+ means a regular region
+    
     public:
-    std::unordered_map<Face_handle, int> face_map;
-    std::unordered_map<int, Vertex_handle> region_map; //label: (boundary vertex)
-    AlphaShapeRegionGrower(Alpha_shape_2& as) : A(as), label_cnt(0) {};
+    // std::unordered_map<Face_handle, int> face_map;
+    // std::unordered_map<Vertex_handle, int> vertex_map;
+    // std::unordered_map<int, Vertex_handle> region_map; //label: (boundary vertex)
+    std::unordered_map<int, geoflow::LinearRing> region_map; //label: (boundary vertex)
+    AlphaShapeRegionGrower(Alpha_shape_2& as) : A(as) {};
+    
+    template<typename RingType> 
+    void extract_ring(Vertex_handle v_start, int label_region, int label_other, RingType& ring) {
+      // find edges of outer boundary in order keeping the interior of the polygon in the left side 
+      // (thus CCW for exterior ring, CW for holes)
+      // als label the adjacent interior faces (in case they had not been visited yet) while we are walking around them anyways..
+      // (also ensure we are only extracting this ring once)
+      // NB: assumes we have no singular edges in the a-shape!
+
+      std::cout << "extracting ring withe label_other=" << label_other << std::endl;
+
+      ring.push_back( {float(v_start->point().x()), float(v_start->point().y()), float(v_start->point().z())} );
+      // secondly, walk along the entire boundary starting from v_start
+      as::Vertex_handle v_next, v_prev = v_start, v_cur = v_start;
+      do {
+        as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
+        do {
+          if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
+          std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
+          // find the vertex on the other side of the incident edge ec
+          auto v = ec->first->vertex(A.cw(ec->second));
+          if (v_cur == v) v = ec->first->vertex(A.ccw(ec->second));
+          // find labels of two adjacent faces
+          auto face1 = ec->first;
+          auto vertex1 = face1->vertex(ec->second);
+          auto face2 = ec->first->neighbor(ec->second);
+          auto vertex2 = A.mirror_vertex(face1, ec->second);
+          auto label1 = face1->info().label;
+          auto label2 = face2->info().label;
+          bool extract_edge = false;
+          // check if the edge is on the boundary of the region and if we are keeping the label_region on the left
+          if (label1==label_region || label1==NEVER_VISITED) {
+            if (label2==label_other) {
+              auto p_cur = v_cur->point();
+              auto p = v->point();
+              auto p1 = vertex1->point();
+              if (CGAL::LEFT_TURN == CGAL::orientation(
+                K::Point_2(p_cur.x(), p_cur.y()), 
+                K::Point_2(p.x(), p.y()), 
+                K::Point_2(p1.x(), p1.y())
+                )) {
+                extract_edge = true;
+                face2->info().incident_ring_is_extracted = true;
+              }
+            }
+          } else if (label2==label_region || label2==NEVER_VISITED) {
+            if (label1==label_other) {
+              auto p_cur = v_cur->point();
+              auto p = v->point();
+              auto p2 = vertex2->point();
+              if (CGAL::LEFT_TURN == CGAL::orientation(
+                K::Point_2(p_cur.x(), p_cur.y()), 
+                K::Point_2(p.x(), p.y()), 
+                K::Point_2(p2.x(), p2.y())
+                )) {
+                extract_edge = true;
+                face1->info().incident_ring_is_extracted = true;
+              }
+            }
+          }
+          if(extract_edge  && (v != v_prev)) {
+            v_next = v;
+            ring.push_back( {float(v_next->point().x()), float(v_next->point().y()), float(v_next->point().z())} );
+            // std::cout << "ring size = " << ring.size() << std::endl;
+            break;
+          }
+        } while (++ec != done);
+        v_prev = v_cur;
+        v_cur = v_next;
+
+      } while (v_next != v_start);
+    }
 
     void grow() {
-      std::stack<Face_handle> seeds;
-      for (auto fh = A.all_faces_begin(); fh!=A.all_faces_end(); ++fh) {
-        seeds.push(fh);
-        face_map[fh] = -2;
-      }
+      std::stack<Face_handle> interior_seeds, hole_seeds;
+      // label triangles reachable from inf face as -1; ie exterior
       auto inf_face = A.infinite_face();
-      face_map[inf_face] = -1;
-      grow_region(inf_face, ALPHA); // this sets label of exterior faces to -1
-      while (!seeds.empty()) {
-        auto fh = seeds.top(); seeds.pop();
-        if (face_map[fh] == -2) {
-          face_map[fh] = label_cnt;
-          grow_region(fh, EXTERIOR);
+      inf_face->info().label = EXTERIOR;
+      grow_region(inf_face, LABEL_INFINITE_FACE); // this sets label of exterior faces to -1
+      // label remaining faces that are not interior in the a-shape as -3, and push faces that are inside the a-shape on the seeds stack
+      for (auto fh = A.all_faces_begin(); fh!=A.all_faces_end(); ++fh) {
+        if (fh->info().label != EXTERIOR) {
+          if (A.classify(fh) == Alpha_shape_2::INTERIOR) {
+            interior_seeds.push(fh);
+          } else {
+            hole_seeds.push(fh);
+            // fh->info().label = HOLE;
+          }
+        }
+      }
+      size_t hole_cnt = HOLE;
+      while (!hole_seeds.empty()) {
+        auto fh = hole_seeds.top(); hole_seeds.pop();
+        if (fh->info().label == NEVER_VISITED) {
+          fh->info().label = hole_cnt;
+          grow_region(fh, LABEL_HOLE_FACE);
+          ++hole_cnt;
+        }
+      }
+      while (!interior_seeds.empty()) {
+        auto fh = interior_seeds.top(); interior_seeds.pop();
+        if (fh->info().label == NEVER_VISITED) {
+          fh->info().label = label_cnt;
+          grow_region(fh, LABEL_INTERIOR_FACE);
           ++label_cnt;
         }
       }
@@ -44,25 +174,41 @@ namespace as {
           auto e = std::make_pair(fh,i);
           auto neighbor = fh->neighbor(i);
 
-          if (mode == ALPHA) {
+          if (mode == LABEL_INFINITE_FACE) {
             // add neighbor if it is not on the ohter side of alpha boundary
             // check if this neighbor hasn't been visited before
-            if (face_map[neighbor] == -2) {
+            if (neighbor->info().label == NEVER_VISITED) {
               auto edge_class = A.classify(e);
-              if ( ! (edge_class == Alpha_shape_2::REGULAR || edge_class == Alpha_shape_2::SINGULAR) ) {
-                face_map[neighbor] = -1;
+              if ( ! (edge_class == Alpha_shape_2::REGULAR) ) {
+                neighbor->info().label = EXTERIOR;
                 candidates.push(neighbor);
               }
             }
-          } else if (mode == EXTERIOR) {
-            // check if this neighbor hasn't been visited before and is not exterior
-            if (face_map[neighbor] == -2) {
-              face_map[neighbor] = label_cnt;
+          } else if (mode == LABEL_HOLE_FACE){
+            if (neighbor->info().label == NEVER_VISITED) {
+              auto edge_class = A.classify(e);
+              if ( ! (edge_class == Alpha_shape_2::REGULAR) ) {
+                neighbor->info().label = EXTERIOR;
+                candidates.push(neighbor);
+              }
+            }
+          } else if (mode == LABEL_INTERIOR_FACE) {
+            // check if this neighbor hasn't been visited before and is not exterior/hole
+            if (neighbor->info().label == NEVER_VISITED) {
+              neighbor->info().label = label_cnt;
               candidates.push(neighbor);
-            // if it is exterior, we store this boundary edge
-            } else if (face_map[neighbor] == -1) {
+            // if it is exterior/hole, we find extract a ring
+            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label == HOLE) {
               if( region_map.find(label_cnt)==region_map.end() ) {
-                region_map[label_cnt] = fh->vertex(A.cw(i));
+                region_map[label_cnt] = geoflow::LinearRing();
+              }
+              auto ring_vertex = fh->vertex(A.cw(i));
+              if (neighbor->info().label == EXTERIOR && !neighbor->info().incident_ring_is_extracted) { // if it is exterior, we find extract the exterior ring
+                extract_ring(ring_vertex, label_cnt, EXTERIOR, region_map[label_cnt]);
+              } else if (neighbor->info().label == HOLE && !neighbor->info().incident_ring_is_extracted) { // if it is a hole, we extract the interior ring
+                geoflow::vec3f interior_ring;
+                extract_ring(ring_vertex, label_cnt, HOLE, interior_ring);
+                region_map[label_cnt].interior_rings().push_back(interior_ring);
               }
             }
           }
@@ -75,12 +221,12 @@ namespace as {
 
 namespace geoflow::nodes::stepedge {
 
-void AlphaShapeNode::process(){
+void AlphaShapeNode::process() {
   auto points_per_segment = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
 
   PointCollection edge_points, boundary_points;
   LineStringCollection alpha_edges;
-  LinearRingCollection alpha_rings;
+  auto& alpha_rings = vector_output("alpha_rings");
   TriangleCollection alpha_triangles;
   std::vector<as::Triangulation_2> alpha_dts;
   vec1i segment_ids, plane_idx;
@@ -93,13 +239,13 @@ void AlphaShapeNode::process(){
                 as::FT(thres_alpha),
                 as::Alpha_shape_2::GENERAL);
     
-    double optimal_alpha = thres_alpha;
+    double alpha = thres_alpha;
     if (optimal_alpha && optimal_only_if_needed) {
-      optimal_alpha = std::max(float(*A.find_optimal_alpha(1)), thres_alpha);
+      alpha = std::max(float(*A.find_optimal_alpha(1)), thres_alpha);
     } else if (optimal_alpha) {
-      optimal_alpha = *A.find_optimal_alpha(1);
+      alpha = *A.find_optimal_alpha(1);
     }
-    A.set_alpha(as::FT(optimal_alpha));
+    A.set_alpha(as::FT(alpha));
 
     for (auto it = A.alpha_shape_vertices_begin(); it!=A.alpha_shape_vertices_end(); it++) {
       auto p = (*it)->point();
@@ -125,60 +271,23 @@ void AlphaShapeNode::process(){
         arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
         };
       alpha_triangles.push_back({ p0,p1,p2 });
-      segment_ids.push_back(grower.face_map[fh]);
-      segment_ids.push_back(grower.face_map[fh]);
-      segment_ids.push_back(grower.face_map[fh]);
+      segment_ids.push_back(fh->info().label);
+      segment_ids.push_back(fh->info().label);
+      segment_ids.push_back(fh->info().label);
     }
 
     for (auto& kv : grower.region_map) {
-      auto region_label = kv.first;
-      auto v_start = kv.second;
-      boundary_points.push_back({
-        float(v_start->point().x()),
-        float(v_start->point().y()),
-        float(v_start->point().z())
-      });
-
-      // find edges of outer boundary in order
-      LinearRing ring;
-
-      ring.push_back( {float(v_start->point().x()), float(v_start->point().y()), float(v_start->point().z())} );
-      // secondly, walk along the entire boundary starting from v_start
-      as::Vertex_handle v_next, v_prev = v_start, v_cur = v_start;
-      size_t v_cntr = 0;
-      do {
-        as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
-        do {
-          // find the vertex on the other side of the incident edge ec
-          auto v = ec->first->vertex(A.cw(ec->second));
-          if (v_cur == v) v = ec->first->vertex(A.ccw(ec->second));
-          // find labels of two adjacent faces
-          auto label1 = grower.face_map[ ec->first ];
-          auto label2 = grower.face_map[ ec->first->neighbor(ec->second) ];
-          // check if the edge is on the boundary of the region and if we are not going backwards
-          bool exterior = label1==-1 || label2==-1;
-          bool region = label1==region_label || label2==region_label;
-          if(( exterior && region )  && (v != v_prev)) {
-            v_next = v;
-            ring.push_back( {float(v_next->point().x()), float(v_next->point().y()), float(v_next->point().z())} );
-            break;
-          }
-        } while (++ec != done);
-        v_prev = v_cur;
-        v_cur = v_next;
-
-      } while (v_next != v_start);
       // finally, store the ring 
-      alpha_rings.push_back(ring);
+      alpha_rings.push_back(kv.second);
       plane_idx.push_back(it.first);
-      alpha_dts.push_back(T);
+      // alpha_dts.push_back(T);
     }
   }
   
-  output("alpha_rings").set(alpha_rings);
+  // output("alpha_rings").set(alpha_rings);
   output("alpha_edges").set(alpha_edges);
   output("alpha_triangles").set(alpha_triangles);
-  output("alpha_dts").set(alpha_dts);
+  // output("alpha_dts").set(alpha_dts);
   output("segment_ids").set(segment_ids);
   output("edge_points").set(edge_points);
   output("boundary_points").set(boundary_points);
