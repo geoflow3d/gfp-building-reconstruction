@@ -47,11 +47,9 @@ namespace as {
       LABEL_HOLE_FACE
     };
     int label_cnt = 0; // label==-1 means exterior, -2 mean never visited, -3 means a hole, 0+ means a regular region
-    
+    int hole_cnt = HOLE;
+
     public:
-    // std::unordered_map<Face_handle, int> face_map;
-    // std::unordered_map<Vertex_handle, int> vertex_map;
-    // std::unordered_map<int, Vertex_handle> region_map; //label: (boundary vertex)
     std::unordered_map<int, geoflow::LinearRing> region_map; //label: (boundary vertex)
     AlphaShapeRegionGrower(Alpha_shape_2& as) : A(as) {};
     
@@ -63,7 +61,7 @@ namespace as {
       // (also ensure we are only extracting this ring once)
       // NB: assumes we have no singular edges in the a-shape!
 
-      std::cout << "extracting ring withe label_other=" << label_other << std::endl;
+      // std::cout << "extracting ring withe label_other=" << label_other << std::endl;
 
       ring.push_back( {float(v_start->point().x()), float(v_start->point().y()), float(v_start->point().z())} );
       // secondly, walk along the entire boundary starting from v_start
@@ -72,7 +70,7 @@ namespace as {
         as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
         do {
           if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
-          std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
+          // std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
           // find the vertex on the other side of the incident edge ec
           auto v = ec->first->vertex(A.cw(ec->second));
           if (v_cur == v) v = ec->first->vertex(A.ccw(ec->second));
@@ -144,13 +142,13 @@ namespace as {
           }
         }
       }
-      size_t hole_cnt = HOLE;
+      ;
       while (!hole_seeds.empty()) {
         auto fh = hole_seeds.top(); hole_seeds.pop();
         if (fh->info().label == NEVER_VISITED) {
           fh->info().label = hole_cnt;
           grow_region(fh, LABEL_HOLE_FACE);
-          ++hole_cnt;
+          --hole_cnt;
         }
       }
       while (!interior_seeds.empty()) {
@@ -188,7 +186,7 @@ namespace as {
             if (neighbor->info().label == NEVER_VISITED) {
               auto edge_class = A.classify(e);
               if ( ! (edge_class == Alpha_shape_2::REGULAR) ) {
-                neighbor->info().label = EXTERIOR;
+                neighbor->info().label = hole_cnt;
                 candidates.push(neighbor);
               }
             }
@@ -198,16 +196,16 @@ namespace as {
               neighbor->info().label = label_cnt;
               candidates.push(neighbor);
             // if it is exterior/hole, we find extract a ring
-            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label == HOLE) {
+            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label =< HOLE) {
               if( region_map.find(label_cnt)==region_map.end() ) {
                 region_map[label_cnt] = geoflow::LinearRing();
               }
               auto ring_vertex = fh->vertex(A.cw(i));
               if (neighbor->info().label == EXTERIOR && !neighbor->info().incident_ring_is_extracted) { // if it is exterior, we find extract the exterior ring
                 extract_ring(ring_vertex, label_cnt, EXTERIOR, region_map[label_cnt]);
-              } else if (neighbor->info().label == HOLE && !neighbor->info().incident_ring_is_extracted) { // if it is a hole, we extract the interior ring
+              } else if (neighbor->info().label =< HOLE && !neighbor->info().incident_ring_is_extracted) { // if it is a hole, we extract the interior ring
                 geoflow::vec3f interior_ring;
-                extract_ring(ring_vertex, label_cnt, HOLE, interior_ring);
+                extract_ring(ring_vertex, label_cnt, neighbor->info().label, interior_ring);
                 region_map[label_cnt].interior_rings().push_back(interior_ring);
               }
             }
