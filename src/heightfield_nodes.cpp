@@ -166,16 +166,18 @@ namespace geoflow::nodes::stepedge {
   }
 
   void SegmentRasteriseNode::process() {
-    auto& alpha_rings = vector_input("alpha_rings");
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+    // auto& alpha_rings = vector_input("alpha_rings");
+    auto& alpha_triangle_collections = vector_input("triangles");
     // auto& alpha_dts = input("alpha_dts").get<std::vector<as::Triangulation_2>&>();
-    auto& roofplane_ids = input("roofplane_ids").get<vec1i&>();
-    auto& pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints&>();
+    // auto& roofplane_ids = input("roofplane_ids").get<vec1i&>();
+    // auto& pts_per_roofplane = input("pts_per_roofplane").get<IndexedPlanesWithPoints&>();
     RasterTools::Raster r;
 
     Box box;
-    for(size_t i=0; i< alpha_rings.size(); ++i){
-      auto alpha_ring = alpha_rings.get<LinearRing>(i);
-      box.add(alpha_ring.box());
+    for(size_t i=0; i< alpha_triangle_collections.size(); ++i){
+      auto triangle_collection = alpha_triangle_collections.get<TriangleCollection>(i);
+      box.add(triangle_collection.box());
     }
     auto boxmin = box.min();
     auto boxmax = box.max();
@@ -185,34 +187,37 @@ namespace geoflow::nodes::stepedge {
 
     PointCollection grid_points;
     float ringdata_area = 0;
-    for(size_t i=0; i< alpha_rings.size(); ++i) {
-      auto polygon = alpha_rings.get<LinearRing>(i);
-      auto points_inside = r.rasterise_polygon(polygon);
+    for(size_t i=0; i< alpha_triangle_collections.size(); ++i) {
+      // auto polygon = alpha_rings.get<LinearRing>(i);
+      auto triangle_collection = alpha_triangle_collections.get<TriangleCollection>(i);
       // auto dt = alpha_dts[i];
       // as::Triangulation_2 T;
-      auto points = pts_per_roofplane[roofplane_ids[i]].second;
-      auto plane = pts_per_roofplane[roofplane_ids[i]].first;
+      // auto points = pts_per_roofplane[roofplane_ids[i]].second;
+      // auto plane = pts_per_roofplane[roofplane_ids[i]].first;
       // T.insert(points.begin(), points.end());
       // auto as = as::Alpha_shape_2(T, as::FT(thres_alpha), as::Alpha_shape_2::GENERAL);
-      for (auto& p : points_inside) {
-        // grid_points.push_back(p);
-        
-        // // do linear TIN interpolation
-        // auto face = as.locate(as::K::Point_3(double(p[0]),double(p[1]),0));
-        // if (face==nullptr) continue;
-        // if (as.is_infinite(face)) continue;
-        // if (as.classify(face) == as::Alpha_shape_2::EXTERIOR) continue;
-
-        // CGAL::Plane_3<as::K> plane(
-        //   face->vertex(0)->point(),
-        //   face->vertex(1)->point(),
-        //   face->vertex(2)->point()
-        // );
-        double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-        if (r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX)) {
-          ++ringdata_area; //only count new cells (that were not written to before)
+      for (auto& triangle : triangle_collection) {
+        CGAL::Plane_3<K> plane(
+          K::Point_3(triangle[0][0], triangle[0][1], triangle[0][2]),
+          K::Point_3(triangle[1][0], triangle[1][1], triangle[1][2]),
+          K::Point_3(triangle[2][0], triangle[2][1], triangle[2][2])
+        );
+        geoflow::Box box;
+        for (auto& p : triangle) {
+          box.add(p);
         }
+        auto bb_min = box.min();
+        auto bb_max = box.max();
+        auto cr_min = r.getColRowCoord(bb_min[0], bb_min[1]);
+        auto cr_max = r.getColRowCoord(bb_max[0], bb_max[1]);
 
+        auto points_inside = r.rasterise_polygon(triangle);
+        for (auto& p : points_inside) {
+          double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+          if (r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX)) {
+            ++ringdata_area; //only count new cells (that were not written to before)
+          }
+        }
         // do plane projection
         // auto& plane = pts_per_roofplane[roofplane_ids[i]].first;
         // double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();

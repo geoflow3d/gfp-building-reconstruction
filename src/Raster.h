@@ -57,14 +57,19 @@ namespace RasterTools {
         // rasterise a polygon and return a list with points - one in the center of each pixel inside the polygon
         // in the polygon first point is *not* repeated as last
         // T should be a vector of arr<float,2> or arr<float,3>
-        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon, bool returnNoData=true) const {
+        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon, std::array<double,2> cr_min, std::array<double,2> cr_max, bool returnNoData=true) const {
+
           // code adapted from http://alienryderflex.com/polygon_fill/
           int n_nodes, pixelX, pixelY, i, j, swap ;
           int n_vertices = polygon.size();
           std::vector<point3d> result;
 
+
           // perhaps we can specialise these to the bounding box of the polygon
-          int IMAGE_TOP = 0, IMAGE_BOT = dimy_, IMAGE_LEFT = 0, IMAGE_RIGHT=dimx_;
+          int IMAGE_TOP = std::floor(cr_min[1]), 
+              IMAGE_BOT = std::ceil(cr_max[1]), 
+              IMAGE_LEFT = std::ceil(cr_min[0]), 
+              IMAGE_RIGHT = std::floor(cr_max[0]);
 
           // Loop through the rows of the image.
           for (pixelY=IMAGE_TOP; pixelY<IMAGE_BOT; pixelY++) {
@@ -116,6 +121,9 @@ namespace RasterTools {
           }
 
           return result;
+        };
+        template<typename T> std::vector<point3d> rasterise_polygon(T& polygon, bool returnNoData=true) const {
+          return rasterise_polygon(polygon, {0,0}, {double(dimx_),double(dimy_)}, returnNoData);
         };
         // template<> std::vector<point3d> rasterise_polygon(std::vector<point2d>& polygon) const;
         // template<> std::vector<point3d> rasterise_polygon(std::vector<point3d>& polygon) const;

@@ -225,7 +225,7 @@ void AlphaShapeNode::process() {
   PointCollection edge_points, boundary_points;
   LineStringCollection alpha_edges;
   auto& alpha_rings = vector_output("alpha_rings");
-  TriangleCollection alpha_triangles;
+  
   std::vector<as::Triangulation_2> alpha_dts;
   vec1i segment_ids, plane_idx;
   for (auto& it : points_per_segment ) {
@@ -263,16 +263,21 @@ void AlphaShapeNode::process() {
     auto grower = as::AlphaShapeRegionGrower(A);
     grower.grow();
 
+    // collect triangles
+    TriangleCollection alpha_triangles;
     for (auto fh = A.finite_faces_begin(); fh != A.finite_faces_end(); ++fh) {
+      // only export triangles in the interior of a shape (thus excluding holes and exterior)
+      if(fh->info().label>=0) {
         arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), float (fh->vertex(0)->point().z())};
         arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), float (fh->vertex(1)->point().z())};
-        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
-        };
-      alpha_triangles.push_back({ p0,p1,p2 });
-      segment_ids.push_back(fh->info().label);
-      segment_ids.push_back(fh->info().label);
-      segment_ids.push_back(fh->info().label);
+        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())};
+        alpha_triangles.push_back({ p0,p1,p2 });
+        segment_ids.push_back(fh->info().label);
+        segment_ids.push_back(fh->info().label);
+        segment_ids.push_back(fh->info().label);
+      }
     }
+    output("alpha_triangles").push_back(alpha_triangles);
 
     for (auto& kv : grower.region_map) {
       // finally, store the ring 
@@ -284,7 +289,7 @@ void AlphaShapeNode::process() {
   
   // output("alpha_rings").set(alpha_rings);
   output("alpha_edges").set(alpha_edges);
-  output("alpha_triangles").set(alpha_triangles);
+  
   // output("alpha_dts").set(alpha_dts);
   output("segment_ids").set(segment_ids);
   output("edge_points").set(edge_points);

@@ -26,7 +26,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("alpha_rings", typeid(LinearRing));
       add_output("edge_points", typeid(PointCollection));
       add_output("alpha_edges", typeid(LineStringCollection));
-      add_output("alpha_triangles", typeid(TriangleCollection));
+      add_vector_output("alpha_triangles", typeid(TriangleCollection));
       // add_output("alpha_dts", typeid(std::vector<as::Triangulation_2>));
       add_output("segment_ids", typeid(vec1i));
       add_output("boundary_points", typeid(PointCollection));
@@ -770,6 +770,7 @@ namespace geoflow::nodes::stepedge {
     void init() {
       add_vector_input("alpha_rings", typeid(LinearRing));
       // add_input("alpha_dts", typeid(std::vector<as::Triangulation_2>));
+      add_vector_input("triangles", typeid(TriangleCollection));
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       // add_input("heightfield", typeid(RasterTools::Raster));
