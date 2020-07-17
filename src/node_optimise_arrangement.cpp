@@ -174,13 +174,19 @@ void OptimiseArrangmentGridNode::process() {
 
   auto arr = input("arrangement").get<Arrangement_2>();
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
+  auto& ground_planes = input("ground_pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
 
-  std::vector<std::tuple<Plane, std::vector<Point>, size_t>> points_per_plane; // plane, points, seg_id
+  std::vector<std::tuple<Plane, size_t>> points_per_plane; // plane, points, seg_id
   for (auto& [plane_id, plane_pts] : planes) {
     if (plane_id<1) continue; // ignore unclassified points
-
-    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_pts.second, plane_id));
+    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id));
+  }
+  size_t roofplane_cnt = points_per_plane.size();
+  for (auto& [plane_id, plane_pts] : ground_planes) {
+    if (plane_id<1) continue; // ignore unclassified points
+    size_t plane_id_ = (roofplane_cnt-1) + plane_id;
+    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id_));
   }
 
   // compute vertex_label_cost (data term)
@@ -207,7 +213,7 @@ void OptimiseArrangmentGridNode::process() {
       }
       face->data().inlier_count = height_points.size();
 
-      for (auto& [plane, pts, plane_id] : points_per_plane) {
+      for (auto& [plane, plane_id] : points_per_plane) {
         double volume = data_multiplier * volume_to_plane(plane, height_points);
         face->data().vertex_label_cost.push_back(volume);
         max_cost = std::max(max_cost, volume);
@@ -231,7 +237,7 @@ void OptimiseArrangmentGridNode::process() {
 
   // std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // don't bother if there are no planes or faces
-  if (points_per_plane.size()==0 || faces.size()==0) {
+  if (roofplane_cnt==0 || faces.size()==0) {
     arr_dissolve_fp(arr, true, true);
     output("arrangement").set(arr);
     return;
@@ -309,9 +315,13 @@ void OptimiseArrangmentGridNode::process() {
   //  assign planes from label map to arrangement faces
   for (auto& face : faces) {
     size_t i = face->data().label;
+    if(i<roofplane_cnt) {
     face->data().plane = std::get<0>(points_per_plane[i]);
-    face->data().segid = std::get<2>(points_per_plane[i]);
+    face->data().segid = std::get<1>(points_per_plane[i]);
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
+    } else {
+      face->data().in_footprint = false;
+    }
   }
 
   output("arrangement").set(arr);

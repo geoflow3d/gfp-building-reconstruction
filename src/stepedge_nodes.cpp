@@ -2000,6 +2000,15 @@ void ArrDissolveNode::process() {
     arr_dissolve_fp(arr, false, true);
   }
 
+  // ensure all holes are marked as such
+  auto f_unb = arr.unbounded_face();
+  for (auto fh : arr.face_handles()) {
+    if(fh!=f_unb) 
+      if(!fh->data().in_footprint && !fh->data().is_footprint_hole) {
+        fh->data().is_footprint_hole = true;
+      }
+  }
+
   // if (remove_duplicates) {
   //   arr_snap_duplicates(arr, (double) std::pow(10,-dupe_threshold_exp));
   // }

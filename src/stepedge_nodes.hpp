@@ -334,6 +334,7 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+      add_input("ground_pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
 
       add_param(ParamBoundedInt(graph_cut_impl, 0, 2, "graph_cut_impl", "Graph cut implementation"));
@@ -771,8 +772,8 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("alpha_rings", typeid(LinearRing));
-      // add_input("alpha_dts", typeid(std::vector<as::Triangulation_2>));
       add_vector_input("triangles", typeid(TriangleCollection));
+      add_vector_input("ground_triangles", typeid(TriangleCollection));
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       // add_input("heightfield", typeid(RasterTools::Raster));
@@ -785,6 +786,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
+    void rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt);
     void process();
   };
 
