@@ -583,8 +583,10 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("point_clouds", typeid(PointCollection));
+      add_vector_input("ground_point_clouds", typeid(PointCollection));
       add_vector_input("polygons", typeid(LinearRing));
       add_output("point_cloud", typeid(PointCollection));
+      add_output("ground_point_cloud", typeid(PointCollection));
       add_output("polygon", typeid(LinearRing));
 
       add_param(ParamBoundedInt(building_id, 0, polygon_count-1,  "building_id", "building_id"));

@@ -1511,11 +1511,15 @@ void DetectPlanesNode::process() {
 }
 
 void BuildingSelectorNode::process() {
-  if ((building_id < vector_input("point_clouds").size()) && 
+  polygon_count = vector_input("point_clouds").size();
+  if ((building_id < polygon_count) && 
   (vector_input("point_clouds").size() == vector_input("polygons").size())) {
     auto& point_cloud = vector_input("point_clouds").get<PointCollection&>(building_id);
+    auto& ground_point_cloud = vector_input("ground_point_clouds").get<PointCollection&>(building_id);
     auto& polygon = vector_input("polygons").get<LinearRing&>(building_id);
+
     output("point_cloud").set(point_cloud);
+    output("ground_point_cloud").set(ground_point_cloud);
     output("polygon").set(polygon);
   }
 };
