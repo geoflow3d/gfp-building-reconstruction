@@ -17,11 +17,20 @@ namespace geoflow::nodes::stepedge {
         auto& ipolygons = vector_input("polygons");
         auto& opolygons = vector_output("offset_polygons");
 
+        // offset 0 will crash the cgal algorithm
+        if (offset==0) {
+            opolygons = ipolygons.get_data_vec();
+            return;
+        }
+
         for (size_t i=0; i<ipolygons.size(); ++i) {
             auto& lr = ipolygons.get<LinearRing>(i);
             Polygon_2 poly;
             for (auto&p : lr) {
                 poly.push_back(Point(p[0], p[1]));
+            }
+            if (poly.is_clockwise_oriented()){
+                poly.reverse_orientation();
             }
             auto oss = CGAL::create_exterior_straight_skeleton_2(FT(offset), poly);
             auto offset_polygons = CGAL::create_offset_polygons_2<Polygon_2>(FT(offset), *oss);

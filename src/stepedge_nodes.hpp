@@ -786,6 +786,13 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
+    bool inputs_valid() override {
+      for (auto& [name,iT] : input_terminals) {
+        if (!iT->is_touched())
+          return false;
+      }
+      return true;
+    }
     void rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt);
     void process();
   };
