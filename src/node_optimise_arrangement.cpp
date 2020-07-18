@@ -174,7 +174,6 @@ void OptimiseArrangmentGridNode::process() {
 
   auto arr = input("arrangement").get<Arrangement_2>();
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
-  auto& ground_planes = input("ground_pts_per_roofplane").get<IndexedPlanesWithPoints>();
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
 
   std::vector<std::tuple<Plane, size_t>> points_per_plane; // plane, points, seg_id
@@ -183,10 +182,13 @@ void OptimiseArrangmentGridNode::process() {
     points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id));
   }
   size_t roofplane_cnt = points_per_plane.size();
-  for (auto& [plane_id, plane_pts] : ground_planes) {
-    if (plane_id<1) continue; // ignore unclassified points
-    size_t plane_id_ = (roofplane_cnt-1) + plane_id;
-    points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id_));
+  if (use_ground) {
+    auto& ground_planes = input("ground_pts_per_roofplane").get<IndexedPlanesWithPoints>();
+    for (auto& [plane_id, plane_pts] : ground_planes) {
+      if (plane_id<1) continue; // ignore unclassified points
+      size_t plane_id_ = (roofplane_cnt-1) + plane_id;
+      points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id_));
+    }
   }
 
   // compute vertex_label_cost (data term)

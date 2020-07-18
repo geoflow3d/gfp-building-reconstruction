@@ -55,6 +55,7 @@ namespace as {
     
     template<typename RingType> 
     void extract_ring(Vertex_handle v_start, int label_region, int label_other, RingType& ring) {
+      // TODO: fix infinite loop that may occur when alpha is not computed with optimal alpha (ie it is to small, probably causing many singular edges etc)
       // find edges of outer boundary in order keeping the interior of the polygon in the left side 
       // (thus CCW for exterior ring, CW for holes)
       // als label the adjacent interior faces (in case they had not been visited yet) while we are walking around them anyways..
@@ -125,7 +126,7 @@ namespace as {
       } while (v_next != v_start);
     }
 
-    void grow() {
+    void grow(bool extract_polygons) {
       std::stack<Face_handle> interior_seeds, hole_seeds;
       // label triangles reachable from inf face as -1; ie exterior
       auto inf_face = A.infinite_face();
@@ -155,13 +156,13 @@ namespace as {
         auto fh = interior_seeds.top(); interior_seeds.pop();
         if (fh->info().label == NEVER_VISITED) {
           fh->info().label = label_cnt;
-          grow_region(fh, LABEL_INTERIOR_FACE);
+          grow_region(fh, LABEL_INTERIOR_FACE, extract_polygons);
           ++label_cnt;
         }
       }
     }
 
-    void grow_region (Face_handle face_handle, Mode mode) {
+    void grow_region (Face_handle face_handle, Mode mode, bool extract_polygons=false) {
       std::stack<Face_handle> candidates;
       candidates.push(face_handle);
 
@@ -196,7 +197,7 @@ namespace as {
               neighbor->info().label = label_cnt;
               candidates.push(neighbor);
             // if it is exterior/hole, we find extract a ring
-            } else if (neighbor->info().label == EXTERIOR || neighbor->info().label <= HOLE) {
+            } else if (extract_polygons && (neighbor->info().label == EXTERIOR || neighbor->info().label <= HOLE)) {
               if( region_map.find(label_cnt)==region_map.end() ) {
                 region_map[label_cnt] = geoflow::LinearRing();
               }
@@ -262,7 +263,7 @@ void AlphaShapeNode::process() {
     
     // flood filling 
     auto grower = as::AlphaShapeRegionGrower(A);
-    grower.grow();
+    grower.grow(extract_polygons);
 
     // collect triangles
     TriangleCollection alpha_triangles;

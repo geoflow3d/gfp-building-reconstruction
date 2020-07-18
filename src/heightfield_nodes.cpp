@@ -220,9 +220,11 @@ namespace geoflow::nodes::stepedge {
       auto triangle_collection = triangles.get<TriangleCollection>(i);
       box.add(triangle_collection.box());
     }
-    for(size_t i=0; i< ground_triangles.size(); ++i){
-      auto triangle_collection = ground_triangles.get<TriangleCollection>(i);
-      box.add(triangle_collection.box());
+    if(use_ground) {
+      for(size_t i=0; i< ground_triangles.size(); ++i){
+        auto triangle_collection = ground_triangles.get<TriangleCollection>(i);
+        box.add(triangle_collection.box());
+      }
     }
     auto boxmin = box.min();
     auto boxmax = box.max();
@@ -231,7 +233,8 @@ namespace geoflow::nodes::stepedge {
 
     size_t roofdata_area_cnt = 0, grounddata_area_cnt = 0;
     rasterise_input(triangles, r, roofdata_area_cnt);
-    rasterise_input(ground_triangles, r, grounddata_area_cnt);
+    if(use_ground)
+      rasterise_input(ground_triangles, r, grounddata_area_cnt);
 
     PointCollection grid_points;
     vec1f values;

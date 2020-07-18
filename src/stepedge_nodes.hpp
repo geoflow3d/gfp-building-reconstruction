@@ -15,6 +15,7 @@ namespace geoflow::nodes::stepedge {
 
   class AlphaShapeNode:public Node {
     float thres_alpha = 0.25;
+    bool extract_polygons = false;
     bool optimal_alpha = true;
     bool optimal_only_if_needed = true;
     public:
@@ -35,6 +36,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(thres_alpha, "thres_alpha", "thres_alpha"));
       add_param(ParamBool(optimal_alpha, "optimal_alpha", "optimal_alpha"));
       add_param(ParamBool(optimal_only_if_needed, "optimal_only_if_needed", "optimal_only_if_needed"));
+      add_param(ParamBool(extract_polygons, "extract_polygons", "extract_polygons"));
     }
     
     bool inputs_valid() {
@@ -325,6 +327,7 @@ namespace geoflow::nodes::stepedge {
     bool do_normalise = true;
     int n_iterations = 3;
     int graph_cut_impl = 2;
+    bool use_ground = false;
 
     float z_percentile = 0.9;
 
@@ -344,6 +347,17 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(preset_labels, "preset_labels", "Preset face labels"));
       add_param(ParamBool(do_normalise, "do_normalise", "Normalise weights"));
       add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
+      add_param(ParamBool(use_ground, "use_ground", "Use ground planes in optimisation"));
+    }
+    bool inputs_valid() override {
+      for (auto& [name,iT] : input_terminals) {
+        if (name == "ground_pts_per_roofplane" && !use_ground) {
+          continue;
+        } else if (!iT->is_touched()) {
+          return false;
+        }
+      }
+      return true;
     }
     void process();
   };
@@ -768,10 +782,11 @@ namespace geoflow::nodes::stepedge {
   class SegmentRasteriseNode:public Node {
     float cellsize = 0.05;
     float thres_alpha = 0.25;
+    bool use_ground = false;
     public:
     using Node::Node;
     void init() {
-      add_vector_input("alpha_rings", typeid(LinearRing));
+      // add_vector_input("alpha_rings", typeid(LinearRing));
       add_vector_input("triangles", typeid(TriangleCollection));
       add_vector_input("ground_triangles", typeid(TriangleCollection));
       add_input("roofplane_ids", typeid(vec1i));
@@ -785,11 +800,15 @@ namespace geoflow::nodes::stepedge {
       add_output("data_area", typeid(float));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+      add_param(ParamBool(use_ground, "use_ground",  "Rasterise the ground_triangles input"));
     }
     bool inputs_valid() override {
       for (auto& [name,iT] : input_terminals) {
-        if (!iT->is_touched())
+        if (name == "ground_triangles" && !use_ground) {
+          continue;
+        } else if (!iT->is_touched()) {
           return false;
+        }
       }
       return true;
     }

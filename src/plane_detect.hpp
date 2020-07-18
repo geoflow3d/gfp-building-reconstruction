@@ -26,6 +26,7 @@ class PlaneDS : public regiongrower::CGAL_RegionGrowerDS {
   PlaneDS(geoflow::PointCollection& points, geoflow::vec3f& normals, size_t N=15) 
     : CGAL_RegionGrowerDS(points, N), normals(normals) {};
 
+  // Note this crashes when idx.size()==1;
   inline double fit_plane(std::vector<size_t>& idx, Plane& plane){
     std::vector<Point> neighbor_points;
     for (auto i: idx)

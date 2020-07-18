@@ -1417,7 +1417,8 @@ void DetectPlanesNode::process() {
   );
   regiongrower::RegionGrower<planedect::PlaneDS, planedect::PlaneRegion> R;
   R.min_segment_count = metrics_plane_min_points;
-  R.grow_regions(PDS, DNTester);
+  if(points.size()>metrics_plane_min_points)
+    R.grow_regions(PDS, DNTester);
 
 
   // classify horizontal/vertical planes using plane normals
