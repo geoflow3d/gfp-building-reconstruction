@@ -192,6 +192,8 @@ void PolygonTriangulatorNode::process()
   // const auto &values_in = input("valuesf").get<vec1f>();
   typedef uint32_t N;
 
+  float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
+
   TriangleCollection triangles;
   vec3f normals;
   vec1f values_out;

@@ -1606,7 +1606,8 @@ void RegulariseLinesNode::process(){
     // TODO: performance optimise clustering algo
     // //skip if cluster only contains fp segments
     // if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
-    if(max_priority==2 && (prio_lines.size()>1)) {
+    if(max_priority==2 && (prio_lines.size()>1)) 
+    {
       std::vector<linereg::linetype*> other_lines;
       for (auto line : dclust->lines) {
         if(line->priority != 2) {
@@ -1623,7 +1624,9 @@ void RegulariseLinesNode::process(){
         regularised.push_back(new_seg);
         regularised_exact.push_back(segment);
       }
-    } else {
+    } 
+    else 
+    {
       //compute mean line with small extensions on both ends
       double mean_angle = calc_mean_angle(prio_lines);
       auto centroid = calc_centroid(prio_lines);

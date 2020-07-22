@@ -67,8 +67,18 @@ namespace as {
       ring.push_back( {float(v_start->point().x()), float(v_start->point().y()), float(v_start->point().z())} );
       // secondly, walk along the entire boundary starting from v_start
       as::Vertex_handle v_next, v_prev = v_start, v_cur = v_start;
+      // size_t extract_cnt=0;
+      bool firstv=true;
+      Face_handle f_prev;
       do {
-        as::Edge_circulator ec(A.incident_edges(v_cur)), done(ec);
+        as::Edge_circulator ec, done;
+        if(firstv) {
+          ec = A.incident_edges(v_cur);
+          firstv=false;
+        } else {
+          ec = A.incident_edges(v_cur, f_prev);
+        }
+        done = ec;
         do {
           // if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
           // std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
@@ -96,6 +106,7 @@ namespace as {
                 )) {
                 extract_edge = true;
                 face2->info().incident_ring_is_extracted = true;
+                f_prev = face1;
               }
             }
           } else if (label2==label_region || label2==NEVER_VISITED) {
@@ -110,12 +121,23 @@ namespace as {
                 )) {
                 extract_edge = true;
                 face1->info().incident_ring_is_extracted = true;
+                f_prev = face2;
               }
             }
           }
           if(extract_edge  && (v != v_prev)) {
             v_next = v;
             ring.push_back( {float(v_next->point().x()), float(v_next->point().y()), float(v_next->point().z())} );
+            if(ring.size()>1){
+              auto last = ring.rbegin();
+              auto p = *last;
+              ++last;
+              auto p_prev = *last;
+              // std::cout << "POINT(" << p[0] << " " <<  p[1] << ")\n";
+              // std::cout << "LINESTRING(" << p_prev[0] << " " << p_prev[1] << ", ";
+              // std::cout << p[0] << " " << p[1] << ")\n";
+              // if(++extract_cnt>500) exit(1);
+            }
             // std::cout << "ring size = " << ring.size() << std::endl;
             break;
           }
@@ -221,6 +243,7 @@ namespace as {
 namespace geoflow::nodes::stepedge {
 
 void AlphaShapeNode::process() {
+  std::cout << std::fixed << std::setprecision(4);
   auto points_per_segment = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
 
   PointCollection edge_points, boundary_points;

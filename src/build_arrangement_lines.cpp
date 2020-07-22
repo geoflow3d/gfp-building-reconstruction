@@ -2,22 +2,26 @@
 
 namespace geoflow::nodes::stepedge {
 
-Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segment, Arrangement_2::Halfedge_handle& edge, double& dist_threshold) {
+Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segment, Arrangement_2::Halfedge_handle& edge, double& dist_threshold, Point_2& geo_p) {
   auto& e_source = edge->source()->point();
   auto& e_target = edge->target()->point();
   // std::cout << "arr_cross_edge:" << std::endl;
   // std::cout << "\te source " << e_source << std::endl;
   // std::cout << "\te target " << e_target << std::endl;
+  // std::cout << "\ts degree=" << edge->source()->degree() << ", t degree=" << edge->target()->degree() << "\n" << std::endl;
   auto result = CGAL::intersection(Segment_2(e_source, e_target), segment);
   if (result) {
     if (auto p = boost::get<Point_2>(&*result)) {
       // std::cout << "\tp " << *p << std::endl;
+      // std::cout << "\tp (geo) " << CGAL::to_double(p->x())+CGAL::to_double(geo_p.x()) << ", " << CGAL::to_double(p->y())+CGAL::to_double(geo_p.y()) << std::endl;
       // check if point of intersection is practically at the same coordinates of one of the edge's end points
       if (CGAL::squared_distance(*p, e_source) < dist_threshold) {
         return edge->source();
       } else if (CGAL::squared_distance(*p, e_target) < dist_threshold) {
         return edge->target();
       } else {
+        // std::cout << "\tsplitting the edge at " << *p << std::endl;
+        // std::cout << "POINT(" << CGAL::to_double(p->x()) << " " << CGAL::to_double(p->y()) << ")\n";
         auto e = arr.split_edge(edge, Segment_2(e_source, *p), Segment_2(*p, e_target));
         return e->target(); // e->target is the split vertex
       }
@@ -26,18 +30,84 @@ Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segme
   return Arrangement_2::Vertex_handle();
 }
 
-bool arr_edge_exists(Arrangement_2& arr, Arrangement_2::Vertex_handle s, Arrangement_2::Vertex_handle t) {
+Arrangement_2::Face_handle arr_common_face(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t) {
+  auto s_he = s->incident_halfedges();
+  auto s_first = s_he;
+  do {
+    auto s_face = s_he->face();
+    
+    auto t_he = t->incident_halfedges();
+    auto t_first = t_he;
+    do {
+      if (t_he->face() == s_face); return s_face;
+    } while (++t_he!=t_first);
+  } while (++s_he!=s_first);
+  return Arrangement_2::Face_handle();
+}
+
+bool arr_edge_exists(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t) {
+  auto segment = Segment_2(s->point(), t->point());
   auto he = s->incident_halfedges();
   auto first = he;
   do {
-    if (he->source()==t) {
+    auto v_next = he->source();
+    if (v_next==t) {
       return true;
     }
   } while (++he!=first);
   return false;
 }
 
-void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) {
+// coorect for overlapping edges in the arrangement
+Arrangement_2::Vertex_handle arr_overlap_correction(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t, const Arrangement_2::Face_handle& face, double& dist_threshold) {
+  auto segment = Segment_2(s->point(), t->point());
+  
+  double dist_to_target = CGAL::to_double(segment.squared_length());
+  double dist_to_source = 0;
+  Vertex_handle current_s = s;
+  Vertex_handle previous_s;
+  do
+  {
+    auto he = current_s->incident_halfedges();
+    auto first = he;
+    previous_s = current_s;
+    do 
+    {
+      auto v_next = he->source();
+      
+      bool has_face = face == he->face() || face == he->twin()->face();
+      bool v_next_is_on_segment = CGAL::squared_distance(v_next->point(), segment) < dist_threshold;
+      auto dist_to_target_ = CGAL::to_double(CGAL::squared_distance(v_next->point(), t->point()));
+      auto dist_to_source_ = CGAL::to_double(CGAL::squared_distance(v_next->point(), s->point()));
+      if (has_face && v_next_is_on_segment && dist_to_target_ < dist_to_target && dist_to_source_ > dist_to_source) 
+      {
+        dist_to_target = dist_to_target_;
+        dist_to_source = dist_to_source_;
+        current_s = v_next;
+        break;
+      }
+    } while (++he!=first);
+  } while (current_s != previous_s);
+  return current_s;
+}
+
+// bool arr_linked_edge_exists(Arrangement_2& arr, Arrangement_2::Vertex_handle s, Arrangement_2::Vertex_handle t, double& dist_threshold) {
+//   auto segment = Segment_2(s->point(), t->point());
+//   auto he = s->incident_halfedges();
+//   auto first = he;
+//   do {
+//     auto v_next = he->source();
+//     if (v_next==t) {
+//       return true;
+//     } else if (CGAL::squared_distance(v_next->point(), segment) < dist_threshold) {
+      
+//     }
+//   } while (++he!=first);
+
+//   return false;
+// }
+
+void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, Point_2& geo_p) {
   std::list<CGAL::Object> zone_elems;
   
   Arrangement_2::Halfedge_handle edge;
@@ -62,17 +132,28 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
     // take care of a first face
     if(assign(face, zone_elems.front())) {
       if (zone_elems.size()==1) {
+        auto s_x = CGAL::to_double(p_source.x());
+        auto s_y = CGAL::to_double(p_source.y());
+        auto t_x = CGAL::to_double(p_target.x());
+        auto t_y = CGAL::to_double(p_target.y());
+        // std::cout << "POINT(" << s_x << " " << s_y << ")\n";
+        // std::cout << "POINT(" << t_x << " " << t_y << ")\n";
+        // std::cout << "LINESTRING(" << s_x << " " << s_y << ", ";
+        // std::cout << t_x << " " << t_y << ")\n";
         arr.insert_in_face_interior(segment, face);
         zone_elems.pop_front();
       } else {
         // remove first face and see what comes next
         zone_elems.pop_front();
         if(assign(edge, zone_elems.front())) {
-          vertex = arr_cross_edge(arr, segment, edge, dist_threshold);
+          vertex = arr_cross_edge(arr, segment, edge, dist_threshold, geo_p);
         } else {
           assign(vertex, zone_elems.front());
         }
-        arr.insert_from_right_vertex(Segment_2(segment.min(), vertex->point()), vertex);
+        // std::cout << "POINT(" << CGAL::to_double(p_source.x()) << " " << CGAL::to_double(p_source.y()) << ")\n";
+        // std::cout << "LINESTRING(" << CGAL::to_double(p_source.x()) << " " << CGAL::to_double(p_source.y()) << ", ";
+        // std::cout << CGAL::to_double(vertex->point().x()) << " " << CGAL::to_double(vertex->point().y()) << ")\n";
+        arr.insert_from_right_vertex(Segment_2(p_source, vertex->point()), vertex);
         vertices.push_back(vertex);
       }
     }
@@ -83,7 +164,10 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
       // for a face we only are left with handling the case were face is the last element in the zone, otherwise skip faces
       if ( assign(face, zone_elems.front()) && (zone_elems.size()==1) ) {
         auto& v = vertices.back();
-        arr.insert_from_left_vertex(Segment_2(v->point(), segment.max()), v);
+        // std::cout << "POINT(" << CGAL::to_double(p_target.x()) << " " << CGAL::to_double(p_target.y()) << ")\n";
+        // std::cout << "LINESTRING(" << CGAL::to_double(vertex->point().x()) << " " << CGAL::to_double(vertex->point().y()) << ", ";
+        // std::cout << CGAL::to_double(p_target.x()) << " " << CGAL::to_double(p_target.y()) << ")\n";
+        arr.insert_from_left_vertex(Segment_2(v->point(), p_target), v);
         vertices.pop_back(); //vertices should be empty after this
 
       // compute intersection and split edge
@@ -92,7 +176,7 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
         // std::cout << "edge source: " << edge->source()->point() << "\n";
         // std::cout << "edge target: " << edge->target()->point() << "\n";
         // std::cout << "edge vector: " << edge->to_vector() << "\n";
-        vertices.push_back(arr_cross_edge(arr, segment, edge, dist_threshold));
+        vertices.push_back(arr_cross_edge(arr, segment, edge, dist_threshold, geo_p));
 
       // vertex is easiest
       } else if ( assign(vertex, zone_elems.front()) ) {
@@ -103,14 +187,27 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
       if (vertices.size()==2) {
         auto& s = vertices.front();
         auto& t = vertices.back();
-        // std::cout << "insert_at_vertices...\n";
+        // std::cout << "insert_at_vertices...";
         // std::cout << s->point() << std::endl;
         // std::cout << t->point() << std::endl;
+
+        // find common face
+
+        
+        // correct for overlap
+        auto face = arr_common_face(arr, s, t);
+        s = arr_overlap_correction(arr, s, t, face, dist_threshold);
+        t = arr_overlap_correction(arr, t, s, face, dist_threshold);
         if(s==t) {
-          // std::cout << "same vertex" << std::endl;
+          // std::cout << "same vertex\n" << std::endl;
         } else if (arr_edge_exists(arr,s,t)) {
-          // std::cout << "edge already exists" << std::endl;
+          // std::cout << "edge already exists\n" << std::endl;
         } else {
+          // std::cout << "inserting\n" << std::endl;
+          // std::cout << "s degree=" << s->degree() << ", t degree=" << t->degree() << "\n" << std::endl;
+          // std::cout << "LINESTRING(" << CGAL::to_double(s->point().x()) << " " << CGAL::to_double(s->point().y()) << ", ";
+          // std::cout << CGAL::to_double(t->point().x()) << " " << CGAL::to_double(t->point().y()) << ")\n";
+
           arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
         }
         vertices.pop_front();
@@ -136,7 +233,8 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp) 
 void arr_extend_insert_segment(Arrangement_2& arr, Segment_2 segment, const float& extension) {
   auto lv = segment.to_vector();
   lv = lv / CGAL::sqrt(CGAL::to_double(lv.squared_length()));
-  
+  // std::cout << "LINESTRING(" << CGAL::to_double((segment.source()-lv*extension).x()) << " " << CGAL::to_double((segment.source()-lv*extension).y()) << ", ";
+  // std::cout << CGAL::to_double((segment.target()+lv*extension).x()) << " " << CGAL::to_double((segment.target()+lv*extension).y()) << ")\n";
   insert(arr, Segment_2(
     segment.source()-lv*extension,
     segment.target()+lv*extension
@@ -146,6 +244,7 @@ void arr_extend_insert_segment(Arrangement_2& arr, Segment_2 segment, const floa
 void BuildArrFromLinesNode::process() {
   
   // prepare footprint segments
+  // std::cout << std::fixed << std::setprecision(4);
   auto fp_term = input("footprint");
   linereg::Polygon_with_holes_2 footprint;
   if (fp_term.is_connected_type(typeid(linereg::Polygon_with_holes_2)))
@@ -168,6 +267,7 @@ void BuildArrFromLinesNode::process() {
   }
 
   // insert footprint segments
+  Point_2 geo_p((*manager.data_offset)[0], (*manager.data_offset)[1]);
   Arrangement_2 arr_base;
   Face_split_observer obs (arr_base);
   {
@@ -199,7 +299,7 @@ void BuildArrFromLinesNode::process() {
   if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
     for(size_t i=0; i<lines_term.size(); ++i) {
       auto& s = lines_term.get<linereg::Segment_2>(i);
-      arr_insert(arr_base, s, dist_threshold_exp);
+      arr_insert(arr_base, s, dist_threshold_exp, geo_p);
       // insert(arr_base, s);
     }
   } else {

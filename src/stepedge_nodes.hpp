@@ -327,7 +327,8 @@ namespace geoflow::nodes::stepedge {
     bool do_normalise = true;
     int n_iterations = 3;
     int graph_cut_impl = 2;
-    bool use_ground = false;
+    bool use_ground = true;
+    bool label_ground_outside_fp = false;
 
     float z_percentile = 0.9;
 
@@ -348,6 +349,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_normalise, "do_normalise", "Normalise weights"));
       add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
       add_param(ParamBool(use_ground, "use_ground", "Use ground planes in optimisation"));
+      add_param(ParamBool(label_ground_outside_fp, "label_ground_outside_fp", "Label faces that get assigned a ground plane as begin outside the footprint"));
     }
     bool inputs_valid() override {
       for (auto& [name,iT] : input_terminals) {
@@ -865,7 +867,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class PolygonTriangulatorNode:public Node {
-    float dupe_threshold = 1E-5;
+    int dupe_threshold_exp = 6;
     bool output_all_triangles = false;
     public:
     using Node::Node;
@@ -881,6 +883,8 @@ namespace geoflow::nodes::stepedge {
       add_output("edges_constr", typeid(vec1i));
 
       add_param(ParamBool(output_all_triangles, "output_all_triangles",  "Also output triangles in holes and outside convex hull."));
+      add_param(ParamInt(dupe_threshold_exp, "dupe_threshold_exp", "Dupe tolerance exponent"));
+
     }
     void process();
   };

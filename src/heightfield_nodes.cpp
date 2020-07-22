@@ -192,7 +192,7 @@ namespace geoflow::nodes::stepedge {
         auto cr_min = r.getColRowCoord(bb_min[0], bb_min[1]);
         auto cr_max = r.getColRowCoord(bb_max[0], bb_max[1]);
 
-        auto points_inside = r.rasterise_polygon(triangle);
+        auto points_inside = r.rasterise_polygon(triangle, cr_min, cr_max);
         for (auto& p : points_inside) {
           double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
           if (r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX)) {

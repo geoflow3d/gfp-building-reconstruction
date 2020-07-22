@@ -218,7 +218,7 @@ void EptInPolygonsNode::process()
   PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
 
   std::string ept_path = "ept://" + manager.substitute_globals(dirpath);
-  {
+  try {
     // This scope is for debugging
     pdal::EptReader reader;
     pdal::Options   options;
@@ -229,6 +229,8 @@ void EptInPolygonsNode::process()
     std::cout << std::endl << "EPT Bounds:\t" << qi.m_bounds << std::endl;
     std::cout << "EPT Point Count:\t" << qi.m_pointCount << std::endl;
     std::cout << "EPT WKT:\t" << qi.m_srs.getWKT() << std::endl;
+  } catch (pdal::pdal_error& e) {
+    throw(gfException(e.what()));
   }
 
   // TODO: The reader and filter init can go to a function that returns a
