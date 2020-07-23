@@ -26,8 +26,38 @@ namespace RasterTools {
   {  
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
-    vals_.resize(dimx_*dimy_);
-    counts_.resize(dimx_*dimy_);
+    vals_ = std::make_unique<std::vector<double>>();
+    vals_->resize(dimx_*dimy_);
+    counts_ = std::make_unique<std::vector<int16_t>>();
+    counts_->resize(dimx_*dimy_);
+  }
+  Raster::Raster(const Raster& r)
+  {
+    cellSize_ = r.cellSize_;
+    maxx_ = r.maxx_;
+    minx_ = r.minx_;
+    maxy_ = r.maxy_;
+    miny_ = r.miny_;
+    dimx_ = (maxx_-minx_)/cellSize_ + 1;
+    dimy_ = (maxy_-miny_)/cellSize_ + 1;
+    vals_ = std::make_unique<std::vector<double>>(*r.vals_);
+    // vals_->resize(dimx_*dimy_);
+    counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
+    // counts_->resize(dimx_*dimy_);
+  }
+  void Raster::operator=(const Raster& r)
+  {
+    cellSize_ = r.cellSize_;
+    maxx_ = r.maxx_;
+    minx_ = r.minx_;
+    maxy_ = r.maxy_;
+    miny_ = r.miny_;
+    dimx_ = (maxx_-minx_)/cellSize_ + 1;
+    dimy_ = (maxy_-miny_)/cellSize_ + 1;
+    vals_ = std::make_unique<std::vector<double>>(*r.vals_);
+    // vals_->resize(dimx_*dimy_);
+    counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
+    // counts_->resize(dimx_*dimy_);
   }
 
   void Raster::prefill_arrays(alg a){
@@ -38,13 +68,13 @@ namespace RasterTools {
   else
     noDataVal_ = -99999;
     
-  std::fill(vals_.begin(), vals_.end(), noDataVal_);
-  std::fill(counts_.begin(), counts_.end(), 0);
+  std::fill(vals_->begin(), vals_->end(), noDataVal_);
+  std::fill(counts_->begin(), counts_->end(), 0);
   }
 
   bool Raster::add_point(double x, double y, double z, alg a)
   {
-    bool first = vals_[getLinearCoord(x,y)]==noDataVal_;
+    bool first = (*vals_)[getLinearCoord(x,y)]==noDataVal_;
     if (a==MIN) {
       min(x,y,z);
     } else if (a==MAX) {
@@ -60,26 +90,26 @@ namespace RasterTools {
   inline void Raster::avg(double &x, double &y, double &val)
   {
     size_t c = getLinearCoord(x,y);
-    vals_[c]= (vals_[c]*counts_[c]+val)/(counts_[c]+1);
-    ++counts_[c];
+    (*vals_)[c]= ((*vals_)[c]*(*counts_)[c]+val)/((*counts_)[c]+1);
+    ++(*counts_)[c];
   }
 
   inline void Raster::min(double &x, double &y, double &val)
   {
     size_t c = getLinearCoord(x,y);
-    if (vals_[c]>val) vals_[c] = val;
+    if ((*vals_)[c]>val) (*vals_)[c] = val;
   }
 
   inline void Raster::max(double &x, double &y, double &val)
   {
     size_t c = getLinearCoord(x,y);
-    if (vals_[c]<val) vals_[c] = val;
+    if ((*vals_)[c]<val) (*vals_)[c] = val;
   }
 
   inline void Raster::cnt(double &x, double &y)
   {
     size_t c = getLinearCoord(x,y);
-    ++counts_[c];
+    ++(*counts_)[c];
   }
 
   std::array<double,2> Raster::getColRowCoord(double x, double y) const
@@ -112,17 +142,17 @@ namespace RasterTools {
     std::array<float,3> p;
     p[0] = minx_ + col*cellSize_ + cellSize_/2;
     p[1] = miny_ + row*cellSize_ + cellSize_/2;
-    p[2] = vals_[col+row*dimx_];
+    p[2] = (*vals_)[col+row*dimx_];
     return p;
   }
 
   double Raster::sample(double &x, double &y)
   {
-    return vals_[getLinearCoord(x,y)];
+    return (*vals_)[getLinearCoord(x,y)];
   }
 
   void Raster::set_val(size_t col, size_t row, double val) {
-    vals_[col+row*dimx_] = val;
+    (*vals_)[col+row*dimx_] = val;
   }
 
   // void Raster::write(const char* WKGCS, alg a, void * dataPtr, const char* outFile)

@@ -26,6 +26,7 @@
 #include <fstream>
 #include <array>
 #include <vector>
+#include <memory>
 
 // #include <gdal_priv.h>
 // #include <cpl_string.h>
@@ -39,6 +40,8 @@ namespace RasterTools {
         typedef std::array<float,3> point3d;
         typedef std::array<float,2> point2d;
         Raster(double cellsize, double min_x, double max_x, double min_y, double max_y);
+        Raster(const Raster&);
+        void operator=(const Raster& r);
         Raster(){};
         ~Raster(){};
         void prefill_arrays(alg a);
@@ -113,7 +116,7 @@ namespace RasterTools {
                 for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) 
                   if (returnNoData) {
                     result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
-                  } else if((vals_[pixelX+pixelY*dimx_] != noDataVal_) ) {
+                  } else if(((*vals_)[pixelX+pixelY*dimx_] != noDataVal_) ) {
                     result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
                   }
               }
@@ -131,8 +134,8 @@ namespace RasterTools {
         double cellSize_, minx_, miny_, maxx_, maxy_;
         size_t dimx_, dimy_;
         double noDataVal_;
-        std::vector<int16_t> counts_;
-        std::vector<double> vals_;
+        std::unique_ptr<std::vector<int16_t>> counts_;
+        std::unique_ptr<std::vector<double>> vals_;
     private:
         void avg(double &x, double &y, double &val);
         void min(double &x, double &y, double &val);

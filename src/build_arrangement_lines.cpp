@@ -1,6 +1,6 @@
 #include "stepedge_nodes.hpp"
 
-#undef DEBUGGIE
+#define DEBUGGIE
 
 namespace geoflow::nodes::stepedge {
 
