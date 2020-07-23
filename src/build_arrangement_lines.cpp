@@ -30,7 +30,7 @@ Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segme
   return Arrangement_2::Vertex_handle();
 }
 
-Arrangement_2::Face_handle arr_common_face(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t) {
+bool arr_common_face(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t, Arrangement_2::Face_handle& face) {
   auto s_he = s->incident_halfedges();
   auto s_first = s_he;
   do {
@@ -39,10 +39,14 @@ Arrangement_2::Face_handle arr_common_face(Arrangement_2& arr, const Arrangement
     auto t_he = t->incident_halfedges();
     auto t_first = t_he;
     do {
-      if (t_he->face() == s_face); return s_face;
+      if (t_he->face() == s_face)
+      { 
+        face = s_face;
+        return true;
+      }
     } while (++t_he!=t_first);
   } while (++s_he!=s_first);
-  return Arrangement_2::Face_handle();
+  return false;
 }
 
 bool arr_edge_exists(Arrangement_2& arr, const Arrangement_2::Vertex_handle& s, const Arrangement_2::Vertex_handle& t) {
@@ -195,20 +199,22 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
 
         
         // correct for overlap
-        auto face = arr_common_face(arr, s, t);
-        s = arr_overlap_correction(arr, s, t, face, dist_threshold);
-        t = arr_overlap_correction(arr, t, s, face, dist_threshold);
-        if(s==t) {
-          // std::cout << "same vertex\n" << std::endl;
-        } else if (arr_edge_exists(arr,s,t)) {
-          // std::cout << "edge already exists\n" << std::endl;
-        } else {
-          // std::cout << "inserting\n" << std::endl;
-          // std::cout << "s degree=" << s->degree() << ", t degree=" << t->degree() << "\n" << std::endl;
-          // std::cout << "LINESTRING(" << CGAL::to_double(s->point().x()) << " " << CGAL::to_double(s->point().y()) << ", ";
-          // std::cout << CGAL::to_double(t->point().x()) << " " << CGAL::to_double(t->point().y()) << ")\n";
+        Arrangement_2::Face_handle common_face;
+        if(arr_common_face(arr, s, t, common_face)) {
+          s = arr_overlap_correction(arr, s, t, face, dist_threshold);
+          t = arr_overlap_correction(arr, t, s, face, dist_threshold);
+          if(s==t) {
+            // std::cout << "same vertex\n" << std::endl;
+          } else if (arr_edge_exists(arr,s,t)) {
+            // std::cout << "edge already exists\n" << std::endl;
+          } else {
+            // std::cout << "inserting\n" << std::endl;
+            // std::cout << "s degree=" << s->degree() << ", t degree=" << t->degree() << "\n" << std::endl;
+            // std::cout << "LINESTRING(" << CGAL::to_double(s->point().x()) << " " << CGAL::to_double(s->point().y()) << ", ";
+            // std::cout << CGAL::to_double(t->point().x()) << " " << CGAL::to_double(t->point().y()) << ")\n";
 
-          arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
+            arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
+          }
         }
         vertices.pop_front();
       }
