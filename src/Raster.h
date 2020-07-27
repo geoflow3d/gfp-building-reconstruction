@@ -113,12 +113,14 @@ namespace RasterTools {
                   intersect_x[i ]=IMAGE_LEFT ;
                 if (intersect_x[i+1]> IMAGE_RIGHT) 
                   intersect_x[i+1]=IMAGE_RIGHT;
-                for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) 
+                for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) {
+                  auto p = getPointFromRasterCoords(pixelX,pixelY);
                   if (returnNoData) {
-                    result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
-                  } else if(((*vals_)[pixelX+pixelY*dimx_] != noDataVal_) ) {
-                    result.push_back(getPointFromRasterCoords(pixelX,pixelY)); 
+                    result.push_back(p); 
+                  } else if(p[2] != noDataVal_) {
+                    result.push_back(p); 
                   }
+                }
               }
             }
           }

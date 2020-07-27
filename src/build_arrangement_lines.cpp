@@ -1,6 +1,6 @@
 #include "stepedge_nodes.hpp"
 
-#define DEBUGGIE
+#undef DEBUGGIE
 
 namespace geoflow::nodes::stepedge {
 
@@ -44,21 +44,23 @@ bool arr_vertex_has_face(const Arrangement_2::Vertex_handle& v, const Arrangemen
 Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segment, Arrangement_2::Halfedge_handle& edge, const double& dist_threshold, Point_2& geo_p) {
   auto& e_source = edge->source()->point();
   auto& e_target = edge->target()->point();
-  // std::cout << "arr_cross_edge:" << std::endl;
+  #ifdef DEBUGGIE
+    std::cout << "#arr_cross_edge\n";
+  #endif
   // std::cout << "\te source " << e_source << std::endl;
   // std::cout << "\te target " << e_target << std::endl;
   // std::cout << "\ts degree=" << edge->source()->degree() << ", t degree=" << edge->target()->degree() << "\n" << std::endl;
-  Arrangement_2::Face_handle common_face;
-  arr_common_face(edge->source(), edge->target(), common_face);
+  // Arrangement_2::Face_handle common_face;
+  // arr_common_face(edge->source(), edge->target(), common_face);
   auto result = CGAL::intersection(Segment_2(e_source, e_target), segment);
   if (result) {
     if (auto p = boost::get<Point_2>(&*result)) {
       // std::cout << "\tp " << *p << std::endl;
       // std::cout << "\tp (geo) " << CGAL::to_double(p->x())+CGAL::to_double(geo_p.x()) << ", " << CGAL::to_double(p->y())+CGAL::to_double(geo_p.y()) << std::endl;
       // check if point of intersection is practically at the same coordinates of one of the edge's end points
-      if (CGAL::squared_distance(*p, e_source) < dist_threshold && arr_vertex_has_face(edge->source(), common_face)) {
+      if (CGAL::squared_distance(*p, e_source) < dist_threshold) {
         return edge->source();
-      } else if (CGAL::squared_distance(*p, e_target) < dist_threshold && arr_vertex_has_face(edge->target(), common_face)) {
+      } else if (CGAL::squared_distance(*p, e_target) < dist_threshold) {
         return edge->target();
       } else {
         // std::cout << "\tsplitting the edge at " << *p << std::endl;
@@ -69,6 +71,10 @@ Arrangement_2::Vertex_handle arr_cross_edge(Arrangement_2& arr, Segment_2& segme
         return e->target(); // e->target is the split vertex
       }
     }
+  } else {
+    #ifdef DEBUGGIE
+      std::cout << "#ERROR arr_cross_edge: no intersection!!!!!!" << std::endl;
+    #endif
   }
   return Arrangement_2::Vertex_handle();
 }
@@ -142,7 +148,9 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
   Arrangement_2::Vertex_handle vertex;
   Arrangement_2::Face_handle face;
   CGAL::zone(arr, segment, std::back_inserter(zone_elems));
-  // std::cout << "Zone has " << zone_elems.size() << " elems\n";
+  #ifdef DEBUGGIE
+    std::cout << "#\n#Zone has " << zone_elems.size() << " elems\n";
+  #endif
   // std::cout << "segment vector: " << segment.to_vector() << "\n";
 
   if (zone_elems.size()==0) {
@@ -166,6 +174,7 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
           auto t_x = CGAL::to_double(p_target.x());
           auto t_y = CGAL::to_double(p_target.y());
 
+          std::cout << "#insert_in_face_interior...\n";
           std::cout << "POINT(" << s_x << " " << s_y << ")\n";
           std::cout << "POINT(" << t_x << " " << t_y << ")\n";
           std::cout << "LINESTRING(" << s_x << " " << s_y << ", ";
@@ -182,6 +191,7 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
           assign(vertex, zone_elems.front());
         }
         #ifdef DEBUGGIE
+          std::cout << "insert_from_right_vertex..." << std::endl;
           std::cout << "POINT(" << CGAL::to_double(p_source.x()) << " " << CGAL::to_double(p_source.y()) << ")\n";
           std::cout << "LINESTRING(" << CGAL::to_double(p_source.x()) << " " << CGAL::to_double(p_source.y()) << ", ";
           std::cout << CGAL::to_double(vertex->point().x()) << " " << CGAL::to_double(vertex->point().y()) << ")\n";
@@ -196,8 +206,11 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
 
       // for a face we only are left with handling the case were face is the last element in the zone, otherwise skip faces
       if ( assign(face, zone_elems.front()) && (zone_elems.size()==1) ) {
-        auto& v = vertices.back();
+        auto& v = vertices.front();
+        
         #ifdef DEBUGGIE
+          std::cout << "#inserting last edge in face vertices.size()==" << vertices.size() << "\n";
+          std::cout << "#insert_from_left_vertex..." << std::endl;
           std::cout << "POINT(" << CGAL::to_double(p_target.x()) << " " << CGAL::to_double(p_target.y()) << ")\n";
           std::cout << "LINESTRING(" << CGAL::to_double(vertex->point().x()) << " " << CGAL::to_double(vertex->point().y()) << ", ";
           std::cout << CGAL::to_double(p_target.x()) << " " << CGAL::to_double(p_target.y()) << ")\n";
@@ -207,7 +220,9 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
 
       // compute intersection and split edge
       } else if ( assign(edge, zone_elems.front()) ) {
-        // std::cout << "crossing edge...\n";
+        #ifdef DEBUGGIE
+          std::cout << "#crossing edge...\n";
+        #endif
         // std::cout << "edge source: " << edge->source()->point() << "\n";
         // std::cout << "edge target: " << edge->target()->point() << "\n";
         // std::cout << "edge vector: " << edge->to_vector() << "\n";
@@ -215,10 +230,21 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
 
       // vertex is easiest
       } else if ( assign(vertex, zone_elems.front()) ) {
-        // std::cout << "crossing vertex...\n";
+        #ifdef DEBUGGIE
+          std::cout << "#crossing vertex...\n";
+        #endif
         vertices.push_back(vertex);
+      } else {
+        #ifdef DEBUGGIE 
+          std::cout << "#ERROR unknown element in zone!!!\n";
+        #endif
       }
+      
       zone_elems.pop_front();
+      
+      #ifdef DEBUGGIE
+        std::cout << "#checking..vertices.size()==" << vertices.size() << "\n";
+      #endif
       if (vertices.size()==2) {
         auto& s = vertices.front();
         auto& t = vertices.back();
@@ -231,15 +257,21 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
         
         // correct for overlap
         Arrangement_2::Face_handle common_face;
-        if(arr_common_face(s, t, common_face)) {
-          s = arr_overlap_correction(arr, s, t, face, dist_threshold);
-          t = arr_overlap_correction(arr, t, s, face, dist_threshold);
+        // if(arr_common_face(s, t, common_face)) {
+          // s = arr_overlap_correction(arr, s, t, common_face, dist_threshold);
+          // t = arr_overlap_correction(arr, t, s, common_face, dist_threshold);
           if(s==t) {
-            // std::cout << "same vertex\n" << std::endl;
+            #ifdef DEBUGGIE
+              std::cout << "#same vertex" << std::endl;
+            #endif
           } else if (arr_edge_exists(arr,s,t)) {
-            // std::cout << "edge already exists\n" << std::endl;
+            #ifdef DEBUGGIE
+              std::cout << "#edge already exists" << std::endl;
+            #endif
           } else {
-            // std::cout << "inserting\n" << std::endl;
+            #ifdef DEBUGGIE
+              std::cout << "#insert_at_vertices..." << std::endl;
+            #endif
             // std::cout << "s degree=" << s->degree() << ", t degree=" << t->degree() << "\n" << std::endl;
             #ifdef DEBUGGIE
               std::cout << "LINESTRING(" << CGAL::to_double(s->point().x()) << " " << CGAL::to_double(s->point().y()) << ", ";
@@ -248,7 +280,7 @@ void arr_insert(Arrangement_2& arr, Segment_2 segment, int& dist_threshold_exp, 
 
             arr.insert_at_vertices(Segment_2(s->point(), t->point()), s, t);
           }
-        }
+        // }
         vertices.pop_front();
       }
     }
@@ -342,8 +374,11 @@ void BuildArrFromLinesNode::process() {
   if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
     for(size_t i=0; i<lines_term.size(); ++i) {
       auto& s = lines_term.get<linereg::Segment_2>(i);
-      arr_insert(arr_base, s, dist_threshold_exp, geo_p);
-      // insert(arr_base, s);
+      if(insert_with_snap)
+        arr_insert(arr_base, s, dist_threshold_exp, geo_p);
+      else {
+        insert(arr_base, s);
+      }
     }
   } else {
     std::vector<PointPair> segments;

@@ -38,12 +38,11 @@ namespace RasterTools {
     minx_ = r.minx_;
     maxy_ = r.maxy_;
     miny_ = r.miny_;
+    noDataVal_ = r.noDataVal_;
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
     vals_ = std::make_unique<std::vector<double>>(*r.vals_);
-    // vals_->resize(dimx_*dimy_);
     counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
-    // counts_->resize(dimx_*dimy_);
   }
   void Raster::operator=(const Raster& r)
   {
@@ -52,12 +51,11 @@ namespace RasterTools {
     minx_ = r.minx_;
     maxy_ = r.maxy_;
     miny_ = r.miny_;
+    noDataVal_ = r.noDataVal_;
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
     vals_ = std::make_unique<std::vector<double>>(*r.vals_);
-    // vals_->resize(dimx_*dimy_);
     counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
-    // counts_->resize(dimx_*dimy_);
   }
 
   void Raster::prefill_arrays(alg a){

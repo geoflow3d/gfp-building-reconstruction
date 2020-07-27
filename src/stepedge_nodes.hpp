@@ -287,6 +287,7 @@ namespace geoflow::nodes::stepedge {
     int max_arr_complexity = 400;
     int dist_threshold_exp = 4;
     float fp_extension = 0;
+    bool insert_with_snap = false;
     // int angle_threshold_exp = 5;
     // bool snap_clean = true;
     // bool snap_detect_only = false;
@@ -306,6 +307,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedInt(dist_threshold_exp, 0, 15, "dist_threshold_exp", "10-base exponent to set distance threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
       // add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
 
+      add_param(ParamBool(insert_with_snap, "insert_with_snap", "Use custom insert function that aims to prevent duplicate points etc"));
       // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
       // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
       // add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
@@ -622,6 +624,7 @@ namespace geoflow::nodes::stepedge {
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
     float extension = 1.0;
+    bool merge_intersection_lines = false;
 
     public:
     using Node::Node;
@@ -641,6 +644,8 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
       add_param(ParamFloat(extension, "extension", "Line extension after regularisation"));
       add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
+      add_param(ParamBool(merge_intersection_lines, "merge_intersection_lines", "merge_intersection_lines"));
+
     }
     void process();
   };

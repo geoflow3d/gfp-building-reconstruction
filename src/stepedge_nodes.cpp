@@ -270,7 +270,7 @@ void Arr2LinearRingsNode::process(){
   auto& plane_b = vector_output("plane_b");
   auto& plane_c = vector_output("plane_c");
   auto& plane_d = vector_output("plane_d");
-  for (auto face: arr.face_handles()){
+  for (auto face: arr.face_handles()) {
     if(
       !(only_in_footprint && !face->data().in_footprint)
       &&
@@ -1606,7 +1606,7 @@ void RegulariseLinesNode::process(){
     // TODO: performance optimise clustering algo
     // //skip if cluster only contains fp segments
     // if(max_priority==1 && (dclust_size == prio_lines.size())) continue;
-    if(max_priority==2 && (prio_lines.size()>1)) 
+    if(!merge_intersection_lines && (max_priority==2 && (prio_lines.size()>1))) 
     {
       std::vector<linereg::linetype*> other_lines;
       for (auto line : dclust->lines) {
