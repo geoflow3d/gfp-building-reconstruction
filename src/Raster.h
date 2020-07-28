@@ -33,7 +33,7 @@
 // #include <cpl_conv.h>
 // #include <ogr_spatialref.h>
 namespace RasterTools {
-    enum alg {AVG,MIN,MAX,CNT};
+    enum alg {MIN,MAX};
     class Raster
     {
     public:
@@ -136,13 +136,13 @@ namespace RasterTools {
         double cellSize_, minx_, miny_, maxx_, maxy_;
         size_t dimx_, dimy_;
         double noDataVal_;
-        std::unique_ptr<std::vector<int16_t>> counts_;
-        std::unique_ptr<std::vector<double>> vals_;
+        // std::unique_ptr<std::vector<int16_t>> counts_;
+        std::unique_ptr<std::vector<float>> vals_;
     private:
         void avg(double &x, double &y, double &val);
         void min(double &x, double &y, double &val);
         void max(double &x, double &y, double &val);
-        void cnt(double &x, double &y);
+        // void cnt(double &x, double &y);
         // OGRSpatialReference oSRS;
     };
 }

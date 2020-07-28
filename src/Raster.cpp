@@ -18,6 +18,7 @@
 // along with Surfonoi. If not, see <http://www.gnu.org/licenses/>.
 
 #include "Raster.h"
+#include <limits>
 
 namespace RasterTools {
 
@@ -26,10 +27,10 @@ namespace RasterTools {
   {  
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
-    vals_ = std::make_unique<std::vector<double>>();
+    vals_ = std::make_unique<std::vector<float>>();
     vals_->resize(dimx_*dimy_);
-    counts_ = std::make_unique<std::vector<int16_t>>();
-    counts_->resize(dimx_*dimy_);
+    // counts_ = std::make_unique<std::vector<int16_t>>();
+    // counts_->resize(dimx_*dimy_);
   }
   Raster::Raster(const Raster& r)
   {
@@ -41,8 +42,8 @@ namespace RasterTools {
     noDataVal_ = r.noDataVal_;
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
-    vals_ = std::make_unique<std::vector<double>>(*r.vals_);
-    counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
+    vals_ = std::make_unique<std::vector<float>>(*r.vals_);
+    // counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
   }
   void Raster::operator=(const Raster& r)
   {
@@ -54,20 +55,18 @@ namespace RasterTools {
     noDataVal_ = r.noDataVal_;
     dimx_ = (maxx_-minx_)/cellSize_ + 1;
     dimy_ = (maxy_-miny_)/cellSize_ + 1;
-    vals_ = std::make_unique<std::vector<double>>(*r.vals_);
-    counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
+    vals_ = std::make_unique<std::vector<float>>(*r.vals_);
+    // counts_ = std::make_unique<std::vector<int16_t>>(*r.counts_);
   }
 
   void Raster::prefill_arrays(alg a){
   if (a==MIN)
-    noDataVal_ = 99999;
-  else if (a==CNT)
-    noDataVal_ = 0;
+    noDataVal_ = std::numeric_limits<float>::max();
   else
-    noDataVal_ = -99999;
+    noDataVal_ = std::numeric_limits<float>::min();
     
   std::fill(vals_->begin(), vals_->end(), noDataVal_);
-  std::fill(counts_->begin(), counts_->end(), 0);
+  // std::fill(counts_->begin(), counts_->end(), 0);
   }
 
   bool Raster::add_point(double x, double y, double z, alg a)
@@ -77,20 +76,16 @@ namespace RasterTools {
       min(x,y,z);
     } else if (a==MAX) {
       max(x,y,z);
-    } else if (a==AVG) {
-      avg(x,y,z);
-    } else if (a==CNT) {
-      cnt(x,y);
     }
     return first;
   }
 
-  inline void Raster::avg(double &x, double &y, double &val)
-  {
-    size_t c = getLinearCoord(x,y);
-    (*vals_)[c]= ((*vals_)[c]*(*counts_)[c]+val)/((*counts_)[c]+1);
-    ++(*counts_)[c];
-  }
+  // inline void Raster::avg(double &x, double &y, double &val)
+  // {
+  //   size_t c = getLinearCoord(x,y);
+  //   (*vals_)[c]= ((*vals_)[c]*(*counts_)[c]+val)/((*counts_)[c]+1);
+  //   ++(*counts_)[c];
+  // }
 
   inline void Raster::min(double &x, double &y, double &val)
   {
@@ -104,11 +99,11 @@ namespace RasterTools {
     if ((*vals_)[c]<val) (*vals_)[c] = val;
   }
 
-  inline void Raster::cnt(double &x, double &y)
-  {
-    size_t c = getLinearCoord(x,y);
-    ++(*counts_)[c];
-  }
+  // inline void Raster::cnt(double &x, double &y)
+  // {
+  //   size_t c = getLinearCoord(x,y);
+  //   ++(*counts_)[c];
+  // }
 
   std::array<double,2> Raster::getColRowCoord(double x, double y) const
   {
