@@ -249,6 +249,7 @@ void AlphaShapeNode::process() {
   PointCollection edge_points, boundary_points;
   LineStringCollection alpha_edges;
   auto& alpha_rings = vector_output("alpha_rings");
+  alpha_rings.touch();
   output("alpha_triangles").touch();
   
   std::vector<as::Triangulation_2> alpha_dts;

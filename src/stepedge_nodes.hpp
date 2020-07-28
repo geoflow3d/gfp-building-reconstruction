@@ -112,6 +112,8 @@ namespace geoflow::nodes::stepedge {
   };
 
   class Arr2LinearRingsNode:public Node {
+    bool invalid_rooftype = false;
+
     bool only_in_footprint = true;
     int plane_id = 0;
     public:
@@ -131,6 +133,19 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("plane_d", typeid(float));
 
       add_param(ParamBool(only_in_footprint, "only_in_footprint", "Only faces inside the footprint"));
+    }
+    bool inputs_valid() {
+      for (auto &iterm : poly_input("attributes").sub_terminals()) {
+        if(iterm->get_name() == "roof_type" && iterm->size()) {
+          if (iterm->get<int>()<0) {
+            std::cout << "invalid rooftype\n";
+            invalid_rooftype = true;
+            return true;
+          }
+        }
+      }
+      invalid_rooftype = false;
+      return Node::inputs_valid();
     }
     void process();
   };
@@ -286,7 +301,7 @@ namespace geoflow::nodes::stepedge {
     // float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
     int dist_threshold_exp = 4;
-    float fp_extension = 0;
+    float fp_extension = 0.01;
     bool insert_with_snap = false;
     // int angle_threshold_exp = 5;
     // bool snap_clean = true;
@@ -302,7 +317,7 @@ namespace geoflow::nodes::stepedge {
       add_output("arr_complexity", typeid(int));
 
       // add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
-      // add_param(ParamBoundedFloat(fp_extension, 0.0, 0.01,  "fp_extension", "extend each footprint segment on both sides with this distance"));
+      add_param(ParamBoundedFloat(fp_extension, 0.0, 0.01,  "fp_extension", "extend each footprint segment on both sides with this distance"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
       add_param(ParamBoundedInt(dist_threshold_exp, 0, 15, "dist_threshold_exp", "10-base exponent to set distance threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
       // add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
@@ -943,10 +958,10 @@ namespace geoflow::nodes::stepedge {
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
         if (iterm->get_name() == manager.substitute_globals(attribute_name)) {
           if (iterm->accepts_type(typeid(bool))) {
-            std::cout << "Detected attribute of type bool\n";
+            // std::cout << "Detected attribute of type bool\n";
             result = iterm->get<bool>();
           } else {
-            std::cout << "Attribute type is not bool\n";
+            // std::cout << "Attribute type is not bool\n";
           }
         }
       }
@@ -964,9 +979,9 @@ namespace geoflow::nodes::stepedge {
       } else {
         bool selectAB = selectInput.get<bool>();
         if (selectAB) {
-          return vector_input("linear_rings_A").has_data() && poly_input("attributes_A").has_data();
+          return vector_input("linear_rings_A").has_data();
         } else {
-          return vector_input("linear_rings_B").has_data() && poly_input("attributes_B").has_data();
+          return vector_input("linear_rings_B").has_data();
         }
       }
     }
