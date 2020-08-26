@@ -115,6 +115,7 @@ namespace geoflow::nodes::stepedge {
     bool invalid_rooftype = false;
 
     bool only_in_footprint = true;
+    bool output_groundparts = false;
     int plane_id = 0;
     public:
     using Node::Node;
@@ -132,7 +133,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("plane_c", typeid(float));
       add_vector_output("plane_d", typeid(float));
 
-      add_param(ParamBool(only_in_footprint, "only_in_footprint", "Only faces inside the footprint"));
+      add_param(ParamBool(output_groundparts, "output_groundparts", "Also output the ground parts"));
     }
     bool inputs_valid() {
       for (auto &iterm : poly_input("attributes").sub_terminals()) {

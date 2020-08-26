@@ -250,6 +250,8 @@ void Arr2LinearRingsNode::process(){
   }
   // attributes specific to each roofpart
   auto &attr_elevation_term = poly_output("attributes").add_vector("roof_elevation", typeid(float));
+  auto &attr_ground_term = poly_output("attributes").add_vector("is_ground", typeid(float));
+  input_attr_map["is_ground"] = &attr_ground_term;
   input_attr_map["roof_elevation"] = &attr_elevation_term;
 
 
@@ -264,6 +266,7 @@ void Arr2LinearRingsNode::process(){
       }
     }
     input_attr_map["roof_elevation"]->push_back_any(std::any());
+    input_attr_map["is_ground"]->push_back_any(std::any());
     linear_rings.push_back_any(std::any());
     return;
   }
@@ -276,11 +279,15 @@ void Arr2LinearRingsNode::process(){
   auto& plane_c = vector_output("plane_c");
   auto& plane_d = vector_output("plane_d");
   for (auto face: arr.face_handles()) {
-    if(
-      !(only_in_footprint && !face->data().in_footprint)
-      &&
-      !(face->is_fictitious() || face->is_unbounded())
-      ) {
+    bool skip_face = false;
+    // if (only_in_footprint && !face->data().in_footprint) continue;
+    if (output_groundparts && face->data().is_ground)
+      skip_face = false;
+    else 
+      skip_face = !face->data().in_footprint;
+    skip_face = skip_face || (face->is_fictitious() || face->is_unbounded());
+
+    if (!skip_face) {
       LinearRing polygon;
       arrangementface_to_polygon(face, polygon);
       linear_rings.push_back(polygon);
@@ -293,6 +300,7 @@ void Arr2LinearRingsNode::process(){
 
       // attributes specific to each roofpart
       input_attr_map["roof_elevation"]->push_back((float)face->data().elevation_avg);
+      input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
       
       // input_attr_map["dak_id"]->push_back((int)++j);
       // input_attr_map["building_id"]->push_back(int(i+1));

@@ -25,6 +25,7 @@ typedef Traits_2::Point_2                             Point_2;
 
 struct FaceInfo {
   bool is_finite=false;
+  bool is_ground=false;
   bool in_footprint=false;
   bool is_footprint_hole=false;
   float elevation_avg=0;

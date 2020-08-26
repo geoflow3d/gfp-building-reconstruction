@@ -322,6 +322,7 @@ void OptimiseArrangmentGridNode::process() {
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
     if(i>=roofplane_cnt && label_ground_outside_fp) {
       face->data().in_footprint = false;
+      face->data().is_ground = true;
     }
   }
 
