@@ -134,6 +134,36 @@ namespace geoflow::nodes::stepedge {
       mesh_error.push_back(rms_error);
       mesh_error.push_back(rms_error);
     }
+    
+    // compute point error stats
+    std::sort(point_errors.begin(), point_errors.end(), [](auto& p1, auto& p2) {
+      return p1 < p2;
+    });
+    int elevation_id = std::floor(0.1*float(point_errors.size()-1));
+    output("mesh_error_10p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.2*float(point_errors.size()-1));
+    output("mesh_error_20p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.3*float(point_errors.size()-1));
+    output("mesh_error_30p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.4*float(point_errors.size()-1));
+    output("mesh_error_40p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.5*float(point_errors.size()-1));
+    output("mesh_error_50p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.6*float(point_errors.size()-1));
+    output("mesh_error_60p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.7*float(point_errors.size()-1));
+    output("mesh_error_70p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.8*float(point_errors.size()-1));
+    output("mesh_error_80p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.9*float(point_errors.size()-1));
+    output("mesh_error_90p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.95*float(point_errors.size()-1));
+    output("mesh_error_95p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.98*float(point_errors.size()-1));
+    output("mesh_error_98p").set(point_errors[elevation_id]);
+    elevation_id = std::floor(0.99*float(point_errors.size()-1));
+    output("mesh_error_99p").set(point_errors[elevation_id]);
+    output("mesh_error_100p").set(point_errors[point_errors.size()-1]);
 
     output("point_errors").set(point_errors);
     output("face_errors").set(face_errors);

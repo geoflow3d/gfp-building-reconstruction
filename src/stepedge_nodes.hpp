@@ -766,6 +766,19 @@ namespace geoflow::nodes::stepedge {
       add_output("point_errors", typeid(vec1f));
       add_output("face_errors", typeid(vec1f));
       add_output("mesh_error_f", typeid(float));
+      add_output("mesh_error_10p", typeid(float));
+      add_output("mesh_error_20p", typeid(float));
+      add_output("mesh_error_30p", typeid(float));
+      add_output("mesh_error_40p", typeid(float));
+      add_output("mesh_error_50p", typeid(float));
+      add_output("mesh_error_60p", typeid(float));
+      add_output("mesh_error_70p", typeid(float));
+      add_output("mesh_error_80p", typeid(float));
+      add_output("mesh_error_90p", typeid(float));
+      add_output("mesh_error_95p", typeid(float));
+      add_output("mesh_error_98p", typeid(float));
+      add_output("mesh_error_99p", typeid(float));
+      add_output("mesh_error_100p", typeid(float));
       add_output("mesh_error", typeid(vec1f));
 
     }
