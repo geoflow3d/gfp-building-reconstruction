@@ -171,17 +171,23 @@ class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
   virtual void before_merge_face (Face_handle remaining_face,
                                  Face_handle discarded_face, Halfedge_handle e )
   {
-    // auto count1 = float(remaining_face->data().inlier_count);
-    // auto count2 = float(discarded_face->data().inlier_count);
-    // auto sum_count = count1+count2;
-    // if (sum_count!=0){
-    //   auto new_elevation = remaining_face->data().elevation_avg * (count1/sum_count) + discarded_face->data().elevation_avg * (count2/sum_count);
-    //   remaining_face->data().elevation_avg = new_elevation;
-    //   // and sum the counts
-    //   remaining_face->data().inlier_count = sum_count;
-    // }
-    // remaining_face->data().elevation_min = std::min(remaining_face->data().elevation_min, discarded_face->data().elevation_min);
-    // remaining_face->data().elevation_max = std::max(remaining_face->data().elevation_max, discarded_face->data().elevation_max);
+    auto count1 = float(remaining_face->data().pixel_count);
+    auto count2 = float(discarded_face->data().pixel_count);
+    auto sum_count = count1+count2;
+    if (sum_count!=0){
+      auto w1 = (count1/sum_count);
+      auto w2 = (count2/sum_count);
+      remaining_face->data().elevation_50p = 
+        remaining_face->data().elevation_50p * w1 + discarded_face->data().elevation_50p * w2;
+      remaining_face->data().elevation_70p = 
+        remaining_face->data().elevation_70p * w1 + discarded_face->data().elevation_70p * w2;
+      remaining_face->data().data_coverage = 
+        remaining_face->data().data_coverage * w1 + discarded_face->data().data_coverage * w2;
+      // and sum the counts
+      remaining_face->data().pixel_count = sum_count;
+    }
+    remaining_face->data().elevation_min = std::min(remaining_face->data().elevation_min, discarded_face->data().elevation_min);
+    remaining_face->data().elevation_max = std::max(remaining_face->data().elevation_max, discarded_face->data().elevation_max);
     // merge the point lists
     // if (remaining_face==discarded_face){
     //   std::cout << "merging the same face!?\n";
