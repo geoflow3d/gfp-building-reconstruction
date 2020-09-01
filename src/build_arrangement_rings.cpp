@@ -317,7 +317,7 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
     std::map<float, Face_handle> face_map;
     for (auto& face : arr.face_handles()) {
       if (face->data().segid!=0 && face->data().in_footprint)
-        face_map[face->data().elevation_avg] = face;
+        face_map[face->data().elevation_50p] = face;
     }
     for (auto& kv : face_map) {
       std::stack<Face_handle> candidate_stack;
@@ -420,7 +420,7 @@ void BuildArrFromRingsExactNode::arr_assign_pts_to_unsegmented(Arrangement_2& ar
       auto pid = int(z_percentile*float(ppf.second.size()-1));
       // auto pid = get_percentile(ppf.second, percentile);
       ppf.first->data().segid = -1;
-      ppf.first->data().elevation_avg = ppf.second[pid].z();
+      ppf.first->data().elevation_70p = ppf.second[pid].z();
     }
   }
 }

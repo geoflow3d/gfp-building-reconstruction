@@ -151,21 +151,6 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
-    class VecArr2LinearRingsNode:public Node {
-    public:
-    using Node::Node;
-    void init() {
-      add_vector_input("arrangement", typeid(Arrangement_2));
-      add_vector_input("mesh_error", typeid(float));
-      add_vector_input("roof_type", typeid(int));
-      add_vector_input("arr_complexity", typeid(int));
-      add_poly_input("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
-      add_poly_output("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
-      add_vector_output("linear_rings", typeid(LinearRing));
-    }
-    void process();
-  };
-
   class ArrExtruderNode:public Node {
     bool do_walls=true, do_roofs=true, do_floor=true;
     bool LoD2 = false;
@@ -240,63 +225,63 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
-  class BuildArrFromRingsExactNode:public Node {
-    bool extrude_unsegmented = true;
-    float extrude_mindensity = 5;
-    float z_percentile = 0.;
-    float rel_area_thres = 0.1;
-    bool flood_to_unsegmented = true;
-    bool dissolve_edges = true;
-    bool dissolve_stepedges = true;
-    float step_height_threshold = 1.0;
-    bool snap_clean = true;
-    bool snap_clean_fp = false;
-    bool snap_detect_only = false;
-    float snap_dist = 1.0;
+  // class BuildArrFromRingsExactNode:public Node {
+  //   bool extrude_unsegmented = true;
+  //   float extrude_mindensity = 5;
+  //   float z_percentile = 0.;
+  //   float rel_area_thres = 0.1;
+  //   bool flood_to_unsegmented = true;
+  //   bool dissolve_edges = true;
+  //   bool dissolve_stepedges = true;
+  //   float step_height_threshold = 1.0;
+  //   bool snap_clean = true;
+  //   bool snap_clean_fp = false;
+  //   bool snap_detect_only = false;
+  //   float snap_dist = 1.0;
 
-    public:
-    bool arr_is_valid=false;
-    int vcount, ecount;
+  //   public:
+  //   bool arr_is_valid=false;
+  //   int vcount, ecount;
 
-    using Node::Node;
-    void init() {
-      add_input("rings", typeid(std::unordered_map<size_t, linereg::Polygon_2>));
-      add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
-      add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
-      add_output("noseg_area_a", typeid(float));
-      add_output("noseg_area_r", typeid(float));
-      add_output("arrangement", typeid(Arrangement_2));
-      add_output("arr_segments", typeid(LineStringCollection));
-      add_output("snap_to_e", typeid(SegmentCollection));
-      add_output("snap_to_v", typeid(PointCollection));
-      add_output("snap_v", typeid(PointCollection));
-      add_output("snap_fp_to_e", typeid(SegmentCollection));
-      add_output("snap_fp_to_v", typeid(PointCollection));
-      add_output("snap_fp_v", typeid(PointCollection));
+  //   using Node::Node;
+  //   void init() {
+  //     add_input("rings", typeid(std::unordered_map<size_t, linereg::Polygon_2>));
+  //     add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+  //     add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
+  //     add_output("noseg_area_a", typeid(float));
+  //     add_output("noseg_area_r", typeid(float));
+  //     add_output("arrangement", typeid(Arrangement_2));
+  //     add_output("arr_segments", typeid(LineStringCollection));
+  //     add_output("snap_to_e", typeid(SegmentCollection));
+  //     add_output("snap_to_v", typeid(PointCollection));
+  //     add_output("snap_v", typeid(PointCollection));
+  //     add_output("snap_fp_to_e", typeid(SegmentCollection));
+  //     add_output("snap_fp_to_v", typeid(PointCollection));
+  //     add_output("snap_fp_v", typeid(PointCollection));
 
-      add_param(ParamBool(extrude_unsegmented, "extrude_unsegmented", "extrude_unsegmented"));
-      add_param(ParamBoundedFloat(extrude_mindensity, 1, 20, "extrude_mindensity",  "Extrude min density"));
-      add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
-      add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
-      add_param(ParamBool(flood_to_unsegmented, "flood_to_unsegmented", "flood_to_unsegmented"));
-      add_param(ParamBool(dissolve_edges, "dissolve_edges", "dissolve_edges"));
-      add_param(ParamBool(dissolve_stepedges, "dissolve_stepedges", "dissolve_stepedges"));
-      add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
-      add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
-      add_param(ParamBool(snap_clean_fp, "snap_clean_fp", "Snap fp"));
-      add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
-      add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
-    }
-    // std::string info() {
-    //   ImGui::Text("Arrangement valid? %s", arr_is_valid? "yes" : "no");
-    //   ImGui::Text("vcount: %d, ecount: %d", vcount, ecount);
-    // }
-    // void arr_snapclean(Arrangement_2& arr);
-    void arr_snapclean_from_fp(Arrangement_2& arr);
-    void arr_process(Arrangement_2& arr);
-    void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points);
-    void process();
-  };
+  //     add_param(ParamBool(extrude_unsegmented, "extrude_unsegmented", "extrude_unsegmented"));
+  //     add_param(ParamBoundedFloat(extrude_mindensity, 1, 20, "extrude_mindensity",  "Extrude min density"));
+  //     add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
+  //     add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
+  //     add_param(ParamBool(flood_to_unsegmented, "flood_to_unsegmented", "flood_to_unsegmented"));
+  //     add_param(ParamBool(dissolve_edges, "dissolve_edges", "dissolve_edges"));
+  //     add_param(ParamBool(dissolve_stepedges, "dissolve_stepedges", "dissolve_stepedges"));
+  //     add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
+  //     add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
+  //     add_param(ParamBool(snap_clean_fp, "snap_clean_fp", "Snap fp"));
+  //     add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
+  //     add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
+  //   }
+  //   // std::string info() {
+  //   //   ImGui::Text("Arrangement valid? %s", arr_is_valid? "yes" : "no");
+  //   //   ImGui::Text("vcount: %d, ecount: %d", vcount, ecount);
+  //   // }
+  //   // void arr_snapclean(Arrangement_2& arr);
+  //   void arr_snapclean_from_fp(Arrangement_2& arr);
+  //   void arr_process(Arrangement_2& arr);
+  //   void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points);
+  //   void process();
+  // };
 
   class BuildArrFromLinesNode:public Node {
     // float rel_area_thres = 0.1;
@@ -418,6 +403,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("arrangement", typeid(Arrangement_2));
+      add_input("heightfield", typeid(RasterTools::Raster));
       add_output("arrangement", typeid(Arrangement_2));
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
@@ -570,7 +556,7 @@ namespace geoflow::nodes::stepedge {
     std::string filepaths = "";
     float cellsize = 50.0;
     float buffer = 1.0;
-    // float ground_percentile=0.1;
+    float ground_percentile=0.05;
     public:
     using Node::Node;
     void init() {
@@ -582,7 +568,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamPath(filepaths, "las_filepaths", "LAS filepaths"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
-      // // add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
+      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };
@@ -593,7 +579,7 @@ namespace geoflow::nodes::stepedge {
     std::string filter_limits = "Classification[2:2],Classification[6:6]";
     float cellsize = 50.0;
     float buffer = 1.0;
-    // float ground_percentile=0.1;
+    float ground_percentile=0.05;
   public:
     using Node::Node;
     void init() {
@@ -606,7 +592,7 @@ namespace geoflow::nodes::stepedge {
       // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
-      // add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
+      add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
     void process();
   };

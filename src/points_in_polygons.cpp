@@ -135,18 +135,18 @@ class PointsInPolygonsCollector  {
     delete pipoint;
   }
 
-  void compute_ground_elevation() {
+  void compute_ground_elevation(float& ground_percentile) {
     // Compute average elevation per polygon
     std::cout <<"Computing the average elevation per polygon..." << std::endl;
     for (size_t i=0; i<ground_point_clouds.size(); ++i) {
       auto& gpt = ground_point_clouds.get<PointCollection&>(i);
       float ground_ele = min_ground_elevation;
       if (gpt.size()!=0) {
-        double sum_all = 0;
-        for(auto& p : gpt) {
-          sum_all += p[2];
-        }
-        ground_ele = sum_all/gpt.size();
+        std::sort(gpt.begin(), gpt.end(), [](auto& p1, auto& p2) {
+          return p1[2] < p2[2];
+        });
+        int elevation_id = std::floor(ground_percentile*float(gpt.size()-1));
+        ground_ele = gpt[elevation_id][2];
       } else {
         std::cout << "no ground pts found for polygon\n";
       }
@@ -201,7 +201,7 @@ void LASInPolygonsNode::process() {
     delete lasreader;
   }
 
-  pip_collector.compute_ground_elevation();
+  pip_collector.compute_ground_elevation(ground_percentile);
 }
 
 #ifdef GFP_WITH_PDAL
@@ -283,7 +283,7 @@ void EptInPolygonsNode::process()
     }
   }
 
-  pip_collector.compute_ground_elevation();
+  pip_collector.compute_ground_elevation(ground_percentile);
 }
 #endif
 

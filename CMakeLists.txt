@@ -58,7 +58,7 @@ geoflow_create_plugin(
   src/polygon_triangulate.cpp
   src/line_regulariser.cpp
   src/build_arrangement_lines.cpp
-  src/build_arrangement_rings.cpp
+  # src/build_arrangement_rings.cpp
   src/arrangement.cpp
   src/polygon_offset.cpp
   src/alpha_shape.cpp

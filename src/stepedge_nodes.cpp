@@ -231,7 +231,7 @@ void PolygonGrowerNode::process(){
   output("rings").set(new_rings);
 }
 
-void Arr2LinearRingsNode::process(){
+void Arr2LinearRingsNode::process() {
   
 
   // auto& floor_elevation = input("floor_elevation").get<float&>();
@@ -239,7 +239,6 @@ void Arr2LinearRingsNode::process(){
   // auto& roof_type = input("roof_type").get<int&>();
   // auto& arr_complexity = input("arr_complexity").get<int&>();
   auto& attributes_in = poly_input("attributes");
-
   auto& linear_rings = vector_output("linear_rings");
 
   //create all output fields
@@ -249,10 +248,19 @@ void Arr2LinearRingsNode::process(){
     input_attr_map[oterm.get_name()] = &oterm;
   }
   // attributes specific to each roofpart
-  auto &attr_elevation_term = poly_output("attributes").add_vector("roof_elevation", typeid(float));
-  auto &attr_ground_term = poly_output("attributes").add_vector("is_ground", typeid(float));
+  auto &attr_elevation_50p_term = poly_output("attributes").add_vector("roof_elevation_50p", typeid(float));
+  input_attr_map["roof_elevation_50p"] = &attr_elevation_50p_term;
+  auto &attr_elevation_70p_term = poly_output("attributes").add_vector("roof_elevation_70p", typeid(float));
+  input_attr_map["roof_elevation_70p"] = &attr_elevation_70p_term;
+  auto &attr_elevation_min_term = poly_output("attributes").add_vector("roof_elevation_min", typeid(float));
+  input_attr_map["roof_elevation_min"] = &attr_elevation_min_term;
+  auto &attr_elevation_max_term = poly_output("attributes").add_vector("roof_elevation_max", typeid(float));
+  input_attr_map["roof_elevation_max"] = &attr_elevation_max_term;
+  auto &attr_datacov_term = poly_output("attributes").add_vector("data_coverage", typeid(float));
+  input_attr_map["data_coverage"] = &attr_datacov_term;
+  auto &attr_ground_term = poly_output("attributes").add_vector("is_ground", typeid(bool));
   input_attr_map["is_ground"] = &attr_ground_term;
-  input_attr_map["roof_elevation"] = &attr_elevation_term;
+  
 
 
   // in case we get an invalid roof_type (-1 or -2) push the available attribute and an empty ring
@@ -265,7 +273,11 @@ void Arr2LinearRingsNode::process(){
         input_attr_map[iterm->get_name()]->push_back_any(std::any());
       }
     }
-    input_attr_map["roof_elevation"]->push_back_any(std::any());
+    input_attr_map["roof_elevation_50p"]->push_back_any(std::any());
+    input_attr_map["roof_elevation_70p"]->push_back_any(std::any());
+    input_attr_map["roof_elevation_min"]->push_back_any(std::any());
+    input_attr_map["roof_elevation_max"]->push_back_any(std::any());
+    input_attr_map["data_coverage"]->push_back_any(std::any());
     input_attr_map["is_ground"]->push_back_any(std::any());
     linear_rings.push_back_any(std::any());
     return;
@@ -299,7 +311,11 @@ void Arr2LinearRingsNode::process(){
       plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
 
       // attributes specific to each roofpart
-      input_attr_map["roof_elevation"]->push_back((float)face->data().elevation_avg);
+      input_attr_map["roof_elevation_50p"]->push_back((float)face->data().elevation_50p);
+      input_attr_map["roof_elevation_70p"]->push_back((float)face->data().elevation_70p);
+      input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
+      input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
+      input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
       input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
       
       // input_attr_map["dak_id"]->push_back((int)++j);
@@ -319,97 +335,6 @@ void Arr2LinearRingsNode::process(){
       }
     }
   }
-}
-
-void VecArr2LinearRingsNode::process(){
-  auto& arrs = vector_input("arrangement");
-  auto& mesh_errors = vector_input("mesh_error");
-  auto& roof_types = vector_input("roof_type");
-  auto& arr_complexity = vector_input("arr_complexity");
-  auto& attributes_in = poly_input("attributes");
-  auto& input_attr_terms = poly_output("attributes").sub_terminals();
-
-  auto& linear_rings = vector_output("linear_rings");
-
-  // create output attributes fields
-  vec1f attr_error;
-  vec1i attr_rooftype;
-  vec1f attr_elevation;
-  vec1i attr_roofid;
-  vec1i attr_objectid;
-  vec1i attr_arr_complexity;
-  
-  std::unordered_map<std::string, gfSingleFeatureOutputTerminal*> input_attr_map;
-  for (auto &iterm : poly_input("attributes").sub_terminals()) {
-    auto& oterm = poly_output("attributes").add(iterm->get_name(), iterm->get_type());
-    if(oterm.accepts_type(typeid(vec1b))){
-      input_attr_map[oterm.get_name()] = &oterm;
-      oterm.set(vec1b{});
-    } else if (oterm.accepts_type(typeid(vec1i))) {
-      input_attr_map[oterm.get_name()] = &oterm;
-      oterm.set(vec1i{});
-    } else if (oterm.accepts_type(typeid(vec1f))) {
-      input_attr_map[oterm.get_name()] = &oterm;
-      oterm.set(vec1f{});
-    } else if (oterm.accepts_type(typeid(vec1s))) {
-      input_attr_map[oterm.get_name()] = &oterm;
-      oterm.set(vec1s{});
-    }
-  }
-
-  for (size_t i=0; i<arrs.size(); ++i) {
-    auto& arr = arrs.get<Arrangement_2&>(i);
-    // auto& arr = attributes_in.get<Arrangement_2&>(i);
-    size_t j=0;
-    for (auto face: arr.face_handles()){
-      if(
-        face->data().in_footprint
-        &&
-        !(face->is_fictitious() || face->is_unbounded())
-        ) 
-      {
-        LinearRing polygon;
-        arrangementface_to_polygon(face, polygon);
-
-        linear_rings.push_back(polygon);
-
-        attr_elevation.push_back(face->data().elevation_avg);
-        attr_error.push_back(mesh_errors.get<float>(i));
-        attr_rooftype.push_back(roof_types.get<int>(i));
-        attr_roofid.push_back(++j);
-        attr_objectid.push_back(i+1);
-        attr_arr_complexity.push_back(arr_complexity.get<int>(i));
-
-        for (auto &term : poly_input("attributes").sub_terminals()) {
-          if(term->accepts_type(typeid(vec1b))){
-            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
-            input_attr_map[term->get_name()]->get<vec1b&>().push_back(term->get<vec1b>()[i]);
-          } else if (term->accepts_type(typeid(vec1i))) {
-            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
-            input_attr_map[term->get_name()]->get<vec1i&>().push_back(term->get<vec1i>()[i]);
-          } else if (term->accepts_type(typeid(vec1f))) {
-            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
-            input_attr_map[term->get_name()]->get<vec1f&>().push_back(term->get<vec1f>()[i]);
-          } else if (term->accepts_type(typeid(vec1s))) {
-            // auto oterm = static_cast<gfBasicMonoOutputTerminal*>(input_attr_terms.at(term->get_name()).get());
-            input_attr_map[term->get_name()]->get<vec1s&>().push_back(term->get<vec1s>()[i]);
-          }
-        }
-      }
-    }
-  }
-  auto &attr_error_term = poly_output("attributes").add("rmse", typeid(vec1f));
-  attr_error_term.set(attr_error);
-  auto &attr_rooftype_term = poly_output("attributes").add("dak_type", typeid(vec1i));
-  attr_rooftype_term.set(attr_rooftype);
-  auto &attr_elevation_term = poly_output("attributes").add("hoogte_abs", typeid(vec1f));
-  attr_elevation_term.set(attr_elevation);
-  auto &attr_roofid_term = poly_output("attributes").add("dak_id", typeid(vec1i));
-  attr_roofid_term.set(attr_roofid);
-  auto &attr_objectid_term = poly_output("attributes").add("building_id", typeid(vec1i));
-  attr_objectid_term.set(attr_objectid);
-  auto &attr_arr_complexity_term = poly_output("attributes").add("arr_complexity", typeid(vec1i));
-  attr_arr_complexity_term.set(attr_arr_complexity);
 }
 
 inline arr3f v2p(Arrangement_2::Vertex_handle v, float h) {
@@ -508,7 +433,7 @@ void ArrExtruderNode::process(){
   // mesh.create_attribute_field<int>("surface_type");
 
   auto unbounded_face = arr.unbounded_face();
-  unbounded_face->data().elevation_avg=floor_elevation;
+  unbounded_face->data().elevation_70p=floor_elevation;
 
   // floor
   if (do_floor) {
@@ -570,7 +495,7 @@ void ArrExtruderNode::process(){
           auto& plane = f->data().plane;
           h = (plane.a()*CGAL::to_double(p.x()) + plane.b()*CGAL::to_double(p.y()) + plane.d()) / (-plane.c());
         } else {
-          h = f->data().elevation_avg;
+          h = f->data().elevation_70p;
         }
       } else if (f->data().in_footprint) {
         h = nodata_elevation;
@@ -1998,11 +1923,31 @@ void SimplifyPolygonNode::process(){
 
 void ArrDissolveNode::process() {
   auto arr = input("arrangement").get<Arrangement_2>();
+  auto& heightfield = input("heightfield").get<RasterTools::Raster>();
   
-  Face_merge_observer obs(arr);
+  // Face_merge_observer obs(arr);
   if(dissolve_seg_edges)
     arr_dissolve_seg_edges(arr);
   if (dissolve_step_edges) {
+    for (auto face: arr.face_handles()) {
+      if (face->data().in_footprint) {
+        LinearRing polygon;
+        arrangementface_to_polygon(face, polygon);
+
+        auto height_points = heightfield.rasterise_polygon(polygon, true);
+        size_t datasize = height_points.size();
+        auto& plane = face->data().plane;
+        // compute elevations based on the assigned plane on this face
+        for (auto& p : height_points) {
+          p[2] = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+        }
+        std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
+          return p1[2] < p2[2];
+        });
+        int elevation_id = std::floor(0.7*float(datasize-1));
+        face->data().elevation_70p = height_points[elevation_id][2];
+      }
+    }
     arr_dissolve_step_edges(arr, step_height_threshold);
   }
 
@@ -2042,6 +1987,32 @@ void ArrDissolveNode::process() {
   //     arr.remove_edge(he->twin()->previous());
   //   }
   // }
+  // compute data_area and elevation stats for each face
+  for (auto face: arr.face_handles()) {
+    if (face->data().in_footprint) {
+      LinearRing polygon;
+      arrangementface_to_polygon(face, polygon);
+
+      auto height_points = heightfield.rasterise_polygon(polygon, true);
+      size_t datasize = height_points.size(), data_cnt = 0;
+      auto& plane = face->data().plane;
+      // compute elevations based on the assigned plane on this face
+      for (auto& p : height_points) {
+        if(p[2]!=heightfield.noDataVal_) data_cnt++;
+        p[2] = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+      }
+      std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
+        return p1[2] < p2[2];
+      });
+      int elevation_id = std::floor(0.5*float(datasize-1));
+      face->data().elevation_50p = height_points[elevation_id][2];
+      elevation_id = std::floor(0.7*float(datasize-1));
+      face->data().elevation_70p = height_points[elevation_id][2];
+      face->data().elevation_min = height_points[0][2];
+      face->data().elevation_max = height_points[datasize-1][2];
+      face->data().data_coverage = float(data_cnt) / float(datasize);
+    }
+  }
 
   output("arrangement").set(arr);
 }

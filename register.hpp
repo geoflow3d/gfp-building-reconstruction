@@ -8,7 +8,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<Arr2LinearRingsNode>("Arr2LinearRings");
     // node_register.register_node<ExtruderNode>("Extruder");
     node_register.register_node<LinearRingtoRingsNode>("LinearRingtoRings");
-    node_register.register_node<BuildArrFromRingsExactNode>("BuildArrFromRings");
+    // node_register.register_node<BuildArrFromRingsExactNode>("BuildArrFromRings");
     node_register.register_node<BuildArrFromLinesNode>("BuildArrFromLines");
     node_register.register_node<DetectLinesNode>("DetectLines");
     node_register.register_node<DetectPlanesNode>("DetectPlanes");
@@ -32,7 +32,6 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<SegmentRasteriseNode>("SegmentRasterise");
     node_register.register_node<PolygonUnionNode>("PolygonUnion");
     node_register.register_node<Filter25DNode>("Filter25D");
-    // node_register.register_node<VecArr2LinearRingsNode>("VecArr2LinearRings");
     node_register.register_node<ArrExtruderNode>("ArrExtruder");
     node_register.register_node<LOD1ExtruderNode>("LOD1Extruder");
     node_register.register_node<PolygonTriangulatorNode>("PolygonTriangulator");

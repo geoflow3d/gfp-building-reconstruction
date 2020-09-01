@@ -28,15 +28,17 @@ struct FaceInfo {
   bool is_ground=false;
   bool in_footprint=false;
   bool is_footprint_hole=false;
-  float elevation_avg=0;
-  float elevation_min, elevation_max;
+  float elevation_50p=0;
+  float elevation_70p=0;
+  float elevation_min=0, elevation_max=0;
+  float data_coverage=0;
+  int pixel_count=0;
   int segid=0;
-  float segid_coverage;
-  std::vector<Point> points;
   float rms_error_to_avg=0;
-  size_t inlier_count=0;
-  float max_error=0;
+
   Plane plane;
+  std::vector<Point> points;
+
 
   // graph-cut optimisation
   size_t label=0;
@@ -73,7 +75,7 @@ struct overlay_functor {
     } else if (a.segid==0 && b.segid!=0) {
       r = b;
     } else if (a.segid!=0 && b.segid!=0) { // we need to merge 2 faces with a plane
-      if (a.elevation_avg > b.elevation_avg) {
+      if (a.elevation_70p > b.elevation_70p) {
         r=a;
       } else {
         r=b;
@@ -122,7 +124,7 @@ public:
     new_face->data().in_footprint = in_footprint;
     new_face->data().is_finite = true;
     new_face->data().segid = plane_id;
-    new_face->data().elevation_avg = elevation;
+    new_face->data().elevation_70p = elevation;
     new_face->data().plane = plane;
     n_faces++;
   }
@@ -169,23 +171,23 @@ class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
   virtual void before_merge_face (Face_handle remaining_face,
                                  Face_handle discarded_face, Halfedge_handle e )
   {
-    auto count1 = float(remaining_face->data().inlier_count);
-    auto count2 = float(discarded_face->data().inlier_count);
-    auto sum_count = count1+count2;
-    if (sum_count!=0){
-      auto new_elevation = remaining_face->data().elevation_avg * (count1/sum_count) + discarded_face->data().elevation_avg * (count2/sum_count);
-      remaining_face->data().elevation_avg = new_elevation;
-      // and sum the counts
-      remaining_face->data().inlier_count = sum_count;
-    }
+    // auto count1 = float(remaining_face->data().inlier_count);
+    // auto count2 = float(discarded_face->data().inlier_count);
+    // auto sum_count = count1+count2;
+    // if (sum_count!=0){
+    //   auto new_elevation = remaining_face->data().elevation_avg * (count1/sum_count) + discarded_face->data().elevation_avg * (count2/sum_count);
+    //   remaining_face->data().elevation_avg = new_elevation;
+    //   // and sum the counts
+    //   remaining_face->data().inlier_count = sum_count;
+    // }
     // remaining_face->data().elevation_min = std::min(remaining_face->data().elevation_min, discarded_face->data().elevation_min);
     // remaining_face->data().elevation_max = std::max(remaining_face->data().elevation_max, discarded_face->data().elevation_max);
     // merge the point lists
-    if (remaining_face==discarded_face){
-      std::cout << "merging the same face!?\n";
-      return;
-    }
-    remaining_face->data().points.insert(remaining_face->data().points.end(), discarded_face->data().points.begin(), discarded_face->data().points.end() );
+    // if (remaining_face==discarded_face){
+    //   std::cout << "merging the same face!?\n";
+    //   return;
+    // }
+    // remaining_face->data().points.insert(remaining_face->data().points.end(), discarded_face->data().points.begin(), discarded_face->data().points.end() );
   }
 };
 

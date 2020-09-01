@@ -61,7 +61,6 @@ namespace RasterTools {
         // in the polygon first point is *not* repeated as last
         // T should be a vector of arr<float,2> or arr<float,3>
         template<typename T> std::vector<point3d> rasterise_polygon(T& polygon, std::array<double,2> cr_min, std::array<double,2> cr_max, bool returnNoData=true) const {
-
           // code adapted from http://alienryderflex.com/polygon_fill/
           int n_nodes, pixelX, pixelY, i, j, swap ;
           int n_vertices = polygon.size();
@@ -113,12 +112,14 @@ namespace RasterTools {
                   intersect_x[i ]=IMAGE_LEFT ;
                 if (intersect_x[i+1]> IMAGE_RIGHT) 
                   intersect_x[i+1]=IMAGE_RIGHT;
-                for (pixelX=intersect_x[i]; pixelX<intersect_x[i+1]; pixelX++) {
+                for (pixelX=intersect_x[i]; pixelX<=intersect_x[i+1]; pixelX++) {
                   auto p = getPointFromRasterCoords(pixelX,pixelY);
-                  if (returnNoData) {
-                    result.push_back(p); 
-                  } else if(p[2] != noDataVal_) {
-                    result.push_back(p); 
+                  if(p[2] == noDataVal_) {
+                    if (returnNoData) {
+                      result.push_back(p);
+                    }
+                  } else {
+                    result.push_back(p);
                   }
                 }
               }

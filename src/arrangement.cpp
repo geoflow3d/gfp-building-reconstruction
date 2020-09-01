@@ -80,7 +80,7 @@ void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_thresho
         double h2_pl2 = CGAL::to_double((pl2.a()*t.x() + pl2.b()*t.y() + pl2.d()) / (-pl2.c()));
         d = std::max(std::abs(h1_pl1-h1_pl2), std::abs(h2_pl1-h2_pl2));
       } else {
-        d = std::abs(f1->data().elevation_avg - f2->data().elevation_avg);
+        d = std::abs(f1->data().elevation_70p - f2->data().elevation_70p);
       }
       if(d < step_height_threshold){
         // Face_merge_observer takes care of data merge
@@ -152,7 +152,7 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
     }
     FacePair facepair_min;
     for (auto& [faces, edges] : step_boundaries) {
-      double d = std::abs(faces.f_hi->data().elevation_avg - faces.f_lo->data().elevation_avg);
+      double d = std::abs(faces.f_hi->data().elevation_70p - faces.f_lo->data().elevation_70p);
       if (d < d_min) {
         d_min = d;
         facepair_min = faces;
