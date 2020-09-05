@@ -139,31 +139,31 @@ namespace geoflow::nodes::stepedge {
     std::sort(point_errors.begin(), point_errors.end(), [](auto& p1, auto& p2) {
       return p1 < p2;
     });
-    int elevation_id = std::floor(0.1*float(point_errors.size()-1));
-    output("mesh_error_10p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.2*float(point_errors.size()-1));
-    output("mesh_error_20p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.3*float(point_errors.size()-1));
-    output("mesh_error_30p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.4*float(point_errors.size()-1));
-    output("mesh_error_40p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.5*float(point_errors.size()-1));
-    output("mesh_error_50p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.6*float(point_errors.size()-1));
-    output("mesh_error_60p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.7*float(point_errors.size()-1));
-    output("mesh_error_70p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.8*float(point_errors.size()-1));
-    output("mesh_error_80p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.9*float(point_errors.size()-1));
-    output("mesh_error_90p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.95*float(point_errors.size()-1));
-    output("mesh_error_95p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.98*float(point_errors.size()-1));
-    output("mesh_error_98p").set(point_errors[elevation_id]);
-    elevation_id = std::floor(0.99*float(point_errors.size()-1));
-    output("mesh_error_99p").set(point_errors[elevation_id]);
-    output("mesh_error_100p").set(point_errors[point_errors.size()-1]);
+    const std::vector<float> limits = {0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0,std::numeric_limits<float>::max()};
+    std::vector<size_t> counts(limits.size(), 0);
+    for (auto&e : point_errors) {
+      for( size_t i = 0; i<limits.size(); ++i) {
+        if (e<=limits[i]) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    std::stringstream json;
+    json << "{\"upper_limits\":[" << std::fixed << std::setprecision(2);
+    auto sep = "";
+    for (auto& l : limits) {
+      json << sep << l;
+      sep = ",";
+    }
+    json << "],\"counts\":[";
+    sep = "";
+    for (auto& c : counts) {
+      json << sep << c;
+      sep = ",";
+    }
+    json << "]}";
+    output("error_hist").set(json.str());
 
     output("point_errors").set(point_errors);
     output("face_errors").set(face_errors);
