@@ -34,6 +34,7 @@ struct FaceInfo {
   float data_coverage=0;
   int pixel_count=0;
   int segid=0;
+  int part_id=-1;
   float rms_error_to_avg=0;
 
   Plane plane;
@@ -226,3 +227,4 @@ void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_thresho
 void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold);
 void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside);
 void arr_snap_duplicates(Arrangement_2& arr, double dupe_threshold);
+void arr_label_buildingparts(Arrangement_2& arr);

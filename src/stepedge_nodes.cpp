@@ -429,8 +429,7 @@ void ArrExtruderNode::process(){
   auto& faces = vector_output("faces");
   auto& surface_labels = vector_output("labels");
 
-  Mesh mesh;
-  // mesh.create_attribute_field<int>("surface_type");
+  std::unordered_map<int, Mesh> meshmap;
 
   auto unbounded_face = arr.unbounded_face();
   unbounded_face->data().elevation_70p=floor_elevation;
@@ -449,32 +448,40 @@ void ArrExtruderNode::process(){
         he = he->next();
       } while(he!=first);
 
-      // TODO: get the holes!
-      for (auto face: arr.face_handles()) {
-        if (face->data().is_footprint_hole) {
-          vec3f hole;
-          auto he = face->outer_ccb();
-          auto first = he;
-          do {
-            if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
-              hole.push_back(v2p(he->source(), floor_elevation));
-            he = he->next();
-          } while(he!=first);
-          floor.interior_rings().push_back(hole);
-        }
-      }
-
       faces.push_back(floor);
       surface_labels.push_back(int(0));
+
+      // create a mesh
+      Mesh mesh;
       mesh.push_polygon(floor, int(0));
+      meshmap[he->twin()->face()->data().part_id] = mesh;
       // mesh.push_attribute("surface_type", int(0));
     }
+    // get the holes
+    for (auto face: arr.face_handles()) {
+      if (face->data().is_footprint_hole) {
+        vec3f hole;
+        auto he = face->outer_ccb();
+        auto first = he;
+        do {
+          if(CGAL::squared_distance(he->source()->point(), he->target()->point()) > snap_tolerance)
+            hole.push_back(v2p(he->source(), floor_elevation));
+          he = he->next();
+        } while(he!=first);
+
+        // attach hole to appropriate mesh and linear ring
+        auto& floor = meshmap[he->twin()->face()->data().part_id].get_polygons()[0];
+        floor.interior_rings().push_back(hole);
+      }
+    }
   }
+
+
 
   // check for no detected planes (if one face inside fp has none then all have none)
   for (const auto f : arr.face_handles()) {
     if (f->data().in_footprint && f->data().segid==0) {
-      output("mesh").set(mesh);
+      vector_output("mesh").push_back(meshmap[0]);
       return;
     }
   }
@@ -556,8 +563,18 @@ void ArrExtruderNode::process(){
       vec3f v2_other = get_heights(vertex_columns[v2], v2, f_a, f_b, h2a, h2b);
       
       // // set base (ground) elevation to vertices adjacent to a face oustide the building fp
-      if (fp_a && !fp_b) h1b=h2b=floor_elevation;
-      if (!fp_a && fp_b) h1a=h2a=floor_elevation;
+      int part_id;
+      if (fp_a && !fp_b) {
+        h1b=h2b=floor_elevation;
+        part_id = f_a->data().part_id;
+      } else if (!fp_a && fp_b) {
+        h1a=h2a=floor_elevation;
+        part_id = f_b->data().part_id;
+      } else{ // both sides have the same part_id
+        part_id = f_b->data().part_id; 
+      }
+
+      auto& mesh = meshmap[part_id];
 
       int wall_label = 3; //inner wall
       if (!fp_a || !fp_b) wall_label = 2; //outer wall
@@ -720,6 +737,7 @@ void ArrExtruderNode::process(){
       if (face->data().in_footprint) {
         LinearRing roofpart;
         auto he = face->outer_ccb();
+        
         push_ccb(roofpart, he, vertex_columns, extra_wall_points, snap_tolerance);
 
         for(Arrangement_2::Hole_iterator hole = face->holes_begin(); hole != face->holes_end(); ++hole ) {
@@ -734,7 +752,7 @@ void ArrExtruderNode::process(){
         if (roofpart.size()>2) {
           faces.push_back(roofpart);
           surface_labels.push_back(int(1));
-          mesh.push_polygon(roofpart, int(1));
+          meshmap[face->data().part_id].push_polygon(roofpart, int(1));
           // mesh.push_attribute("surface_type", int(1));
         }
 
@@ -743,7 +761,9 @@ void ArrExtruderNode::process(){
 
   }
 
-  output("mesh").set(mesh);
+  for (size_t i=0; i< meshmap.size(); ++i) {
+    vector_output("mesh").push_back(meshmap[i]);
+  }
   
 }
 
@@ -1969,11 +1989,25 @@ void ArrDissolveNode::process() {
       arr.remove_edge(he);
     }
   }
+
+  // store ground parts
+  auto& groundparts = vector_output("groundparts");
+  for (auto fh : arr.face_handles()) {
+    if(fh->data().is_ground) {
+      LinearRing polygon;
+      arrangementface_to_polygon(fh, polygon);
+      groundparts.push_back(polygon);
+    }
+  }
+
   // remove all lines not inside footprint
   if (dissolve_outside_fp) {
     arr_dissolve_fp(arr, false, true);
   }
 
+  // label different building parts
+  arr_label_buildingparts(arr);
+  
   // ensure all holes are marked as such
   auto f_unb = arr.unbounded_face();
   for (auto fh : arr.face_handles()) {

@@ -13,6 +13,9 @@ namespace geoflow::nodes::stepedge {
 
   typedef std::unordered_map<int, std::pair<Plane, std::vector<Point>>> IndexedPlanesWithPoints;
 
+  typedef std::vector<Mesh> MultiMesh;
+  typedef std::vector<TriangleCollection> MultiTriangleCollection;
+
   class AlphaShapeNode:public Node {
     float thres_alpha = 0.25;
     bool extract_polygons = false;
@@ -167,7 +170,7 @@ namespace geoflow::nodes::stepedge {
       // add_output("normals_vec3f", typeid(vec3f), true);
       add_vector_output("labels", typeid(int)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_vector_output("faces", typeid(LinearRing));
-      add_output("mesh", typeid(Mesh));
+      add_vector_output("mesh", typeid(Mesh));
 
       add_param(ParamBool(do_walls, "do_walls", "Do walls"));
       add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
@@ -405,6 +408,7 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_output("arrangement", typeid(Arrangement_2));
+      add_vector_output("groundparts", typeid(LinearRing));
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
@@ -889,18 +893,21 @@ namespace geoflow::nodes::stepedge {
   class PolygonTriangulatorNode:public Node {
     int dupe_threshold_exp = 6;
     bool output_all_triangles = false;
+
+    void triangulate_polygon(LinearRing& ring, vec3f& normals, TriangleCollection& triangles);
     public:
     using Node::Node;
     void init() {
-      add_vector_input("polygons", typeid(LinearRing));
-      add_vector_output("dupe_rings", typeid(LinearRing));
+      add_vector_input("polygons", {typeid(LinearRing), typeid(Mesh)});
+      // add_vector_output("dupe_rings", typeid(LinearRing));
       add_output("triangles", typeid(TriangleCollection));
+      add_output("multi_triangle_collections", typeid(MultiTriangleCollection));
       add_output("normals", typeid(vec3f));
-      add_output("ring_ids", typeid(vec1i));
-      add_output("nesting_levels", typeid(vec1i));
+      // add_output("ring_ids", typeid(vec1i));
+      // add_output("nesting_levels", typeid(vec1i));
 
-      add_output("edges", typeid(SegmentCollection));
-      add_output("edges_constr", typeid(vec1i));
+      // add_output("edges", typeid(SegmentCollection));
+      // add_output("edges_constr", typeid(vec1i));
 
       add_param(ParamBool(output_all_triangles, "output_all_triangles",  "Also output triangles in holes and outside convex hull."));
       add_param(ParamInt(dupe_threshold_exp, "dupe_threshold_exp", "Dupe tolerance exponent"));
@@ -927,9 +934,9 @@ namespace geoflow::nodes::stepedge {
     }
     void init() {
       add_input("selectAB", typeid(bool));
-      add_vector_input("faces_A", typeid(LinearRing));
-      add_vector_input("faces_B", typeid(LinearRing));
-      add_vector_output("faces", typeid(LinearRing));
+      add_vector_input("faces_A", typeid(Mesh));
+      add_vector_input("faces_B", typeid(Mesh));
+      add_vector_output("faces", typeid(Mesh));
     }
     void process() {
       auto selectAB = input("selectAB").get<bool>();

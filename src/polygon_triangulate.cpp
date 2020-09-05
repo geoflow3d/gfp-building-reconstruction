@@ -186,103 +186,112 @@ bool has_duplicates(LinearRing& poly, float& dupe_threshold) {
   return false;
 }
 
+
+void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& normals, TriangleCollection& triangles) {
+  if (poly.size() < 3)
+    return;
+
+  float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
+  if (has_duplicates(poly, dupe_threshold)) {
+    std::cout << "skipping ring with duplicates\n";
+    // dupe_rings.push_back(poly);
+    return;
+  }
+  auto normal = calculate_normal(poly);
+  if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){
+    std::cout << "degenerate normal: " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
+    return;
+  }
+  auto& p0 = poly[0];
+  Plane_3 plane(K::Point_3(p0[0], p0[1], p0[2]), K::Vector_3(normal.x, normal.y, normal.z));
+  
+  // project and triangulate
+  CDT triangulation;
+  // Polygon_2 poly_2d = project(poly, plane);
+  // if(CGAL::abs(poly_2d.area())<1E-4) {
+  //   return;
+  // }
+  project_and_insert(poly, plane, triangulation);
+  // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
+  for (auto& ring : poly.interior_rings()) {
+    project_and_insert(ring, plane, triangulation);
+    // poly_2d = project(poly, plane);
+    // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
+  }
+
+  if (triangulation.number_of_faces()==0)
+    return;
+
+  mark_domains(triangulation);
+
+  // for (auto& e : triangulation.finite_edges()) {
+  //   auto source = e.first->vertex(triangulation.cw(e.second))->info().point;
+  //   auto target = e.first->vertex(triangulation.ccw(e.second))->info().point;
+    // edges.push_back({
+    //   arr3f{source},
+    //   arr3f{target}
+    // });
+    // bool constr = triangulation.is_constrained(e);
+    // edges_constr.push_back(constr);
+    // edges_constr.push_back(constr);
+  // }
+
+  for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
+  fit != triangulation.finite_faces_end(); ++fit) {
+
+    if (!output_all_triangles && !fit->info().in_domain()) continue;
+
+    Triangle triangle;
+    triangle = {
+      fit->vertex(0)->info().point, 
+      fit->vertex(1)->info().point, 
+      fit->vertex(2)->info().point
+    };
+    for (size_t j = 0; j < 3; ++j)
+    {
+      normals.push_back({normal.x, normal.y, normal.z});
+      // values_out.push_back(values_in[vi]);
+      // ring_ids.push_back(ri);
+      // nesting_levels.push_back(fit->info().nesting_level);
+    }
+    triangles.push_back(triangle);
+  }
+}
+
 void PolygonTriangulatorNode::process()
 {
   auto &rings = vector_input("polygons");
   // const auto &values_in = input("valuesf").get<vec1f>();
   typedef uint32_t N;
 
-  float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
-
   TriangleCollection triangles;
+  MultiTriangleCollection multitrianglecols;
   vec3f normals;
-  vec1f values_out;
-  vec1i ring_ids;
-  vec1i nesting_levels;
-  SegmentCollection edges;
-  vec1i edges_constr;
-  size_t vi = 0;
+  // vec1f values_out;
+  // vec1i ring_ids;
+  // vec1i nesting_levels;
+  // SegmentCollection edges;
+  // vec1i edges_constr;
+  // size_t vi = 0;
   auto& dupe_rings = vector_output("dupe_rings");
   for (size_t ri = 0; ri < rings.size(); ++ri)
   {
     auto poly_3d = rings.get<LinearRing>(ri);
-    if (poly_3d.size() < 3)
-      continue;
-
-    if (has_duplicates(poly_3d, dupe_threshold)) {
-      std::cout << "skipping ring with duplicates\n";
-      dupe_rings.push_back(poly_3d);
-      continue;
-    }
-    auto normal = calculate_normal(poly_3d);
-    if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){
-      std::cout << "degenerate normal: " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
-      continue;
-    }
-    auto& p0 = poly_3d[0];
-    Plane_3 plane(K::Point_3(p0[0], p0[1], p0[2]), K::Vector_3(normal.x, normal.y, normal.z));
-    
-    // project and triangulate
-    CDT triangulation;
-    // Polygon_2 poly_2d = project(poly_3d, plane);
-    // if(CGAL::abs(poly_2d.area())<1E-4) {
-    //   continue;
-    // }
-    project_and_insert(poly_3d, plane, triangulation);
-    // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
-    for (auto& ring : poly_3d.interior_rings()) {
-      project_and_insert(ring, plane, triangulation);
-      // poly_2d = project(poly_3d, plane);
-      // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
-    }
-
-    if (triangulation.number_of_faces()==0)
-      continue;
-
-    mark_domains(triangulation);
-
-    for (auto& e : triangulation.finite_edges()) {
-      auto source = e.first->vertex(triangulation.cw(e.second))->info().point;
-      auto target = e.first->vertex(triangulation.ccw(e.second))->info().point;
-      edges.push_back({
-        arr3f{source},
-        arr3f{target}
-      });
-      bool constr = triangulation.is_constrained(e);
-      edges_constr.push_back(constr);
-      edges_constr.push_back(constr);
-    }
-
-    for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
-    fit != triangulation.finite_faces_end(); ++fit) {
-
-      if (!output_all_triangles && !fit->info().in_domain()) continue;
-
-      Triangle triangle;
-      triangle = {
-        fit->vertex(0)->info().point, 
-        fit->vertex(1)->info().point, 
-        fit->vertex(2)->info().point
-      };
-      for (size_t j = 0; j < 3; ++j)
-      {
-        normals.push_back({normal.x, normal.y, normal.z});
-        // values_out.push_back(values_in[vi]);
-        ring_ids.push_back(ri);
-        nesting_levels.push_back(fit->info().nesting_level);
-      }
-      triangles.push_back(triangle);
-    }
-    vi++;
+    TriangleCollection tc;
+    triangulate_polygon(poly_3d, normals, tc);
+    triangles.insert(triangles.end(), tc.begin(), tc.end());
+    multitrianglecols.push_back(tc);
+    // vi++;
   }
 
   // set outputs
   output("triangles").set(triangles);
+  output("multi_triangle_collections").set(multitrianglecols);
   output("normals").set(normals);
-  output("ring_ids").set(ring_ids);
-  output("nesting_levels").set(nesting_levels);
-  output("edges").set(edges);
-  output("edges_constr").set(edges_constr);
+  // output("ring_ids").set(ring_ids);
+  // output("nesting_levels").set(nesting_levels);
+  // output("edges").set(edges);
+  // output("edges_constr").set(edges_constr);
   // output("valuesf").set(values_out);
 }
 

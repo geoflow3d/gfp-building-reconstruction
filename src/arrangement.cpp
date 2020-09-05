@@ -274,3 +274,41 @@ Polygon_2 arr_cell2polygon(const Face_handle& fh) {
   } while (he!=first);
   return poly;
 }
+
+void arr_label_buildingparts(Arrangement_2& arr) {
+  auto f_unb = arr.unbounded_face();
+  std::stack<Face_handle> seeds;
+
+  for (auto& fh : arr.face_handles()) {
+    if(fh->data().in_footprint) seeds.push(fh);
+  }
+
+  int part_counter = 0;
+  while (seeds.size()) {
+    auto f_seed = seeds.top(); seeds.pop();
+    if (f_seed->data().part_id == -1) {
+      f_seed->data().part_id = part_counter;
+      std::stack<Face_handle> candidates;
+      candidates.push(f_seed);
+
+      while(candidates.size()) {
+        auto f_cand = seeds.top(); seeds.pop();
+        auto he = f_cand->outer_ccb();
+        auto first = he;
+
+        // collect neighbouring faces
+        while(true){
+          auto f_cand_new = he->twin()->face();
+          if (f_cand_new->data().in_footprint && f_cand_new->data().part_id == -1) {
+            f_cand_new->data().part_id = part_counter;
+            candidates.push(f_cand_new);
+          }
+
+          he = he->next();
+          if (he==first) break;
+        }
+      }
+    }
+    ++part_counter;
+  }
+}
