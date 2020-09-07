@@ -187,7 +187,7 @@ bool has_duplicates(LinearRing& poly, float& dupe_threshold) {
 }
 
 
-void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& normals, TriangleCollection& triangles) {
+void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids) {
   if (poly.size() < 3)
     return;
 
@@ -251,7 +251,7 @@ void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& norma
     {
       normals.push_back({normal.x, normal.y, normal.z});
       // values_out.push_back(values_in[vi]);
-      // ring_ids.push_back(ri);
+      ring_ids.push_back(ring_id);
       // nesting_levels.push_back(fit->info().nesting_level);
     }
     triangles.push_back(triangle);
@@ -268,27 +268,40 @@ void PolygonTriangulatorNode::process()
   MultiTriangleCollection multitrianglecols;
   vec3f normals;
   // vec1f values_out;
-  // vec1i ring_ids;
+  vec1i ring_ids;
   // vec1i nesting_levels;
   // SegmentCollection edges;
   // vec1i edges_constr;
   // size_t vi = 0;
-  auto& dupe_rings = vector_output("dupe_rings");
-  for (size_t ri = 0; ri < rings.size(); ++ri)
-  {
-    auto poly_3d = rings.get<LinearRing>(ri);
-    TriangleCollection tc;
-    triangulate_polygon(poly_3d, normals, tc);
-    triangles.insert(triangles.end(), tc.begin(), tc.end());
-    multitrianglecols.push_back(tc);
-    // vi++;
+  // auto& dupe_rings = vector_output("dupe_rings");
+  if (rings.is_connected_type(typeid(LinearRing))) {
+    for (size_t ri = 0; ri < rings.size(); ++ri)
+    {
+      auto poly_3d = rings.get<LinearRing>(ri);
+      TriangleCollection tc;
+      triangulate_polygon(poly_3d, normals, tc, ri, ring_ids);
+      triangles.insert(triangles.end(), tc.begin(), tc.end());
+    }
+    multitrianglecols.push_back(triangles);
+  } else if (rings.is_connected_type(typeid(Mesh))) {
+    for (size_t mi = 0; mi < rings.size(); ++mi) {
+      auto mesh = rings.get<Mesh>(mi);
+      TriangleCollection mesh_triangles;
+      for (size_t ri = 0; ri<mesh.get_polygons().size(); ++ri) {
+        TriangleCollection tc;
+        triangulate_polygon(mesh.get_polygons()[ri], normals, tc, ri, ring_ids);
+        triangles.insert(triangles.end(), tc.begin(), tc.end());
+        mesh_triangles.insert(mesh_triangles.end(), tc.begin(), tc.end());
+      }
+      multitrianglecols.push_back(mesh_triangles);
+    }
   }
 
   // set outputs
   output("triangles").set(triangles);
   output("multi_triangle_collections").set(multitrianglecols);
   output("normals").set(normals);
-  // output("ring_ids").set(ring_ids);
+  output("ring_ids").set(ring_ids);
   // output("nesting_levels").set(nesting_levels);
   // output("edges").set(edges);
   // output("edges_constr").set(edges_constr);

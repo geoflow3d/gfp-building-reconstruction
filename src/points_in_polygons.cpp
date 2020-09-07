@@ -43,13 +43,13 @@ class PointsInPolygonsCollector  {
   // std::vector<std::vector<float>> point_clouds_ground;
   RasterTools::Raster pindex;
   std::vector<std::vector<size_t>> pindex_vals;
-  std::vector<pGridSet> poly_grids;
+  std::vector<pGridSet> poly_grids, buf_poly_grids;
   
   public:
   Box completearea_bb;
   float min_ground_elevation = std::numeric_limits<float>::max();
 
-  PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
+  PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureInputTerminal& buf_polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
   : polygons(polygons), point_clouds(point_clouds), ground_point_clouds(ground_point_clouds), ground_elevations(ground_elevations) {
     // point_clouds_ground.resize(polygons.size());
     point_clouds.resize<PointCollection>(polygons.size());
@@ -59,8 +59,10 @@ class PointsInPolygonsCollector  {
     // build point in polygon grids
     for (size_t i=0; i<polygons.size(); ++i) {
       auto ring = polygons.get<LinearRing>(i);
+      auto buf_ring = buf_polygons.get<LinearRing>(i);
       poly_grids.push_back(build_grid(ring));
-      completearea_bb.add(ring.box());
+      buf_poly_grids.push_back(build_grid(buf_ring));
+      completearea_bb.add(buf_ring.box());
     }
 
     // build an index grid for the polygons
@@ -74,8 +76,8 @@ class PointsInPolygonsCollector  {
     pindex_vals.resize(pindex.dimx_*pindex.dimy_);
 
     // populate pindex_vals
-    for (size_t i=0; i<polygons.size(); ++i) {
-      auto ring = polygons.get<LinearRing>(i);
+    for (size_t i=0; i<buf_polygons.size(); ++i) {
+      auto ring = buf_polygons.get<LinearRing>(i);
       auto& b = ring.box();
       size_t r_min = pindex.getRow(b.min()[0], b.min()[1]);
       size_t c_min = pindex.getCol(b.min()[0], b.min()[1]);
@@ -97,6 +99,7 @@ class PointsInPolygonsCollector  {
   ~PointsInPolygonsCollector() {
     for (int i=0; i<poly_grids.size(); i++) {
       delete poly_grids[i];
+      delete buf_poly_grids[i];
     }
   }
 
@@ -122,13 +125,15 @@ class PointsInPolygonsCollector  {
     //    grid cell.
     pPipoint pipoint = new Pipoint{point[0],point[1]};
     for(size_t& poly_i : pindex_vals[lincoord]) {
-      if (GridTest(poly_grids[poly_i], pipoint)) {
+      if (GridTest(buf_poly_grids[poly_i], pipoint)) {
         if (point_class == 2) {
           // point_clouds_ground[poly_i].push_back(point[2]);
           min_ground_elevation = std::min(min_ground_elevation, point[2]);
           ground_point_clouds.get<PointCollection&>(poly_i).push_back(point);
         } else if (point_class == 6) {
-          point_clouds.get<PointCollection&>(poly_i).push_back(point);
+          if (GridTest(poly_grids[poly_i], pipoint)) {
+            point_clouds.get<PointCollection&>(poly_i).push_back(point);
+          }
         }
       }
     }
@@ -171,12 +176,13 @@ std::vector<std::string> split_string(const std::string& s, std::string delimite
 
 void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
+  auto& buf_polygons = vector_input("buf_polygons");
 
   auto& point_clouds = vector_output("point_clouds");
   auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
+  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
 
   for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
   {
@@ -209,13 +215,14 @@ void EptInPolygonsNode::process()
 {
   // Prepare inputs
   auto& polygons = vector_input("polygons");
+  auto& buf_polygons = vector_input("buf_polygons");
 
   // Prepare outputs
   auto& point_clouds = vector_output("point_clouds");
   auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
+  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
 
   std::string ept_path = "ept://" + manager.substitute_globals(dirpath);
   try {

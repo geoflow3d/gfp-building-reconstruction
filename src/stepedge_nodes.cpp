@@ -260,6 +260,8 @@ void Arr2LinearRingsNode::process() {
   input_attr_map["data_coverage"] = &attr_datacov_term;
   auto &attr_ground_term = poly_output("attributes").add_vector("is_ground", typeid(bool));
   input_attr_map["is_ground"] = &attr_ground_term;
+  auto &part_id_term = poly_output("attributes").add_vector("part_id", typeid(int));
+  input_attr_map["part_id"] = &part_id_term;
   
 
 
@@ -279,53 +281,77 @@ void Arr2LinearRingsNode::process() {
     input_attr_map["roof_elevation_max"]->push_back_any(std::any());
     input_attr_map["data_coverage"]->push_back_any(std::any());
     input_attr_map["is_ground"]->push_back_any(std::any());
+    input_attr_map["part_id"]->push_back_any(std::any());
     linear_rings.push_back_any(std::any());
     return;
-  }
+  } else {
 
-  auto arr = input("arrangement").get<Arrangement_2>();
+    auto arr = input("arrangement").get<Arrangement_2>();
 
-  // int j=0;
-  auto& plane_a = vector_output("plane_a");
-  auto& plane_b = vector_output("plane_b");
-  auto& plane_c = vector_output("plane_c");
-  auto& plane_d = vector_output("plane_d");
-  for (auto face: arr.face_handles()) {
-    bool skip_face = false;
-    // if (only_in_footprint && !face->data().in_footprint) continue;
-    if (output_groundparts && face->data().is_ground)
-      skip_face = false;
-    else 
-      skip_face = !face->data().in_footprint;
-    skip_face = skip_face || (face->is_fictitious() || face->is_unbounded());
+    // int j=0;
+    // auto& plane_a = vector_output("plane_a");
+    // auto& plane_b = vector_output("plane_b");
+    // auto& plane_c = vector_output("plane_c");
+    // auto& plane_d = vector_output("plane_d");
+    for (auto face: arr.face_handles()) {
+      bool skip_face = false;
+      // if (only_in_footprint && !face->data().in_footprint) continue;
+      if (output_groundparts && face->data().is_ground)
+        skip_face = false;
+      else 
+        skip_face = !face->data().in_footprint;
+      skip_face = skip_face || (face->is_fictitious() || face->is_unbounded());
 
-    if (!skip_face) {
-      LinearRing polygon;
-      arrangementface_to_polygon(face, polygon);
-      linear_rings.push_back(polygon);
+      if (!skip_face) {
+        LinearRing polygon;
+        arrangementface_to_polygon(face, polygon);
+        linear_rings.push_back(polygon);
+        
+        // plane paramters
+        // plane_a.push_back(float(CGAL::to_double(face->data().plane.a())));
+        // plane_b.push_back(float(CGAL::to_double(face->data().plane.b())));
+        // plane_c.push_back(float(CGAL::to_double(face->data().plane.c())));
+        // plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
+
+        // attributes specific to each roofpart
+        input_attr_map["roof_elevation_50p"]->push_back((float)face->data().elevation_50p);
+        input_attr_map["roof_elevation_70p"]->push_back((float)face->data().elevation_70p);
+        input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
+        input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
+        input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
+        input_attr_map["part_id"]->push_back((int)face->data().part_id);
+        input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
+        
+        // input_attr_map["dak_id"]->push_back((int)++j);
+        // input_attr_map["building_id"]->push_back(int(i+1));
+
+        //attributes not specific to roofpart
+        // input_attr_map["rmse"]->push_back((float)mesh_error);
+        // input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
+        // input_attr_map["dak_type"]->push_back((int)roof_type);
+        // input_attr_map["arr_complexity"]->push_back(arr_complexity);
+        for (auto &iterm : poly_input("attributes").sub_terminals()) {
+          if (iterm->has_data()) {
+            input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
+          } else {
+            input_attr_map[iterm->get_name()]->push_back_any(std::any());
+          }
+        }
+      }
+    }
+    auto& groundparts = vector_input("groundparts");
+    for(size_t i=0; i<groundparts.size(); ++i) {
+      auto lr = groundparts.get<LinearRing>(i);
+      linear_rings.push_back(lr);
+
+      input_attr_map["roof_elevation_50p"]->push_back_any(std::any());
+      input_attr_map["roof_elevation_70p"]->push_back_any(std::any());
+      input_attr_map["roof_elevation_min"]->push_back_any(std::any());
+      input_attr_map["roof_elevation_max"]->push_back_any(std::any());
+      input_attr_map["data_coverage"]->push_back_any(std::any());
+      input_attr_map["part_id"]->push_back_any(std::any());
+      input_attr_map["is_ground"]->push_back(true);
       
-      // plane paramters
-      plane_a.push_back(float(CGAL::to_double(face->data().plane.a())));
-      plane_b.push_back(float(CGAL::to_double(face->data().plane.b())));
-      plane_c.push_back(float(CGAL::to_double(face->data().plane.c())));
-      plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
-
-      // attributes specific to each roofpart
-      input_attr_map["roof_elevation_50p"]->push_back((float)face->data().elevation_50p);
-      input_attr_map["roof_elevation_70p"]->push_back((float)face->data().elevation_70p);
-      input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
-      input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
-      input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
-      input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
-      
-      // input_attr_map["dak_id"]->push_back((int)++j);
-      // input_attr_map["building_id"]->push_back(int(i+1));
-
-      //attributes not specific to roofpart
-      // input_attr_map["rmse"]->push_back((float)mesh_error);
-      // input_attr_map["maaiveld_h"]->push_back((float)floor_elevation);
-      // input_attr_map["dak_type"]->push_back((int)roof_type);
-      // input_attr_map["arr_complexity"]->push_back(arr_complexity);
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
         if (iterm->has_data()) {
           input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
@@ -1987,16 +2013,6 @@ void ArrDissolveNode::process() {
     }
     for (auto he : to_remove) {
       arr.remove_edge(he);
-    }
-  }
-
-  // store ground parts
-  auto& groundparts = vector_output("groundparts");
-  for (auto fh : arr.face_handles()) {
-    if(fh->data().is_ground) {
-      LinearRing polygon;
-      arrangementface_to_polygon(fh, polygon);
-      groundparts.push_back(polygon);
     }
   }
 

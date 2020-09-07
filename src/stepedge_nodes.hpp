@@ -124,6 +124,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("arrangement", typeid(Arrangement_2));
+      add_vector_input("groundparts", typeid(LinearRing));
       // add_vector_input("floor_elevation", typeid(float));
       // add_vector_input("mesh_error", typeid(float));
       // add_vector_input("roof_type", typeid(int));
@@ -131,10 +132,10 @@ namespace geoflow::nodes::stepedge {
       add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
-      add_vector_output("plane_a", typeid(float));
-      add_vector_output("plane_b", typeid(float));
-      add_vector_output("plane_c", typeid(float));
-      add_vector_output("plane_d", typeid(float));
+      // add_vector_output("plane_a", typeid(float));
+      // add_vector_output("plane_b", typeid(float));
+      // add_vector_output("plane_c", typeid(float));
+      // add_vector_output("plane_d", typeid(float));
 
       add_param(ParamBool(output_groundparts, "output_groundparts", "Also output the ground parts"));
     }
@@ -149,7 +150,7 @@ namespace geoflow::nodes::stepedge {
         }
       }
       invalid_rooftype = false;
-      return Node::inputs_valid();
+      return vector_input("arrangement").has_data() && poly_input("attributes").has_data();
     }
     void process();
   };
@@ -346,6 +347,7 @@ namespace geoflow::nodes::stepedge {
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_input("ground_pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
+      add_vector_output("groundparts", typeid(LinearRing));
 
       add_param(ParamBoundedInt(graph_cut_impl, 0, 2, "graph_cut_impl", "Graph cut implementation"));
       add_param(ParamBoundedInt(n_iterations, 0, 100, "n_iterations", "Number of iterations"));
@@ -408,7 +410,6 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_output("arrangement", typeid(Arrangement_2));
-      add_vector_output("groundparts", typeid(LinearRing));
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
@@ -565,6 +566,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
+      add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
@@ -588,6 +590,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_vector_input("polygons", typeid(LinearRing));
+      add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
@@ -882,7 +885,7 @@ namespace geoflow::nodes::stepedge {
     int dupe_threshold_exp = 6;
     bool output_all_triangles = false;
 
-    void triangulate_polygon(LinearRing& ring, vec3f& normals, TriangleCollection& triangles);
+    void triangulate_polygon(LinearRing& ring, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids);
     public:
     using Node::Node;
     void init() {
@@ -891,7 +894,7 @@ namespace geoflow::nodes::stepedge {
       add_output("triangles", typeid(TriangleCollection));
       add_output("multi_triangle_collections", typeid(MultiTriangleCollection));
       add_output("normals", typeid(vec3f));
-      // add_output("ring_ids", typeid(vec1i));
+      add_output("ring_ids", typeid(vec1i));
       // add_output("nesting_levels", typeid(vec1i));
 
       // add_output("edges", typeid(SegmentCollection));

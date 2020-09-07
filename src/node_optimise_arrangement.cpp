@@ -302,6 +302,10 @@ void OptimiseArrangmentGridNode::process() {
     );
   }
 
+  // store ground parts
+  auto& groundparts = vector_output("groundparts");
+  groundparts.touch();
+
   //  assign planes from label map to arrangement faces
   for (auto& face : faces) {
     size_t i = face->data().label;
@@ -311,6 +315,9 @@ void OptimiseArrangmentGridNode::process() {
     if(i>=roofplane_cnt && label_ground_outside_fp) {
       face->data().in_footprint = false;
       face->data().is_ground = true;
+      LinearRing polygon;
+      arrangementface_to_polygon(face, polygon);
+      groundparts.push_back(polygon);
     }
   }
 

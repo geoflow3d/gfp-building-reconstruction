@@ -292,7 +292,7 @@ void arr_label_buildingparts(Arrangement_2& arr) {
       candidates.push(f_seed);
 
       while(candidates.size()) {
-        auto f_cand = seeds.top(); seeds.pop();
+        auto f_cand = candidates.top(); candidates.pop();
         auto he = f_cand->outer_ccb();
         auto first = he;
 
@@ -307,8 +307,16 @@ void arr_label_buildingparts(Arrangement_2& arr) {
           he = he->next();
           if (he==first) break;
         }
+        // also look at holes
+        for (auto ccb = f_cand->inner_ccbs_begin(); ccb != f_cand->inner_ccbs_end(); ++ccb) {
+          auto f_cand_new = (*ccb)->twin()->face();
+          if (f_cand_new->data().in_footprint && f_cand_new->data().part_id == -1) {
+            f_cand_new->data().part_id = part_counter;
+            candidates.push(f_cand_new);
+          }
+        }
       }
+      ++part_counter;
     }
-    ++part_counter;
   }
 }
