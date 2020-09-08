@@ -152,7 +152,7 @@ void arr_dissolve_step_edges(Arrangement_2& arr, float step_height_threshold)
     }
     FacePair facepair_min;
     for (auto& [faces, edges] : step_boundaries) {
-      double d = std::abs(faces.f_hi->data().elevation_70p - faces.f_lo->data().elevation_70p);
+      double d = std::abs(faces.f_hi->data().elevation_50p - faces.f_lo->data().elevation_50p);
       if (d < d_min) {
         d_min = d;
         facepair_min = faces;
@@ -309,10 +309,19 @@ void arr_label_buildingparts(Arrangement_2& arr) {
         }
         // also look at holes
         for (auto ccb = f_cand->inner_ccbs_begin(); ccb != f_cand->inner_ccbs_end(); ++ccb) {
-          auto f_cand_new = (*ccb)->twin()->face();
-          if (f_cand_new->data().in_footprint && f_cand_new->data().part_id == -1) {
-            f_cand_new->data().part_id = part_counter;
-            candidates.push(f_cand_new);
+          auto he = (*ccb);
+          auto first = he;
+
+          // walk along entire hole ccb
+          while(true){
+            auto f_cand_new = he->twin()->face();
+            if (f_cand_new->data().in_footprint && f_cand_new->data().part_id == -1) {
+              f_cand_new->data().part_id = part_counter;
+              candidates.push(f_cand_new);
+            }
+
+            he = he->next();
+            if (he==first) break;
           }
         }
       }

@@ -800,6 +800,7 @@ namespace geoflow::nodes::stepedge {
     float cellsize = 0.05;
     float thres_alpha = 0.25;
     bool use_ground = false;
+    int megapixel_limit = 600;
     public:
     using Node::Node;
     void init() {
@@ -818,6 +819,8 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
       add_param(ParamBool(use_ground, "use_ground",  "Rasterise the ground_triangles input"));
+      add_param(ParamInt(megapixel_limit, "megapixel_limit", "Max size of raster in megalpixels. If exceeded cellsize is increased."));
+
     }
     bool inputs_valid() override {
       for (auto& [name,iT] : input_terminals) {

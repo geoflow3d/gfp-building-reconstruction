@@ -228,6 +228,14 @@ namespace geoflow::nodes::stepedge {
     }
     auto boxmin = box.min();
     auto boxmax = box.max();
+    auto pixel_limit = megapixel_limit * 1E6;
+    while(true) {
+      auto dimx = (boxmax[0]-boxmin[0])/cellsize + 1;
+      auto dimy = (boxmax[1]-boxmin[1])/cellsize + 1;
+      if(dimx*dimy > pixel_limit) {
+        cellsize*=2;
+      } else break;
+    }
     r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);
     r.prefill_arrays(RasterTools::MAX);
 
