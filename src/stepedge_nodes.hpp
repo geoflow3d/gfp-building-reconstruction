@@ -515,7 +515,7 @@ namespace geoflow::nodes::stepedge {
     float metrics_is_horizontal_threshold = 0.97;
     float metrics_is_wall_threshold = 0.3;
     int n_refit = 5;
-    float roof_percentile=0.5;
+    // float roof_percentile=0.5;
     public:
     using Node::Node;
     void init() {
@@ -530,7 +530,10 @@ namespace geoflow::nodes::stepedge {
       add_output("wall_pt_cnt", typeid(int));
       add_output("unsegmented_pt_cnt", typeid(int));
       add_output("roof_type", typeid(int));
-      add_output("roof_elevation", typeid(float));
+      add_output("roof_elevation_70p", typeid(float));
+      add_output("roof_elevation_50p", typeid(float));
+      add_output("roof_elevation_min", typeid(float));
+      add_output("roof_elevation_max", typeid(float));
       add_output("horiz_roofplane_cnt", typeid(float));
       add_output("slant_roofplane_cnt", typeid(float));
       add_output("total_roofplane_cnt", typeid(int));
@@ -546,7 +549,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Threshold for horizontal plane detection (expressed as angle wrt unit verctor in +z direction)"));
       add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
       add_param(ParamInt(n_refit, "n_refit", "Refit every n points"));
-      add_param(ParamBoundedFloat(roof_percentile, 0, 1, "roof_percentile",  "Roof elevation percentile"));
+      // add_param(ParamBoundedFloat(roof_percentile, 0, 1, "roof_percentile",  "Roof elevation percentile"));
     }
     // void before_gui(){
     //   auto param_count = std::get<ParamFloat>(parameters.at("horiz_min_count"));
@@ -1036,6 +1039,22 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamPath(filepath_, "filepath",  "filepath"));   
     }
     void process();
+  };
+
+  class DataCoverageDummyNode:public Node {
+    public:
+    using Node::Node;
+
+    void init() {
+      add_output("data_coverage", typeid(float));
+      add_output("is_ground", typeid(bool));
+      add_output("part_id", typeid(int));
+    }
+    void process() {
+      output("data_coverage").set_from_any(std::any());
+      output("is_ground").set(bool(false));
+      output("part_id").set(int(0));
+    }
   };
 
 }

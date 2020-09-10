@@ -1473,8 +1473,17 @@ void DetectPlanesNode::process() {
     roof_type=2;
   }
 
-  if(roof_elevations.size())  output("roof_elevation").set(compute_percentile(roof_elevations, roof_percentile));
-  else                        output("roof_elevation").set_from_any(std::any());
+  if (roof_elevations.size()) {
+    output("roof_elevation_70p").set(compute_percentile(roof_elevations, 0.7));
+    output("roof_elevation_50p").set(compute_percentile(roof_elevations, 0.5));
+    output("roof_elevation_min").set(compute_percentile(roof_elevations, 0.0));
+    output("roof_elevation_max").set(compute_percentile(roof_elevations, 1.0));
+  } else {
+    output("roof_elevation_70p").set_from_any(std::any());
+    output("roof_elevation_50p").set_from_any(std::any());
+    output("roof_elevation_min").set_from_any(std::any());
+    output("roof_elevation_max").set_from_any(std::any());
+  }
 
   output("roof_type").set(roof_type);
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
