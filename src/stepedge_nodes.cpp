@@ -266,25 +266,25 @@ void Arr2LinearRingsNode::process() {
 
 
   // in case we get an invalid roof_type (-1 or -2) push the available attribute and an empty ring
-  if(invalid_rooftype) {
-    for (auto &iterm : attributes_in.sub_terminals()) {
-      // if (iterm->get_name()=="roof_type")
-      if (iterm->has_data()) {
-        input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
-      } else {
-        input_attr_map[iterm->get_name()]->push_back_any(std::any());
-      }
-    }
-    input_attr_map["roof_elevation_50p"]->push_back_any(std::any());
-    input_attr_map["roof_elevation_70p"]->push_back_any(std::any());
-    input_attr_map["roof_elevation_min"]->push_back_any(std::any());
-    input_attr_map["roof_elevation_max"]->push_back_any(std::any());
-    input_attr_map["data_coverage"]->push_back_any(std::any());
-    input_attr_map["is_ground"]->push_back_any(std::any());
-    input_attr_map["part_id"]->push_back_any(std::any());
-    linear_rings.push_back_any(std::any());
-    return;
-  } else {
+  // if(invalid_rooftype) {
+  //   for (auto &iterm : attributes_in.sub_terminals()) {
+  //     // if (iterm->get_name()=="roof_type")
+  //     if (iterm->has_data()) {
+  //       input_attr_map[iterm->get_name()]->push_back_any(iterm->get_data());
+  //     } else {
+  //       input_attr_map[iterm->get_name()]->push_back_any(std::any());
+  //     }
+  //   }
+  //   input_attr_map["roof_elevation_50p"]->push_back_any(std::any());
+  //   input_attr_map["roof_elevation_70p"]->push_back_any(std::any());
+  //   input_attr_map["roof_elevation_min"]->push_back_any(std::any());
+  //   input_attr_map["roof_elevation_max"]->push_back_any(std::any());
+  //   input_attr_map["data_coverage"]->push_back_any(std::any());
+  //   input_attr_map["is_ground"]->push_back_any(std::any());
+  //   input_attr_map["part_id"]->push_back_any(std::any());
+  //   linear_rings.push_back_any(std::any());
+  //   return;
+  // } else {
 
     auto arr = input("arrangement").get<Arrangement_2>();
 
@@ -360,7 +360,7 @@ void Arr2LinearRingsNode::process() {
         }
       }
     }
-  }
+  // }
 }
 
 inline arr3f v2p(Arrangement_2::Vertex_handle v, float h) {

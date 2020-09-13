@@ -115,7 +115,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class Arr2LinearRingsNode:public Node {
-    bool invalid_rooftype = false;
+    // bool invalid_rooftype = false;
 
     bool only_in_footprint = true;
     bool output_groundparts = false;
@@ -140,17 +140,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(output_groundparts, "output_groundparts", "Also output the ground parts"));
     }
     bool inputs_valid() {
-      for (auto &iterm : poly_input("attributes").sub_terminals()) {
-        if(iterm->get_name() == "roof_type" && iterm->size()) {
-          if (iterm->get<int>()<0) {
-            std::cout << "invalid rooftype\n";
-            invalid_rooftype = true;
-            return true;
-          }
-        }
-      }
-      invalid_rooftype = false;
-      return vector_input("arrangement").has_data() && poly_input("attributes").has_data();
+      return vector_input("arrangement").has_data() && poly_input("attributes").has_data() && vector_input("arrangement").is_touched();
     }
     void process();
   };
@@ -810,6 +800,7 @@ namespace geoflow::nodes::stepedge {
       // add_vector_input("alpha_rings", typeid(LinearRing));
       add_vector_input("triangles", typeid(TriangleCollection));
       add_vector_input("ground_triangles", typeid(TriangleCollection));
+      add_vector_input("alpha_rings", typeid(LinearRing));
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       // add_input("heightfield", typeid(RasterTools::Raster));
@@ -917,28 +908,32 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     bool inputs_valid() {
-      auto& selectInput = input("selectAB");
-      if (!selectInput.has_data()) {
+      auto& skip_term = input("skip");
+      auto& replace_term = input("replace");
+      if ((!skip_term.has_data() || (!replace_term.has_data()))) {
         return false;
       } else {
-        bool selectAB = selectInput.get<bool>();
-        if (selectAB) {
+        bool skip = skip_term.get<bool>();
+        if (skip) {
           return vector_input("faces_A").has_data();
         } else {
-          return vector_input("faces_B").has_data();
+          return vector_input("faces_B").has_data() && vector_input("faces_A").has_data();
         }
       }
     }
     void init() {
-      add_input("selectAB", typeid(bool));
+      add_input("skip", typeid(bool));
+      add_input("replace", typeid(bool));
       add_vector_input("faces_A", typeid(Mesh));
       add_vector_input("faces_B", typeid(Mesh));
       add_vector_output("faces", typeid(Mesh));
     }
     void process() {
-      auto selectAB = input("selectAB").get<bool>();
-      if (selectAB) {
-        vector_output("faces") = vector_input("faces_A").get_data_vec();
+      auto skip = input("skip").get<bool>();
+      auto replace = input("replace").get<bool>();
+      if (skip) {
+        if (replace)
+          vector_output("faces") = vector_input("faces_A").get_data_vec();
       } else {
         vector_output("faces") = vector_input("faces_B").get_data_vec();
       }
@@ -973,24 +968,75 @@ namespace geoflow::nodes::stepedge {
     };
   };
 
+    class SkipReplaceTesterNode:public Node {
+    std::string attribute_name;
+    public:
+    using Node::Node;
+    void init() {
+      add_input("skip", typeid(bool));
+      add_vector_input("alpha_rings", {typeid(LinearRing)});
+      add_input("roof_type", typeid(int));
+      add_output("roof_type", typeid(int));
+      add_output("skip", typeid(bool));
+      add_output("replace", typeid(bool));
+
+      add_param(ParamString(attribute_name, "attribute_name", "Attribute name (should be a boolean attribute)"));
+
+    }
+    bool inputs_valid() {
+      auto& skip_term = input("skip");
+      auto& ar_term = vector_input("alpha_rings");
+      if(input("roof_type").has_data() && skip_term.has_data()) {
+        auto skip = skip_term.get<bool>();
+        if (skip) return true;
+        else return ar_term.is_touched();
+      } 
+      return false;
+      
+    }
+    void process() {
+      bool skip = input("skip").get<bool>();
+      bool replace = skip;
+      
+      auto roof_type = input("roof_type").get<int>();
+      if(vector_input("alpha_rings").is_touched() && vector_input("alpha_rings").size()==0 && roof_type>=0) {
+        roof_type = -1;
+      }
+      if (roof_type < 0) {{
+        skip=true;
+        replace=false;
+      }}
+
+      output("skip").set(skip);
+      output("replace").set(replace);
+      output("roof_type").set(roof_type);
+    };
+  };
+
   class AttrRingsSelectorNode:public Node {
     public:
     using Node::Node;
     bool inputs_valid() {
-      auto& selectInput = input("selectAB");
-      if (!selectInput.has_data()) {
+      auto& skip_term = input("skip");
+      auto& replace_term = input("replace");
+      if ((!skip_term.has_data() || (!replace_term.has_data()))) {
         return false;
       } else {
-        bool selectAB = selectInput.get<bool>();
-        if (selectAB) {
-          return vector_input("linear_rings_A").has_data();
+        bool skip = skip_term.get<bool>();
+        bool replace = replace_term.get<bool>();
+        if (skip) {
+          if (replace)
+            return vector_input("linear_rings_A").has_data();
+          else 
+            return true;
         } else {
-          return vector_input("linear_rings_B").has_data();
+          return vector_input("linear_rings_B").has_data() && vector_input("linear_rings_A").has_data();
         }
       }
     }
     void init() {
-      add_input("selectAB", typeid(bool));
+      add_input("skip", typeid(bool));
+      add_input("replace", typeid(bool));
       add_vector_input("linear_rings_A", typeid(LinearRing));
       add_vector_input("linear_rings_B", typeid(LinearRing));
       add_poly_input("attributes_A", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
@@ -1000,11 +1046,26 @@ namespace geoflow::nodes::stepedge {
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
     }
     void process() {
-      auto selectAB = input("selectAB").get<bool>();
+      auto skip = input("skip").get<bool>();
+      auto replace = input("replace").get<bool>();
       auto& out_attributes = poly_output("attributes");
-      if (selectAB) {
-        vector_output("linear_rings") = vector_input("linear_rings_A").get_data_vec();
+      
+      if (skip) {
         out_attributes = poly_input("attributes_A");
+
+        auto &attr_datacov_term = out_attributes.add_vector("data_coverage", typeid(float));
+        attr_datacov_term.push_back_any(std::any());
+        auto &attr_ground_term = out_attributes.add_vector("is_ground", typeid(bool));
+        attr_ground_term.push_back_any(std::any());
+        auto &part_id_term = out_attributes.add_vector("part_id", typeid(int));
+        part_id_term.push_back_any(std::any());
+          
+        if (replace) {
+          vector_output("linear_rings") = vector_input("linear_rings_A").get_data_vec();
+        } else{
+          vector_output("linear_rings").push_back_any(std::any());
+        }
+        
       } else {
         vector_output("linear_rings") = vector_input("linear_rings_B").get_data_vec();
         out_attributes = poly_input("attributes_B");

@@ -37,6 +37,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<PolygonTriangulatorNode>("PolygonTriangulator");
     node_register.register_node<FacesSelectorNode>("FacesSelector");
     node_register.register_node<AttributeTesterNode>("AttributeTester");
+    node_register.register_node<SkipReplaceTesterNode>("SkipReplaceTester");
     node_register.register_node<AttrRingsSelectorNode>("AttrRingsSelector");
     node_register.register_node<PolygonOffsetNode>("PolygonOffsetter");
     node_register.register_node<CityGMLMeshWriterNode>("CityGMLMeshWriter");
