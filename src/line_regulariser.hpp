@@ -157,6 +157,7 @@ namespace linereg {
         auto p_ = source + v/2;
         auto p = Point_2(CGAL::to_double(p_.x()),CGAL::to_double(p_.y()));
         auto l = CGAL::to_double(v.squared_length());
+        if(l<0.001) continue;
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
         lines.push_back(linetype(*edge, angle,p,0,priority,i++,l));
@@ -180,6 +181,7 @@ namespace linereg {
         auto p_ = source + v/2;
         auto p = Point_2(CGAL::to_double(p_.x()),CGAL::to_double(p_.y()));
         auto l = CGAL::to_double(v.squared_length());
+        if(l<0.001) continue;
         auto angle = std::atan2(CGAL::to_double(v.x()), CGAL::to_double(v.y()));
         if (angle < 0) angle += pi;
         lines.push_back(linetype(Segment_2(source, target), angle,p,0,priority,i++,l));
