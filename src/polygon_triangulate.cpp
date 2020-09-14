@@ -177,22 +177,22 @@ bool has_duplicates_ring(vec3f& poly, float& dupe_threshold) {
   return false;
 }
 
-bool has_duplicates(LinearRing& poly, float& dupe_threshold) {
+bool is_degenerate(LinearRing& poly, float& dupe_threshold) {
+  if (poly.size() < 3) return true;
   if (has_duplicates_ring(poly, dupe_threshold)) return true;
 
-  for (auto& ring : poly.interior_rings())
+  for (auto& ring : poly.interior_rings()) {
+    if (ring.size() < 3) return true;
     if (has_duplicates_ring(ring, dupe_threshold)) return true;
-  
+  }
   return false;
 }
 
 
 void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids) {
-  if (poly.size() < 3)
-    return;
 
   float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
-  if (has_duplicates(poly, dupe_threshold)) {
+  if (is_degenerate(poly, dupe_threshold)) {
     std::cout << "skipping ring with duplicates\n";
     // dupe_rings.push_back(poly);
     return;
