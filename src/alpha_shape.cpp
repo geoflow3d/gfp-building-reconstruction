@@ -133,17 +133,22 @@ namespace as {
               auto p = *last;
               ++last;
               auto p_prev = *last;
-              // std::cout << "POINT(" << p[0] << " " <<  p[1] << ")\n";
+              // std::cout << "POINT(" << p[0] << " " <<  p[1] << "); " << ++extract_cnt << "\n";
               // std::cout << "LINESTRING(" << p_prev[0] << " " << p_prev[1] << ", ";
               // std::cout << p[0] << " " << p[1] << ")\n";
-              // if(++extract_cnt>500) exit(1);
+              // if(++extract_cnt>2000) exit(1);
             }
             // std::cout << "ring size = " << ring.size() << std::endl;
             break;
           }
         } while (++ec != done);
+
+        // break in case we are not finding next edges to walk to
+        if(v_cur == v_next) break;
+
         v_prev = v_cur;
         v_cur = v_next;
+        
 
       } while (v_next != v_start);
     }
