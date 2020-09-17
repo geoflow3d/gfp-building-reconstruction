@@ -496,8 +496,11 @@ void ArrExtruderNode::process(){
         } while(he!=first);
 
         // attach hole to appropriate mesh and linear ring
-        auto& floor = meshmap[he->twin()->face()->data().part_id].get_polygons()[0];
-        floor.interior_rings().push_back(hole);
+        const auto part_id = he->twin()->face()->data().part_id;
+        if(hole.size()!=0 && meshmap.find(part_id)!=meshmap.end()) {
+          auto& floor = meshmap[part_id].get_polygons()[0];
+          floor.interior_rings().push_back(hole);
+        } else { std::cout << "skipping a hole for which no polygon exists...\n"; }
       }
     }
   }
