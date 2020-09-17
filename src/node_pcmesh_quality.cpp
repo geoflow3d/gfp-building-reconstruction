@@ -80,7 +80,7 @@ namespace geoflow::nodes::stepedge {
     
     // do not run if one of the inputs is empty
     if(points.size()==0 || trin.size()==0) {
-      std::cout << "Either input points or triangles are empty. Stopping execution."
+      std::cout << "Either input points or triangles are empty. Stopping execution.";
       return;
     }
 
