@@ -80,6 +80,9 @@ namespace as {
         }
         done = ec;
         do {
+          // very rare case (kadaster tile 6711 fid 411) ec does not point to a face. Not sure how this is possible.
+          if(ec->first==nullptr) break;
+
           // if(A.classify(*ec)==Alpha_shape_2::SINGULAR)
           // std::cout << "consider ec, singular?=" << (A.classify(*ec)==Alpha_shape_2::SINGULAR? "yes":"no") << std::endl;
           // find the vertex on the other side of the incident edge ec
