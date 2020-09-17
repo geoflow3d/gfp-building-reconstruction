@@ -77,6 +77,13 @@ namespace geoflow::nodes::stepedge {
       }
     }
     auto& trin = input("triangles").get<TriangleCollection>();
+    
+    // do not run if one of the inputs is empty
+    if(points.size()==0 || trin.size()==0) {
+      std::cout << "Either input points or triangles are empty. Stopping execution."
+      return;
+    }
+
     auto& face_ids = input("face_ids").get<vec1i>();
     std::list<My_triangle> triangles;
     for (size_t i=0; i < trin.size(); ++i) {
