@@ -42,4 +42,6 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<PolygonOffsetNode>("PolygonOffsetter");
     node_register.register_node<CityGMLMeshWriterNode>("CityGMLMeshWriter");
     node_register.register_node<DataCoverageDummyNode>("DataCoverageDummy");
+    node_register.register_node<PolygonBufferGEOSNode>("PolygonBufferGEOS");
+    node_register.register_node<PolygonSimplifyGEOSNode>("PolygonSimplifyGEOS");
 }
