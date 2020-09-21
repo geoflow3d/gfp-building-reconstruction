@@ -21,7 +21,7 @@ set_target_properties(
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
   execute_process(
-    COMMAND             git submodule update --init region-grower glm
+    COMMAND             git submodule update --init region-grower glm geos
     WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/thirdparty
     )
 endif()
@@ -36,7 +36,11 @@ if(GFP_WITH_PDAL)
 endif(GFP_WITH_PDAL)
 
 # geos
-find_package(GEOS)
+# find_package(GEOS)
+set(BUILD_TESTING OFF CACHE INTERNAL "")
+set(BUILD_DOCUMENTATION OFF CACHE INTERNAL "")
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+add_subdirectory(thirdparty/geos)
 
 if (MSVC)
   # windows.h breaks std::min/std::max, fix by define
