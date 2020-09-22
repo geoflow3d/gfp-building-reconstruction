@@ -14,7 +14,6 @@ namespace geoflow::nodes::stepedge {
   typedef std::unordered_map<int, std::pair<Plane, std::vector<Point>>> IndexedPlanesWithPoints;
 
   typedef std::vector<Mesh> MultiMesh;
-  typedef std::vector<TriangleCollection> MultiTriangleCollection;
 
   class AlphaShapeNode:public Node {
     float thres_alpha = 0.25;
