@@ -284,16 +284,25 @@ void PolygonTriangulatorNode::process()
     }
     multitrianglecols.push_back(triangles);
   } else if (rings.is_connected_type(typeid(Mesh))) {
+    // We are processing a building part here. We get a building part when we
+    // cut a footprint into parts because of cutting off the underground part.
     for (size_t mi = 0; mi < rings.size(); ++mi) {
       auto mesh = rings.get<Mesh>(mi);
       TriangleCollection mesh_triangles;
+      AttributeMap mesh_attributes;
+      std::vector<attribute_value> tri_labels;
       for (size_t ri = 0; ri<mesh.get_polygons().size(); ++ri) {
         TriangleCollection tc;
         triangulate_polygon(mesh.get_polygons()[ri], normals, tc, ri, ring_ids);
+        int poly_label = mesh.get_labels()[ri];
+        // Need to get a label for each triangle that was generated
+        for (size_t i = 0; i<tc.size(); i++) tri_labels.emplace_back(poly_label);
         triangles.insert(triangles.end(), tc.begin(), tc.end());
         mesh_triangles.insert(mesh_triangles.end(), tc.begin(), tc.end());
       }
+      mesh_attributes["labels"] = tri_labels;
       multitrianglecols.push_back(mesh_triangles);
+      multitrianglecols.push_back(mesh_attributes);
     }
   }
 
