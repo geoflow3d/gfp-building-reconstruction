@@ -35,13 +35,6 @@ if(GFP_WITH_PDAL)
   find_package(PDAL REQUIRED)
 endif(GFP_WITH_PDAL)
 
-# geos
-# find_package(GEOS)
-set(BUILD_TESTING OFF CACHE INTERNAL "")
-set(BUILD_DOCUMENTATION OFF CACHE INTERNAL "")
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-add_subdirectory(thirdparty/geos)
-
 if (MSVC)
   # windows.h breaks std::min/std::max, fix by define
   add_definitions(-DNOMINMAX)
@@ -68,7 +61,6 @@ geoflow_create_plugin(
   # src/build_arrangement_rings.cpp
   src/arrangement.cpp
   src/polygon_offset.cpp
-  src/geos_nodes.cpp
   src/alpha_shape.cpp
   src/CityGMLMeshWriter.cpp
 )
@@ -86,7 +78,6 @@ target_link_libraries( gfp_buildingreconstruction PRIVATE
   ptinpoly
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
-  geos
   ${PDAL_LIBRARIES} 
 )
 target_link_directories( gfp_buildingreconstruction PRIVATE

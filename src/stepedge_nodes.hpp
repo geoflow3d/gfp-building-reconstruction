@@ -968,7 +968,7 @@ namespace geoflow::nodes::stepedge {
     };
   };
 
-    class SkipReplaceTesterNode:public Node {
+  class SkipReplaceTesterNode:public Node {
     std::string attribute_name;
     public:
     using Node::Node;
@@ -1086,35 +1086,6 @@ namespace geoflow::nodes::stepedge {
     }
     void process();
   };
-
-  class PolygonSimplifyGEOSNode:public Node {
-    public:
-    using Node::Node;
-    float tolerance = 0.01;
-
-    void init() {
-      add_vector_input("polygons", typeid(LinearRing));
-      add_vector_output("simplified_polygons", typeid(LinearRing));
-
-      add_param(ParamBoundedFloat(tolerance, 0, 10, "tolerance",  "tolerance"));   
-    }
-    void process();
-  };
-
-  class PolygonBufferGEOSNode:public Node {
-    public:
-    using Node::Node;
-    float offset = 4;
-
-    void init() {
-      add_vector_input("polygons", typeid(LinearRing));
-      add_vector_output("offset_polygons", typeid(LinearRing));
-
-      add_param(ParamBoundedFloat(offset, -10, 10, "offset",  "offset"));   
-    }
-    void process();
-  };
-
 
   class CityGMLMeshWriterNode:public Node {
     static const int FLOOR=0, ROOF=1, OUTERWALL=2, INNERWALL=3;
