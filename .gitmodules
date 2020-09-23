@@ -4,6 +4,3 @@
 [submodule "thirdparty/glm"]
 	path = thirdparty/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "thirdparty/geos"]
-	path = thirdparty/geos
-	url = https://github.com/Ylannl/geos.git

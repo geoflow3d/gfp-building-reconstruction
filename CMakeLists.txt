@@ -21,7 +21,7 @@ set_target_properties(
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
   execute_process(
-    COMMAND             git submodule update --init region-grower glm geos
+    COMMAND             git submodule update --init region-grower glm
     WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/thirdparty
     )
 endif()
@@ -34,13 +34,6 @@ find_package(CGAL QUIET COMPONENTS Core REQUIRED)
 if(GFP_WITH_PDAL)
   find_package(PDAL REQUIRED)
 endif(GFP_WITH_PDAL)
-
-# geos
-# find_package(GEOS)
-set(BUILD_TESTING OFF CACHE INTERNAL "")
-set(BUILD_DOCUMENTATION OFF CACHE INTERNAL "")
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-add_subdirectory(thirdparty/geos)
 
 if (MSVC)
   # windows.h breaks std::min/std::max, fix by define
@@ -68,7 +61,6 @@ geoflow_create_plugin(
   # src/build_arrangement_rings.cpp
   src/arrangement.cpp
   src/polygon_offset.cpp
-  src/geos_nodes.cpp
   src/alpha_shape.cpp
   src/CityGMLMeshWriter.cpp
 )
@@ -86,7 +78,6 @@ target_link_libraries( gfp_buildingreconstruction PRIVATE
   ptinpoly
   CGAL::CGAL CGAL::CGAL_Core
   LASlib
-  geos
   ${PDAL_LIBRARIES} 
 )
 target_link_directories( gfp_buildingreconstruction PRIVATE
