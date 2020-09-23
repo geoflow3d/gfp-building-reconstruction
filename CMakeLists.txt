@@ -21,7 +21,7 @@ set_target_properties(
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
   execute_process(
-    COMMAND             git submodule update --init region-grower glm geos
+    COMMAND             git submodule update --init region-grower glm
     WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/thirdparty
     )
 endif()
