@@ -364,46 +364,48 @@ void BuildArrFromLinesNode::process() {
     obs.set_hole_mode(false);
   }
 
-  auto& lines_term = vector_input("lines");
-  
-  typedef std::pair<Point_2, Point_2> PointPair;
+  if(insert_lines) {
+    auto& lines_term = vector_input("lines");
+    
+    typedef std::pair<Point_2, Point_2> PointPair;
 
-  int arr_complexity = lines_term.size();
-  output("arr_complexity").set(arr_complexity);
+    int arr_complexity = lines_term.size();
+    output("arr_complexity").set(arr_complexity);
 
-  if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
-    for(size_t i=0; i<lines_term.size(); ++i) {
-      auto& s = lines_term.get<linereg::Segment_2>(i);
-      if(insert_with_snap)
-        arr_insert(arr_base, s, dist_threshold_exp, geo_p);
-      else {
-        insert(arr_base, s);
+    if (lines_term.is_connected_type(typeid(linereg::Segment_2))) {
+      for(size_t i=0; i<lines_term.size(); ++i) {
+        auto& s = lines_term.get<linereg::Segment_2>(i);
+        if(insert_with_snap)
+          arr_insert(arr_base, s, dist_threshold_exp, geo_p);
+        else {
+          insert(arr_base, s);
+        }
       }
-    }
-  } else {
-    std::vector<PointPair> segments;
-    for(size_t i=0; i<lines_term.size(); ++i) {
-      auto& s = lines_term.get<Segment>(i);
-      Point_2 a(s[0][0],s[0][1]);
-      Point_2 b(s[1][0],s[1][1]);
-      segments.push_back(std::make_pair(a,b));
-    }
-
-    if (arr_complexity > max_arr_complexity) {
-      std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
-        return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
-      });
-    }
-
-    {
-      std::vector<X_monotone_curve_2> lines;
-      size_t i=0;
-      for(auto& s : segments) {
-        // Check for 0 segment length (quick fix for linux crash)
-        if (i++ == max_arr_complexity) break;
-        if (CGAL::squared_distance(s.first,s.second) > 0.001) lines.push_back(Segment_2(s.first,s.second));
+    } else {
+      std::vector<PointPair> segments;
+      for(size_t i=0; i<lines_term.size(); ++i) {
+        auto& s = lines_term.get<Segment>(i);
+        Point_2 a(s[0][0],s[0][1]);
+        Point_2 b(s[1][0],s[1][1]);
+        segments.push_back(std::make_pair(a,b));
       }
-      insert(arr_base, lines.begin(), lines.end());
+
+      if (arr_complexity > max_arr_complexity) {
+        std::sort(segments.begin(), segments.end(), [](PointPair& a, PointPair& b) {
+          return CGAL::squared_distance(a.first,a.second) > CGAL::squared_distance(b.first,b.second);
+        });
+      }
+
+      {
+        std::vector<X_monotone_curve_2> lines;
+        size_t i=0;
+        for(auto& s : segments) {
+          // Check for 0 segment length (quick fix for linux crash)
+          if (i++ == max_arr_complexity) break;
+          if (CGAL::squared_distance(s.first,s.second) > 0.001) lines.push_back(Segment_2(s.first,s.second));
+        }
+        insert(arr_base, lines.begin(), lines.end());
+      }
     }
   }
   

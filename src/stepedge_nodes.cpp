@@ -363,6 +363,89 @@ void Arr2LinearRingsNode::process() {
   // }
 }
 
+void Arr2LinearRingsDebugNode::process() {
+  
+
+  // auto& floor_elevation = input("floor_elevation").get<float&>();
+  // auto& mesh_error = input("mesh_error").get<float&>();
+  // auto& roof_type = input("roof_type").get<int&>();
+  // auto& arr_complexity = input("arr_complexity").get<int&>();
+  auto& linear_rings = vector_output("linear_rings");
+
+  //create all output fields
+  std::unordered_map<std::string, gfSingleFeatureOutputTerminal*> input_attr_map;
+  // attributes specific to each roofpart
+  input_attr_map["roof_elevation_50p"] = 
+  & poly_output("attributes").add_vector("roof_elevation_50p", typeid(float));
+
+  input_attr_map["roof_elevation_70p"] = 
+  & poly_output("attributes").add_vector("roof_elevation_70p", typeid(float));
+
+  input_attr_map["roof_elevation_min"] = 
+  & poly_output("attributes").add_vector("roof_elevation_min", typeid(float));
+
+  input_attr_map["roof_elevation_max"] = 
+  & poly_output("attributes").add_vector("roof_elevation_max", typeid(float));
+
+  input_attr_map["data_coverage"] = 
+  & poly_output("attributes").add_vector("data_coverage", typeid(float));
+
+  input_attr_map["is_ground"] = 
+  & poly_output("attributes").add_vector("is_ground", typeid(bool));
+
+  input_attr_map["in_footprint"] = 
+  & poly_output("attributes").add_vector("in_footprint", typeid(bool));
+
+  input_attr_map["is_footprint_hole"] = 
+  & poly_output("attributes").add_vector("is_footprint_hole", typeid(bool));
+
+  input_attr_map["part_id"] = 
+  & poly_output("attributes").add_vector("part_id", typeid(int));
+  
+  input_attr_map["label"] = 
+  & poly_output("attributes").add_vector("label", typeid(int));
+
+  input_attr_map["pixel_count"] = 
+  & poly_output("attributes").add_vector("pixel_count", typeid(int));
+
+  
+
+    auto arr = input("arrangement").get<Arrangement_2>();
+
+    // int j=0;
+    // auto& plane_a = vector_output("plane_a");
+    // auto& plane_b = vector_output("plane_b");
+    // auto& plane_c = vector_output("plane_c");
+    // auto& plane_d = vector_output("plane_d");
+    for (auto face: arr.face_handles()) {
+      if (face->is_fictitious() || face->is_unbounded()) continue;
+
+      LinearRing polygon;
+      arrangementface_to_polygon(face, polygon);
+      linear_rings.push_back(polygon);
+      
+      // plane paramters
+      // plane_a.push_back(float(CGAL::to_double(face->data().plane.a())));
+      // plane_b.push_back(float(CGAL::to_double(face->data().plane.b())));
+      // plane_c.push_back(float(CGAL::to_double(face->data().plane.c())));
+      // plane_d.push_back(float(CGAL::to_double(face->data().plane.d())));
+
+      // attributes specific to each roofpart
+      input_attr_map["roof_elevation_50p"]->push_back((float)face->data().elevation_50p);
+      input_attr_map["roof_elevation_70p"]->push_back((float)face->data().elevation_70p);
+      input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
+      input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
+      input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
+      input_attr_map["part_id"]->push_back((int)face->data().part_id);
+      input_attr_map["label"]->push_back((int)face->data().label);
+      input_attr_map["pixel_count"]->push_back((int)face->data().pixel_count);
+      input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
+      input_attr_map["in_footprint"]->push_back((bool)face->data().in_footprint);
+      input_attr_map["is_footprint_hole"]->push_back((bool)face->data().is_footprint_hole);
+    }
+  // }
+}
+
 inline arr3f v2p(Arrangement_2::Vertex_handle v, float h) {
   return {
           float(CGAL::to_double(v->point().x())),
@@ -1986,8 +2069,10 @@ void ArrDissolveNode::process() {
   auto arr = input("arrangement").get<Arrangement_2>();
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
   
-  if(dissolve_seg_edges)
+  if(dissolve_seg_edges) {
+    Face_merge_observer obs(arr);
     arr_dissolve_seg_edges(arr);
+  }
 
   if (dissolve_step_edges) {
     Face_merge_observer obs(arr);

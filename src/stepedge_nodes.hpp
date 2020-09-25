@@ -144,6 +144,17 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class Arr2LinearRingsDebugNode:public Node {
+    public:
+    using Node::Node;
+    void init() {
+      add_vector_input("arrangement", typeid(Arrangement_2));
+      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_vector_output("linear_rings", typeid(LinearRing));
+    }
+    void process();
+  };
+
   class ArrExtruderNode:public Node {
     bool do_walls=true, do_roofs=true, do_floor=true;
     bool LoD2 = false;
@@ -282,6 +293,7 @@ namespace geoflow::nodes::stepedge {
     int dist_threshold_exp = 4;
     float fp_extension = 0.01;
     bool insert_with_snap = false;
+    bool insert_lines = true;
     // int angle_threshold_exp = 5;
     // bool snap_clean = true;
     // bool snap_detect_only = false;
@@ -302,6 +314,7 @@ namespace geoflow::nodes::stepedge {
       // add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
 
       add_param(ParamBool(insert_with_snap, "insert_with_snap", "Use custom insert function that aims to prevent duplicate points etc"));
+      add_param(ParamBool(insert_lines, "insert_lines", "Insert lines from the lines input terminal"));
       // add_param(ParamBool(snap_clean, "snap_clean", "Snap"));
       // add_param(ParamBool(snap_detect_only, "snap_detect_only", "snap_detect_only"));
       // add_param(ParamBoundedFloat(snap_dist, 0.01, 5, "snap_dist", "Snap distance"));
