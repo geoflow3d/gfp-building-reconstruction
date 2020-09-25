@@ -421,7 +421,6 @@ namespace geoflow::nodes::stepedge {
   };
 
   class DetectLinesNode:public Node {
-    bool linear_knn = false;
     float dist_thres = 0.4;
     std::pair<int,int> min_cnt_range = {5,10};
     int min_cnt_range_lower = 5;
@@ -453,7 +452,6 @@ namespace geoflow::nodes::stepedge {
       add_output("ring_order", typeid(vec1i));
       add_output("is_start", typeid(vec1i));
 
-      add_param(ParamBool(linear_knn, "linear_knn", "Use linear neighbourhood for ring input"));
       add_param(ParamFloat(dist_thres, "dist_thres", "dist_thres"));
       add_param(ParamInt(min_cnt_range_lower, "min_cnt_range_lower", "Minimum count lower"));
       add_param(ParamInt(min_cnt_range_upper, "min_cnt_range_upper", "Minimum count upper"));
