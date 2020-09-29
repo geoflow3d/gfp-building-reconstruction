@@ -157,7 +157,7 @@ namespace geoflow::nodes::stepedge {
       }
     }
     std::stringstream json;
-    json << "{\"upper_limits\":[" << std::setprecision(1);
+    json << "{\"upper_limits\":[" << std::setprecision(2);
     auto sep = "";
     for (auto& l : limits) {
       json << sep << l;
