@@ -4,6 +4,9 @@
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
 
+#include <CGAL/Search_traits_3.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
 #include <list>
 
 typedef CGAL::Simple_cartesian<double> K;
@@ -58,25 +61,95 @@ public:
 };
 
 namespace geoflow::nodes::stepedge {
+
+  vec1f compute_mesh2pc_errors(const TriangleCollection& triangles, std::vector<K::Point_3> points) {
+    // KD tree
+    typedef CGAL::Search_traits_3<K> TreeTraits;
+    typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
+    typedef Neighbor_search::Tree Tree;
+
+    Tree tree(points.begin(), points.end());
+    vec1f errors;
+    const unsigned int N = 1;
+    for(const auto& triangle : triangles) {
+      for (const auto& p : triangle) {
+        Neighbor_search search(tree, K::Point_3(p[0],p[1],p[2]), N);
+        for(Neighbor_search::iterator it = search.begin(); it != search.end(); ++it){
+          errors.push_back(std::sqrt(it->second));
+        }
+      }
+    }
+    return errors;
+  }
+
+  std::string get_json_histogram(vec1f& values) {
+    std::sort(values.begin(), values.end(), [](auto& p1, auto& p2) {
+      return p1 < p2;
+    });
+    const std::vector<float> limits = {0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0};
+    std::vector<size_t> counts(limits.size(), 0);
+    bool do_count;
+    for (auto&e : values) {
+      for( size_t i = 0; i<limits.size(); ++i) {
+        if (i==limits.size()-1) {
+          do_count = e>=limits[i];
+        } else {
+          do_count = e>=limits[i] && e<limits[i+1];
+        }
+        if (do_count) {
+          ++counts[i];
+          break;
+        }
+      }
+    }
+    std::stringstream json;
+    json << "{\"lower_limits\":[" << std::setprecision(2);
+    auto sep = "";
+    for (auto& l : limits) {
+      json << sep << l;
+      sep = ",";
+    }
+    json << "],\"counts\":[";
+    sep = "";
+    for (auto& c : counts) {
+      json << sep << c;
+      sep = ",";
+    }
+    json << "]}";
+    return json.str();
+  }
     
   void PC2MeshQualityNode::process() {
     typedef CGAL::AABB_traits<K, My_triangle_primitive> My_AABB_traits;
     typedef CGAL::AABB_tree<My_AABB_traits> Tree;
 
-    PointCollection points;
+    std::vector<K::Point_3> points;
     if(input("ipoints").get_connected_type() == typeid(PointCollection)) {
-      points = input("ipoints").get<PointCollection>();
+      auto ipoints = input("ipoints").get<PointCollection>();
+      for (auto& p : ipoints) {
+        points.push_back(K::Point_3(p[0], p[1], p[2]));
+      }
     } else {
       auto& points_per_plane = input("ipoints").get<IndexedPlanesWithPoints>();
       for (auto& [plane_id, plane_pts] : points_per_plane) {
-        if(plane_id!=0) {
+        if(plane_id>0) {
           for(auto& p : plane_pts.second) {
-            points.push_back(arr3f{float(p.x()), float(p.y()), float(p.z())});
+            points.push_back(K::Point_3(p.x(), p.y(), p.z()));
           }
         }
       }
     }
-    auto& trin = input("triangles").get<TriangleCollection>();
+    auto& mtcs = input("triangles").get<MultiTriangleCollection>();
+
+    TriangleCollection trin;
+    for (size_t j=0; j<mtcs.tri_size(); j++) {
+      const auto& tc = mtcs.tri_at(j);
+      const auto& labels = mtcs.attr_at(j).at("labels");
+      for (size_t i=0; i<tc.size(); ++i) {
+        if(std::get<int>(labels[i]) == 1)
+          trin.push_back(tc[i]);
+      }
+    }
     
     // do not run if one of the inputs is empty
     if(points.size()==0 || trin.size()==0) {
@@ -97,8 +170,7 @@ namespace geoflow::nodes::stepedge {
     std::map<size_t, std::vector<double>> distances;
     vec1f point_errors;
     size_t i = 0;
-    for(auto& p_ : points) {
-      auto p = K::Point_3(p_[0], p_[1], p_[2]);
+    for(auto& p : points) {
       auto pt_and_id = tree.closest_point_and_primitive(p);
       auto sqd = CGAL::squared_distance(pt_and_id.first, p);
       auto fid = pt_and_id.second->m_face_id;
@@ -141,36 +213,20 @@ namespace geoflow::nodes::stepedge {
       mesh_error.push_back(rms_error);
       mesh_error.push_back(rms_error);
     }
-    
+
     // compute point error stats
-    std::sort(point_errors.begin(), point_errors.end(), [](auto& p1, auto& p2) {
-      return p1 < p2;
-    });
-    const std::vector<float> limits = {0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,4.0,5.0,6.0,std::numeric_limits<float>::max()};
-    std::vector<size_t> counts(limits.size(), 0);
-    for (auto&e : point_errors) {
-      for( size_t i = 0; i<limits.size(); ++i) {
-        if (e<=limits[i]) {
-          ++counts[i];
-          break;
-        }
-      }
+    {
+      auto json = get_json_histogram(point_errors);
+      output("error_hist").set(json);
     }
-    std::stringstream json;
-    json << "{\"upper_limits\":[" << std::setprecision(2);
-    auto sep = "";
-    for (auto& l : limits) {
-      json << sep << l;
-      sep = ",";
+
+    // compute mesh to point cloud errors
+    {
+      auto m2pc_errors = compute_mesh2pc_errors(trin, points);
+      auto json = get_json_histogram(m2pc_errors);
+      output("m2pc_error_hist").set(json);
+      output("m2pc_error_max").set(m2pc_errors.back());
     }
-    json << "],\"counts\":[";
-    sep = "";
-    for (auto& c : counts) {
-      json << sep << c;
-      sep = ",";
-    }
-    json << "]}";
-    output("error_hist").set(json.str());
 
     output("point_errors").set(point_errors);
     output("face_errors").set(face_errors);

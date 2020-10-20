@@ -770,7 +770,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() {
       add_input("ipoints", {typeid(PointCollection), typeid(IndexedPlanesWithPoints)});
-      add_input("triangles", typeid(TriangleCollection));
+      add_input("triangles", typeid(MultiTriangleCollection));
       add_input("face_ids", typeid(vec1i));
       
       add_output("point_errors", typeid(vec1f));
@@ -778,6 +778,8 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh_error_f", typeid(float));
       add_output("error_hist", typeid(std::string));
       add_output("mesh_error", typeid(vec1f));
+      add_output("m2pc_error_hist", typeid(std::string));
+      add_output("m2pc_error_max", typeid(float));
 
     }
     void process();
