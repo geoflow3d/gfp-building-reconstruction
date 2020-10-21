@@ -276,7 +276,6 @@ Polygon_2 arr_cell2polygon(const Face_handle& fh) {
 }
 
 void arr_label_buildingparts(Arrangement_2& arr) {
-  auto f_unb = arr.unbounded_face();
   std::stack<Face_handle> seeds;
 
   for (auto& fh : arr.face_handles()) {

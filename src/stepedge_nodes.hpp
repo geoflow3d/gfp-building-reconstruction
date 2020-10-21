@@ -291,7 +291,7 @@ namespace geoflow::nodes::stepedge {
     // float rel_area_thres = 0.1;
     int max_arr_complexity = 400;
     int dist_threshold_exp = 4;
-    float fp_extension = 0.01;
+    float fp_extension = 0.0;
     bool insert_with_snap = false;
     bool insert_lines = true;
     // int angle_threshold_exp = 5;
@@ -308,7 +308,7 @@ namespace geoflow::nodes::stepedge {
       add_output("arr_complexity", typeid(int));
 
       // add_param(ParamBoundedFloat(rel_area_thres, 0.01, 1,  "rel_area_thres", "Preserve split ring area"));
-      add_param(ParamBoundedFloat(fp_extension, 0.0, 0.01,  "fp_extension", "extend each footprint segment on both sides with this distance"));
+      add_param(ParamBoundedFloat(fp_extension, 0.0, 0.01,  "fp_extension", "extend each footprint segment on both sides with this distance. NB can interfere with in_footprint detection!"));
       add_param(ParamInt(max_arr_complexity, "max_arr_complexity", "Maximum nr of lines"));
       add_param(ParamBoundedInt(dist_threshold_exp, 0, 15, "dist_threshold_exp", "10-base exponent to set distance threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
       // add_param(ParamBoundedInt(angle_threshold_exp, 0, 15, "angle_threshold_exp", "10-base exponent to set angle threshold in degrees. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
