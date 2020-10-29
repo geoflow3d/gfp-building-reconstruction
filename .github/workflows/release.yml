@@ -38,7 +38,9 @@ jobs:
       - name: Install CGAL & Boost & glm
         run: |
           echo $env:VCPKG_INSTALLATION_ROOT
-          C:\vcpkg install cgal boost-geometry glm
+          cd C:\
+          cd vcpkg 
+          .\vcpkg.exe install cgal boost-geometry glm
       - name: Install fetch
         run: |
           Invoke-WebRequest https://github.com/gruntwork-io/fetch/releases/download/v0.3.7/fetch_windows_amd64.exe -OutFile fetch.exe
