@@ -10,6 +10,9 @@ jobs:
   Windows-build:
     name: Build Windows
     runs-on: windows-latest
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+      VCPKG_INSTALLATION_ROOT: C:\vcpkg
     steps:
       - uses: actions/checkout@v2
       - name: Install LASlib
@@ -22,11 +25,20 @@ jobs:
           cmake .. -DCMAKE_INSTALL_PREFIX=C:\Software
           cmake --build . --config Release --parallel 4
           cmake --install .
+      - name: Remove system vcpkg (to ensure support for binary caching)
+        shell: 'bash'
+        run: |
+          rm -rf "$VCPKG_INSTALLATION_ROOT"
+      - name: Install latest vcpkg (to ensure support for binary caching)
+        run: |
+          cd C:\
+          git clone https://github.com/microsoft/vcpkg
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
       - name: Install CGAL & Boost & glm
         run: |
           echo $env:VCPKG_INSTALLATION_ROOT
-          $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
-          vcpkg install cgal boost-geometry glm
+          C:\vcpkg install cgal boost-geometry glm
       - name: Install fetch
         run: |
           Invoke-WebRequest https://github.com/gruntwork-io/fetch/releases/download/v0.3.7/fetch_windows_amd64.exe -OutFile fetch.exe
