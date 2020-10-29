@@ -11,7 +11,7 @@ jobs:
   Windows:
     name: Build Windows
     runs-on: windows-latest
-        env:
+    env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
       VCPKG_INSTALLATION_ROOT: C:\vcpkg
     steps:
