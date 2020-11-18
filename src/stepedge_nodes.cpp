@@ -112,6 +112,7 @@ void PolygonExtruderNode::process() {
 }
 
 void LOD1ExtruderNode::process() {
+  // assume ring is CCW oriented
   auto ring = input("polygon").get<LinearRing>();
   auto h_floor = input("floor_elevation").get<float>();
 
@@ -260,8 +261,8 @@ void Arr2LinearRingsNode::process() {
   input_attr_map["data_coverage"] = &attr_datacov_term;
   auto &attr_ground_term = poly_output("attributes").add_vector("is_ground", typeid(bool));
   input_attr_map["is_ground"] = &attr_ground_term;
-  auto &part_id_term = poly_output("attributes").add_vector("part_id", typeid(int));
-  input_attr_map["part_id"] = &part_id_term;
+  auto &part_id_term = poly_output("attributes").add_vector("building_part_id", typeid(int));
+  input_attr_map["building_part_id"] = &part_id_term;
   
 
 
@@ -281,7 +282,7 @@ void Arr2LinearRingsNode::process() {
   //   input_attr_map["roof_elevation_max"]->push_back_any(std::any());
   //   input_attr_map["data_coverage"]->push_back_any(std::any());
   //   input_attr_map["is_ground"]->push_back_any(std::any());
-  //   input_attr_map["part_id"]->push_back_any(std::any());
+  //   input_attr_map["building_part_id"]->push_back_any(std::any());
   //   linear_rings.push_back_any(std::any());
   //   return;
   // } else {
@@ -319,7 +320,7 @@ void Arr2LinearRingsNode::process() {
         input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
         input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
         input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
-        input_attr_map["part_id"]->push_back((int)face->data().part_id);
+        input_attr_map["building_part_id"]->push_back((int)face->data().part_id);
         input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);
         
         // input_attr_map["dak_id"]->push_back((int)++j);
@@ -349,7 +350,7 @@ void Arr2LinearRingsNode::process() {
       input_attr_map["roof_elevation_min"]->push_back_any(std::any());
       input_attr_map["roof_elevation_max"]->push_back_any(std::any());
       input_attr_map["data_coverage"]->push_back_any(std::any());
-      input_attr_map["part_id"]->push_back_any(std::any());
+      input_attr_map["building_part_id"]->push_back_any(std::any());
       input_attr_map["is_ground"]->push_back(true);
       
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
@@ -399,8 +400,8 @@ void Arr2LinearRingsDebugNode::process() {
   input_attr_map["is_footprint_hole"] = 
   & poly_output("attributes").add_vector("is_footprint_hole", typeid(bool));
 
-  input_attr_map["part_id"] = 
-  & poly_output("attributes").add_vector("part_id", typeid(int));
+  input_attr_map["building_part_id"] = 
+  & poly_output("attributes").add_vector("building_part_id", typeid(int));
   
   input_attr_map["label"] = 
   & poly_output("attributes").add_vector("label", typeid(int));
@@ -436,7 +437,7 @@ void Arr2LinearRingsDebugNode::process() {
       input_attr_map["roof_elevation_min"]->push_back((float)face->data().elevation_min);
       input_attr_map["roof_elevation_max"]->push_back((float)face->data().elevation_max);
       input_attr_map["data_coverage"]->push_back((float)face->data().data_coverage);
-      input_attr_map["part_id"]->push_back((int)face->data().part_id);
+      input_attr_map["building_part_id"]->push_back((int)face->data().part_id);
       input_attr_map["label"]->push_back((int)face->data().label);
       input_attr_map["pixel_count"]->push_back((int)face->data().pixel_count);
       input_attr_map["is_ground"]->push_back((bool)face->data().is_ground);

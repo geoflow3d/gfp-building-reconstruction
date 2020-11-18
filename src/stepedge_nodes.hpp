@@ -1069,7 +1069,7 @@ namespace geoflow::nodes::stepedge {
         attr_datacov_term.push_back_any(std::any());
         auto &attr_ground_term = out_attributes.add_vector("is_ground", typeid(bool));
         attr_ground_term.push_back_any(std::any());
-        auto &part_id_term = out_attributes.add_vector("part_id", typeid(int));
+        auto &part_id_term = out_attributes.add_vector("building_part_id", typeid(int));
         part_id_term.push_back_any(std::any());
           
         if (replace) {
@@ -1111,22 +1111,6 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamPath(filepath_, "filepath",  "filepath"));   
     }
     void process();
-  };
-
-  class DataCoverageDummyNode:public Node {
-    public:
-    using Node::Node;
-
-    void init() {
-      add_output("data_coverage", typeid(float));
-      add_output("is_ground", typeid(bool));
-      add_output("part_id", typeid(int));
-    }
-    void process() {
-      output("data_coverage").set_from_any(std::any());
-      output("is_ground").set(bool(false));
-      output("part_id").set(int(0));
-    }
   };
 
 }
