@@ -63,7 +63,7 @@ namespace RasterTools {
   if (a==MIN)
     noDataVal_ = std::numeric_limits<float>::max();
   else
-    noDataVal_ = std::numeric_limits<float>::min();
+    noDataVal_ = -std::numeric_limits<float>::max();
     
   std::fill(vals_->begin(), vals_->end(), noDataVal_);
   // std::fill(counts_->begin(), counts_->end(), 0);
