@@ -1113,4 +1113,21 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class DataCoverageCalcNode:public Node {
+    public:
+    using Node::Node;
+
+    void init() {
+      add_vector_input("ground_parts", typeid(LinearRing));
+      add_input("footprint_polygon", typeid(LinearRing));
+      add_input("data_area", typeid(float));
+      
+      add_output("data_coverage", typeid(float));
+    }
+    bool inputs_valid() {
+      return vector_input("footprint_polygon").has_data() && input("data_area").has_data();
+    }
+    void process();
+  };
+
 }

@@ -63,6 +63,7 @@ geoflow_create_plugin(
   src/polygon_offset.cpp
   src/alpha_shape.cpp
   src/CityGMLMeshWriter.cpp
+  src/data_coverage_node.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE
