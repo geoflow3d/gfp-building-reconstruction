@@ -44,13 +44,25 @@ class PointsInPolygonsCollector  {
   RasterTools::Raster pindex;
   std::vector<std::vector<size_t>> pindex_vals;
   std::vector<pGridSet> poly_grids, buf_poly_grids;
+
+  int ground_class, building_class;
   
   public:
   Box completearea_bb;
   float min_ground_elevation = std::numeric_limits<float>::max();
 
-  PointsInPolygonsCollector(gfSingleFeatureInputTerminal& polygons, gfSingleFeatureInputTerminal& buf_polygons, gfSingleFeatureOutputTerminal& point_clouds, gfSingleFeatureOutputTerminal& ground_point_clouds, gfSingleFeatureOutputTerminal& ground_elevations, float& cellsize, float& buffer)
-  : polygons(polygons), point_clouds(point_clouds), ground_point_clouds(ground_point_clouds), ground_elevations(ground_elevations) {
+  PointsInPolygonsCollector(
+    gfSingleFeatureInputTerminal& polygons, 
+    gfSingleFeatureInputTerminal& buf_polygons, 
+    gfSingleFeatureOutputTerminal& point_clouds, 
+    gfSingleFeatureOutputTerminal& ground_point_clouds, 
+    gfSingleFeatureOutputTerminal& ground_elevations, 
+    float& cellsize, 
+    float& buffer,
+    int ground_class=2,
+    int building_class=6
+    )
+    : polygons(polygons), point_clouds(point_clouds), ground_point_clouds(ground_point_clouds), ground_elevations(ground_elevations), ground_class(ground_class), building_class(building_class) {
     // point_clouds_ground.resize(polygons.size());
     point_clouds.resize<PointCollection>(polygons.size());
     ground_point_clouds.resize<PointCollection>(polygons.size());
@@ -126,11 +138,11 @@ class PointsInPolygonsCollector  {
     pPipoint pipoint = new Pipoint{point[0],point[1]};
     for(size_t& poly_i : pindex_vals[lincoord]) {
       if (GridTest(buf_poly_grids[poly_i], pipoint)) {
-        if (point_class == 2) {
+        if (point_class == ground_class) {
           // point_clouds_ground[poly_i].push_back(point[2]);
           min_ground_elevation = std::min(min_ground_elevation, point[2]);
           ground_point_clouds.get<PointCollection&>(poly_i).push_back(point);
-        } else if (point_class == 6) {
+        } else if (point_class == building_class) {
           if (GridTest(poly_grids[poly_i], pipoint)) {
             point_clouds.get<PointCollection&>(poly_i).push_back(point);
           }
@@ -182,7 +194,7 @@ void LASInPolygonsNode::process() {
   auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer};
+  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer, ground_class, building_class};
 
   for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
   {
@@ -191,6 +203,21 @@ void LASInPolygonsNode::process() {
     LASreader* lasreader = lasreadopener.open();
     
     if (!lasreader)
+      return;
+
+    Box file_bbox;
+    file_bbox.add(arr3f{
+      float(lasreader->get_min_x()-(*manager.data_offset)[0]),
+      float(lasreader->get_min_y()-(*manager.data_offset)[1]),
+      float(lasreader->get_min_z()-(*manager.data_offset)[2])
+    });
+    file_bbox.add(arr3f{
+      float(lasreader->get_max_x()-(*manager.data_offset)[0]),
+      float(lasreader->get_max_y()-(*manager.data_offset)[1]),
+      float(lasreader->get_max_z()-(*manager.data_offset)[2])
+    });
+
+    if(!file_bbox.intersects(pip_collector.completearea_bb))
       return;
 
     while (lasreader->read_point()) {

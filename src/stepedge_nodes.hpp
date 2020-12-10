@@ -565,6 +565,8 @@ namespace geoflow::nodes::stepedge {
     float cellsize = 50.0;
     float buffer = 1.0;
     float ground_percentile=0.05;
+    int ground_class = 2;
+    int building_class = 6;
     public:
     using Node::Node;
     void init() {
@@ -573,6 +575,8 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
+      add_param(ParamInt(ground_class, "ground_class", "LAS class number to use for ground"));
+      add_param(ParamInt(building_class, "building_class", "LAS class number to use for buildings"));
 
       add_param(ParamPath(filepaths, "las_filepaths", "LAS filepaths"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
