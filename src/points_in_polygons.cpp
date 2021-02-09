@@ -202,8 +202,10 @@ void LASInPolygonsNode::process() {
     lasreadopener.set_file_name(filepath.c_str());
     LASreader* lasreader = lasreadopener.open();
     
-    if (!lasreader)
-      return;
+    if (!lasreader){
+      std::cerr << "skipping las file\n";
+      continue;
+    }
 
     Box file_bbox;
     file_bbox.add(arr3f{
@@ -217,8 +219,10 @@ void LASInPolygonsNode::process() {
       float(lasreader->get_max_z()-(*manager.data_offset)[2])
     });
 
-    if(!file_bbox.intersects(pip_collector.completearea_bb))
-      return;
+    if(!file_bbox.intersects(pip_collector.completearea_bb)){
+      std::cerr << "cannot find intersection\n";
+      continue;
+    }
 
     while (lasreader->read_point()) {
       pip_collector.add_point(
