@@ -2074,6 +2074,10 @@ void ArrDissolveNode::process() {
     Face_merge_observer obs(arr);
     arr_dissolve_seg_edges(arr);
   }
+  
+  if (dissolve_all_interior) {
+    arr_dissolve_fp(arr, true, false);
+  }
 
   if (dissolve_step_edges) {
     Face_merge_observer obs(arr);
@@ -2162,8 +2166,8 @@ void ArrDissolveNode::process() {
         arrangementface_to_polygon(face, polygon);
 
         auto height_points = heightfield.rasterise_polygon(polygon, true);
-        size_t datasize = height_points.size(), data_cnt = 0;
-        if(datasize==0) { //polygon was too small to yield any pixels/height_points
+        size_t data_cnt = 0;
+        if(height_points.size()==0) { //polygon was too small to yield any pixels/height_points
           auto& pz = polygon[0][2];
           face->data().elevation_50p = pz;
           face->data().elevation_70p = pz;
@@ -2173,20 +2177,24 @@ void ArrDissolveNode::process() {
         } else {
           auto& plane = face->data().plane;
           // compute elevations based on the assigned plane on this face
+          std::vector<arr3f*> pts;
           for (auto& p : height_points) {
-            if(p[2]!=heightfield.noDataVal_) data_cnt++;
-            p[2] = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+            if(p[2]!=heightfield.noDataVal_) {
+              data_cnt++;
+              pts.push_back(&p);
+            };
           }
-          std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
-            return p1[2] < p2[2];
+          std::sort(pts.begin(), pts.end(), [](auto& p1, auto& p2) {
+            return (*p1)[2] < (*p2)[2];
           });
+          size_t datasize = pts.size();
           int elevation_id = std::floor(0.5*float(datasize-1));
-          face->data().elevation_50p = height_points[elevation_id][2];
+          face->data().elevation_50p = (*(pts[elevation_id])) [2];
           elevation_id = std::floor(0.7*float(datasize-1));
-          face->data().elevation_70p = height_points[elevation_id][2];
-          face->data().elevation_min = height_points[0][2];
-          face->data().elevation_max = height_points[datasize-1][2];
-          face->data().data_coverage = float(data_cnt) / float(datasize);
+          face->data().elevation_70p = (*(pts[elevation_id])) [2];
+          face->data().elevation_min = (*(pts[0])) [2];
+          face->data().elevation_max = (*(pts[datasize-1])) [2];
+          face->data().data_coverage = float(data_cnt) / float(height_points.size());
         }
       }
     }

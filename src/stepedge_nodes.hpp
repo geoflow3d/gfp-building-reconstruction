@@ -403,6 +403,7 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_seg_edges = true;
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
+    bool dissolve_all_interior = false;
     // bool remove_duplicates = true;
     float step_height_threshold = 1.0;
     // int dupe_threshold_exp = 3;
@@ -414,6 +415,7 @@ namespace geoflow::nodes::stepedge {
       add_output("arrangement", typeid(Arrangement_2));
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));
+      add_param(ParamBool(dissolve_all_interior, "dissolve_all_interior", "Dissolve all edges in intrerior of footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
       add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges (check for LoD1.3)"));
       // add_param(ParamBool(remove_duplicates, "remove_duplicates", "Remove duplicates"));
