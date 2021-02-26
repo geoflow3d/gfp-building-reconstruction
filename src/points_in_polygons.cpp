@@ -203,7 +203,7 @@ void LASInPolygonsNode::process() {
     LASreader* lasreader = lasreadopener.open();
     
     if (!lasreader){
-      std::cerr << "skipping las file\n";
+      std::cout << "cannot read las file: " << filepath << "\n";
       continue;
     }
 
@@ -220,7 +220,7 @@ void LASInPolygonsNode::process() {
     });
 
     if(!file_bbox.intersects(pip_collector.completearea_bb)){
-      std::cerr << "cannot find intersection\n";
+      std::cout << "no intersection footprints with las file: " << filepath << "\n";
       continue;
     }
 
