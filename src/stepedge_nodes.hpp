@@ -41,7 +41,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(extract_polygons, "extract_polygons", "extract_polygons"));
     }
     
-    bool inputs_valid() {
+    bool inputs_valid() override {
       auto& skipInput = input("skip");
       if (skipInput.has_data() && input("pts_per_roofplane").has_data()) {
         return !skipInput.get<bool>();
@@ -106,7 +106,7 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh", typeid(Mesh));
     }
 
-    bool inputs_valid() {
+    bool inputs_valid() override {
       return input("polygon").has_data() && input("floor_elevation").has_data();
     }
 
@@ -138,7 +138,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBool(output_groundparts, "output_groundparts", "Also output the ground parts"));
     }
-    bool inputs_valid() {
+    bool inputs_valid() override {
       return vector_input("arrangement").has_data() && poly_input("attributes").has_data() && vector_input("arrangement").is_touched();
     }
     void process() override;
@@ -721,10 +721,10 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("in", {typeid(float)});
     }
-    std::string info() {
+    std::string info() override {
       return "Result: " + std::to_string(input("in").get<float>());
     }
-    void process(){};
+    void process() override {};
   };
 
 
@@ -925,7 +925,7 @@ namespace geoflow::nodes::stepedge {
   class FacesSelectorNode:public Node {
     public:
     using Node::Node;
-    bool inputs_valid() {
+    bool inputs_valid() override {
       auto& skip_term = input("skip");
       auto& replace_term = input("replace");
       if ((!skip_term.has_data() || (!replace_term.has_data()))) {
@@ -946,7 +946,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("faces_B", typeid(Mesh));
       add_vector_output("faces", typeid(Mesh));
     }
-    void process() {
+    void process() override {
       auto skip = input("skip").get<bool>();
       auto replace = input("replace").get<bool>();
       if (skip) {
@@ -970,7 +970,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamString(attribute_name, "attribute_name", "Attribute name (should be a boolean attribute)"));
 
     }
-    void process() {
+    void process() override {
       bool result = false;
       for (auto &iterm : poly_input("attributes").sub_terminals()) {
         if (iterm->get_name() == manager.substitute_globals(attribute_name)) {
@@ -1001,7 +1001,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamString(attribute_name, "attribute_name", "Attribute name (should be a boolean attribute)"));
 
     }
-    bool inputs_valid() {
+    bool inputs_valid() override {
       auto& skip_term = input("skip");
       auto& ar_term = vector_input("alpha_rings");
       if(input("roof_type").has_data() && skip_term.has_data()) {
@@ -1012,7 +1012,7 @@ namespace geoflow::nodes::stepedge {
       return false;
       
     }
-    void process() {
+    void process() override {
       bool skip = input("skip").get<bool>();
       bool replace = skip;
       
@@ -1034,7 +1034,7 @@ namespace geoflow::nodes::stepedge {
   class AttrRingsSelectorNode:public Node {
     public:
     using Node::Node;
-    bool inputs_valid() {
+    bool inputs_valid() override {
       auto& skip_term = input("skip");
       auto& replace_term = input("replace");
       if ((!skip_term.has_data() || (!replace_term.has_data()))) {
@@ -1063,7 +1063,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("linear_rings", typeid(LinearRing));
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
     }
-    void process() {
+    void process() override {
       auto skip = input("skip").get<bool>();
       auto replace = input("replace").get<bool>();
       auto& out_attributes = poly_output("attributes");
@@ -1130,7 +1130,7 @@ namespace geoflow::nodes::stepedge {
       
       add_output("data_coverage", typeid(float));
     }
-    bool inputs_valid() {
+    bool inputs_valid() override {
       return vector_input("footprint_polygon").has_data() && input("data_area").has_data();
     }
     void process() override;
