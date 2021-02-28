@@ -22,7 +22,7 @@ namespace geoflow::nodes::stepedge {
     bool optimal_only_if_needed = true;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       // add_input("points", TT_any);
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_input("skip", typeid(bool));
@@ -53,51 +53,51 @@ namespace geoflow::nodes::stepedge {
     //   auto param = std::get<ParamBool>(parameters.at("optimal_only_if_needed"));
     //   param.set_visible(optimal_alpha);
     // }
-    void process();
+    void process() override;
   };
 
   class Ring2SegmentsNode:public Node {
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("rings", typeid(LinearRingCollection));
       add_output("edge_segments", typeid(SegmentCollection));
       add_output("ring_idx", typeid(std::vector<std::vector<size_t>>));
     }
-    void process();
+    void process() override;
   };
 
   class PointCloudMeanZNode:public Node {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("point_clouds", typeid(std::vector<PointCollection>));
       add_output("height", typeid(vec1f));
     }
 
-    void process();
+    void process() override;
   };
 
   class PolygonExtruderNode:public Node {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("polygons", typeid(LinearRingCollection));
       add_input("heights", typeid(vec1f));
       add_output("rings_3d", typeid(LinearRingCollection));
       add_output("ring_types", typeid(vec1i));
     }
 
-    void process();
+    void process() override;
   };
 
   class LOD1ExtruderNode:public Node {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("polygon", typeid(LinearRing));
       add_input("floor_elevation", typeid(float));
       add_input("roof_elevation", typeid(float));
@@ -110,7 +110,7 @@ namespace geoflow::nodes::stepedge {
       return input("polygon").has_data() && input("floor_elevation").has_data();
     }
 
-    void process();
+    void process() override;
   };
 
   class Arr2LinearRingsNode:public Node {
@@ -121,7 +121,7 @@ namespace geoflow::nodes::stepedge {
     int plane_id = 0;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("arrangement", typeid(Arrangement_2));
       add_vector_input("groundparts", typeid(LinearRing));
       // add_vector_input("floor_elevation", typeid(float));
@@ -141,18 +141,18 @@ namespace geoflow::nodes::stepedge {
     bool inputs_valid() {
       return vector_input("arrangement").has_data() && poly_input("attributes").has_data() && vector_input("arrangement").is_touched();
     }
-    void process();
+    void process() override;
   };
 
   class Arr2LinearRingsDebugNode:public Node {
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("arrangement", typeid(Arrangement_2));
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
     }
-    void process();
+    void process() override;
   };
 
   class ArrExtruderNode:public Node {
@@ -164,7 +164,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("floor_elevation", typeid(float));
 
@@ -181,7 +181,7 @@ namespace geoflow::nodes::stepedge {
       // add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
     }
-    void process();
+    void process() override;
   };
 
   // class ExtruderNode:public Node {
@@ -193,7 +193,7 @@ namespace geoflow::nodes::stepedge {
 
   //   public:
   //   using Node::Node;
-  //   void init() {
+  //   void init() override {
   //     add_input("arrangement", typeid(Arrangement_2));
   //     add_output("cell_id_vec1i", typeid(vec1i));
   //     add_output("plane_id", typeid(vec1i));
@@ -213,20 +213,20 @@ namespace geoflow::nodes::stepedge {
   //     add_param(ParamFloat(base_elevation, "base_elevation", "Base elevation"));
   //     add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
   //   }
-  //   void process();
+  //   void process() override;
   // };
 
   class PolygonGrowerNode:public Node {
     float extension = 0.1;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("rings", typeid(LinearRingCollection));
       add_output("rings", typeid(LinearRingCollection));
 
       add_param(ParamFloat(extension, "extension", "Extension length"));
     }
-    void process();
+    void process() override;
   };
 
   // class BuildArrFromRingsExactNode:public Node {
@@ -248,7 +248,7 @@ namespace geoflow::nodes::stepedge {
   //   int vcount, ecount;
 
   //   using Node::Node;
-  //   void init() {
+  //   void init() override {
   //     add_input("rings", typeid(std::unordered_map<size_t, linereg::Polygon_2>));
   //     add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
   //     add_input("footprint", {typeid(linereg::Polygon_2), typeid(LinearRing)});
@@ -284,7 +284,7 @@ namespace geoflow::nodes::stepedge {
   //   void arr_snapclean_from_fp(Arrangement_2& arr);
   //   void arr_process(Arrangement_2& arr);
   //   void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points);
-  //   void process();
+  //   void process() override;
   // };
 
   class BuildArrFromLinesNode:public Node {
@@ -301,7 +301,7 @@ namespace geoflow::nodes::stepedge {
     public:
 
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("lines", {typeid(Segment), typeid(linereg::Segment_2)});
       add_input("footprint", {typeid(linereg::Polygon_with_holes_2), typeid(LinearRing)});
       add_output("arrangement", typeid(Arrangement_2));
@@ -326,7 +326,7 @@ namespace geoflow::nodes::stepedge {
       }
       return true;
     }
-    void process();
+    void process() override;
   };
 
   class OptimiseArrangmentGridNode:public Node {
@@ -343,7 +343,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
@@ -371,7 +371,7 @@ namespace geoflow::nodes::stepedge {
       }
       return true;
     }
-    void process();
+    void process() override;
   };
   class OptimiseArrangmentNode:public Node {
     float data_multiplier = 50.0;
@@ -384,7 +384,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
@@ -396,7 +396,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(preset_labels, "preset_labels", "Preset face labels"));
       add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
     }
-    void process();
+    void process() override;
   };
 
   class ArrDissolveNode: public Node {
@@ -409,7 +409,7 @@ namespace geoflow::nodes::stepedge {
     // int dupe_threshold_exp = 3;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_output("arrangement", typeid(Arrangement_2));
@@ -422,17 +422,17 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
       // add_param(ParamBoundedInt(dupe_threshold_exp, 0, 15, "dupe_threshold_exp", "10-base exponent to set duplication threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
     }
-    void process();
+    void process() override;
   };
 
   class LinearRingtoRingsNode:public Node {
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("linear_ring", typeid(LinearRing));
       add_output("linear_rings", typeid(LinearRingCollection));
     }
-    void process();
+    void process() override;
   };
 
   class DetectLinesNode:public Node {
@@ -455,7 +455,7 @@ namespace geoflow::nodes::stepedge {
     typedef std::map<IDPair, size_t, Cmp> RingSegMap;
 
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("edge_points", {typeid(LinearRing)});
       add_input("roofplane_ids", typeid(vec1i));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
@@ -479,13 +479,13 @@ namespace geoflow::nodes::stepedge {
     inline void detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out);
     inline size_t detect_lines_ring_m2(linedect::LineDetector& LD, Plane&, SegmentCollection& segments_out);
     inline void detect_lines(linedect::LineDetector& LD);
-    void process();
+    void process() override;
   };
 
   // class ClassifyEdgePointsNode:public Node {
   //   public:
   //   using Node::Node;
-  //   void init() {
+  //   void init() override {
   //     add_output("edge_points", typeid(std::vector<linedect::Point>));
   //     add_output("edge_points_vec3f", typeid(vec3f));
   //     add_input("points", typeid(PNL_vector));
@@ -503,7 +503,7 @@ namespace geoflow::nodes::stepedge {
   //     ImGui::InputFloat("Elevation jump", &param<float>("classify_jump_ele"), 0.01, 1);
   //   }
 
-  //   void process();
+  //   void process() override;
   // };
 
   class DetectPlanesNode:public Node {
@@ -520,7 +520,7 @@ namespace geoflow::nodes::stepedge {
     // float roof_percentile=0.5;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("points", typeid(PointCollection));
       add_output("plane_id", typeid(vec1i));
       add_output("is_wall", typeid(vec1i));
@@ -559,7 +559,7 @@ namespace geoflow::nodes::stepedge {
     //   param_count.set_visible(only_horizontal);
     //   param_ishoriz.set_visible(only_horizontal);
     // }
-    void process();
+    void process() override;
   };
 
   class LASInPolygonsNode:public Node {
@@ -571,7 +571,7 @@ namespace geoflow::nodes::stepedge {
     int building_class = 6;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
@@ -585,7 +585,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
       add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
-    void process();
+    void process() override;
   };
 
 #ifdef GFP_WITH_PDAL
@@ -597,7 +597,7 @@ namespace geoflow::nodes::stepedge {
     float ground_percentile=0.05;
   public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
@@ -610,7 +610,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
       add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
     }
-    void process();
+    void process() override;
   };
 #endif
   
@@ -618,7 +618,7 @@ namespace geoflow::nodes::stepedge {
     public:
     int building_id=0, polygon_count=0;
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("point_clouds", typeid(PointCollection));
       add_vector_input("ground_point_clouds", typeid(PointCollection));
       add_vector_input("polygons", typeid(LinearRing));
@@ -635,7 +635,7 @@ namespace geoflow::nodes::stepedge {
         param->set_bounds(0, polygon_count-1);
       }
     }
-    void process();
+    void process() override;
   };
 
   class RegulariseLinesNode:public Node {
@@ -646,7 +646,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("edge_segments", typeid(SegmentCollection));
       add_input("ints_segments", typeid(SegmentCollection));
       // add_input("footprint", typeid(LinearRing));
@@ -665,7 +665,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(merge_intersection_lines, "merge_intersection_lines", "merge_intersection_lines"));
 
     }
-    void process();
+    void process() override;
   };
 
   class RegulariseRingsNode:public Node {
@@ -680,7 +680,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("edge_segments", typeid(SegmentCollection));
       add_input("ints_segments", typeid(SegmentCollection));
       add_input("ring_idx", typeid(std::unordered_map<size_t,std::vector<size_t>>));
@@ -711,14 +711,14 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(recompute_rings, "recompute_rings", "recompute_rings"));
       add_param(ParamBoundedFloat(fp_offset, 0.01, 10, "fp_offset", "fp_offset"));
     }
-    void process();
+    void process() override;
   };
 
 
   class PrintResultNode:public Node {
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("in", {typeid(float)});
     }
     std::string info() {
@@ -733,7 +733,7 @@ namespace geoflow::nodes::stepedge {
     float min_dist_to_line = 1.0;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("pts_per_roofplane", 
         {typeid(IndexedPlanesWithPoints)});
       add_input("plane_adj", 
@@ -746,7 +746,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamInt(min_neighb_pts, "min_neighb_pts", "Minimum number of neighbouring points"));
       add_param(ParamFloat(min_dist_to_line, "min_dist_to_line", "Minimum number of neighbouring points"));
     }
-    void process();
+    void process() override;
   };
 
 
@@ -754,7 +754,7 @@ namespace geoflow::nodes::stepedge {
     float threshold_stop_cost = 0.005;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("polygons_simp", typeid(LinearRing));
       // add_output("polygon_simp", typeid(LinearRing));
@@ -766,7 +766,7 @@ namespace geoflow::nodes::stepedge {
     //     manager.run(*this);
     //   }
     // }
-    void process();
+    void process() override;
   };
 
 
@@ -774,7 +774,7 @@ namespace geoflow::nodes::stepedge {
 
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("ipoints", {typeid(PointCollection), typeid(IndexedPlanesWithPoints)});
       add_input("triangles", typeid(MultiTriangleCollection));
       add_input("face_ids", typeid(vec1i));
@@ -788,14 +788,14 @@ namespace geoflow::nodes::stepedge {
       add_output("m2pc_error_max", typeid(float));
 
     }
-    void process();
+    void process() override;
   };
 
   class PCRasteriseNode:public Node {
     float cellsize = 0.5;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("points", typeid(PointCollection));
       
       add_output("heightfield", typeid(RasterTools::Raster));
@@ -804,7 +804,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
-    void process();
+    void process() override;
   };
 
   class SegmentRasteriseNode:public Node {
@@ -814,7 +814,7 @@ namespace geoflow::nodes::stepedge {
     int megapixel_limit = 600;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       // add_vector_input("alpha_rings", typeid(LinearRing));
       add_vector_input("triangles", typeid(TriangleCollection));
       add_vector_input("ground_triangles", typeid(TriangleCollection));
@@ -845,13 +845,13 @@ namespace geoflow::nodes::stepedge {
       return true;
     }
     void rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt);
-    void process();
+    void process() override;
   };
 
   // class GridMaxNode:public Node {
   //   public:
   //   using Node::Node;
-  //   void init() {
+  //   void init() override {
   //     add_input("grid_1", typeid(RasterTools::Raster));
   //     add_input("grid_2", typeid(RasterTools::Raster));
       
@@ -859,18 +859,18 @@ namespace geoflow::nodes::stepedge {
   //     add_output("grid_points", typeid(PointCollection));
   //     // add_output("values", typeid(vec1f));
   //   }
-  //   void process();
+  //   void process() override;
   // };
 
   class PolygonUnionNode:public Node {
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("polygons", typeid(LinearRing));
       add_vector_output("holes", typeid(LinearRing));
     }
-    void process();
+    void process() override;
   };
 
   class Filter25DNode:public Node {
@@ -880,7 +880,7 @@ namespace geoflow::nodes::stepedge {
     int count_thres = 1;
   public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("points", {typeid(PointCollection), typeid(IndexedPlanesWithPoints)});
       add_output("points", typeid(PointCollection));
       add_output("points_filtered", typeid(PointCollection));
@@ -893,7 +893,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedInt(count_thres, 0, 10, "count_thres", "count_thres"));
       add_param(ParamBoundedFloat(area_thres, 0, 100, "area_thres",  "area_thres"));
     }
-    void process();
+    void process() override;
   };
 
   class PolygonTriangulatorNode:public Node {
@@ -903,7 +903,7 @@ namespace geoflow::nodes::stepedge {
     void triangulate_polygon(LinearRing& ring, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids);
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_vector_input("polygons", {typeid(LinearRing), typeid(Mesh)});
       // add_vector_output("dupe_rings", typeid(LinearRing));
       add_output("triangles", typeid(TriangleCollection));
@@ -919,7 +919,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamInt(dupe_threshold_exp, "dupe_threshold_exp", "Dupe tolerance exponent"));
 
     }
-    void process();
+    void process() override;
   };
 
   class FacesSelectorNode:public Node {
@@ -939,7 +939,7 @@ namespace geoflow::nodes::stepedge {
         }
       }
     }
-    void init() {
+    void init() override {
       add_input("skip", typeid(bool));
       add_input("replace", typeid(bool));
       add_vector_input("faces_A", typeid(Mesh));
@@ -963,7 +963,7 @@ namespace geoflow::nodes::stepedge {
     std::string attribute_name;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_output("result", typeid(bool));
 
@@ -990,7 +990,7 @@ namespace geoflow::nodes::stepedge {
     std::string attribute_name;
     public:
     using Node::Node;
-    void init() {
+    void init() override {
       add_input("skip", typeid(bool));
       add_vector_input("alpha_rings", {typeid(LinearRing)});
       add_input("roof_type", typeid(int));
@@ -1052,7 +1052,7 @@ namespace geoflow::nodes::stepedge {
         }
       }
     }
-    void init() {
+    void init() override {
       add_input("skip", typeid(bool));
       add_input("replace", typeid(bool));
       add_vector_input("linear_rings_A", typeid(LinearRing));
@@ -1096,13 +1096,13 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     float offset = 4;
 
-    void init() {
+    void init() override {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("offset_polygons", typeid(LinearRing));
 
       add_param(ParamBoundedFloat(offset, -10, 10, "offset",  "offset"));   
     }
-    void process();
+    void process() override;
   };
 
   class CityGMLMeshWriterNode:public Node {
@@ -1111,19 +1111,19 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     std::string filepath_;
 
-    void init() {
+    void init() override {
       add_vector_input("mesh", typeid(Mesh));
 
       add_param(ParamPath(filepath_, "filepath",  "filepath"));   
     }
-    void process();
+    void process() override;
   };
 
   class DataCoverageCalcNode:public Node {
     public:
     using Node::Node;
 
-    void init() {
+    void init() override {
       add_vector_input("ground_parts", typeid(LinearRing));
       add_input("footprint_polygon", typeid(LinearRing));
       add_input("data_area", typeid(float));
@@ -1133,7 +1133,7 @@ namespace geoflow::nodes::stepedge {
     bool inputs_valid() {
       return vector_input("footprint_polygon").has_data() && input("data_area").has_data();
     }
-    void process();
+    void process() override;
   };
 
   class SnapRoundNode:public Node {
