@@ -1136,4 +1136,20 @@ namespace geoflow::nodes::stepedge {
     void process();
   };
 
+  class SnapRoundNode:public Node {
+    float pixel_size = 0.001;
+
+    public:
+    using Node::Node;
+
+    void init() {
+      add_input("arrangement", typeid(Arrangement_2));
+      add_output("arrangement", typeid(Arrangement_2));
+
+      add_param(ParamBoundedFloat(pixel_size, 0, 1, "pixel_size",  "pixel size"));   
+    }
+
+    void process();
+  };
+
 }

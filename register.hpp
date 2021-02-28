@@ -43,4 +43,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<CityGMLMeshWriterNode>("CityGMLMeshWriter");
     node_register.register_node<Arr2LinearRingsDebugNode>("Arr2LinearRingsDebug");
     node_register.register_node<DataCoverageCalcNode>("DataCoverageCalc");
+    node_register.register_node<SnapRoundNode>("SnapRound");
 }
