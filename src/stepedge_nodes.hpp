@@ -602,7 +602,6 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_point_clouds", typeid(PointCollection));
-      add_vector_output("ground_elevations", typeid(float));
 
       add_param(ParamPath(dirpath, "dirpath", "EPT directory"));
       // add_param("filter_limits", ParamString(filter_limits, "PDAL Range filter"));
@@ -622,9 +621,11 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("point_clouds", typeid(PointCollection));
       add_vector_input("ground_point_clouds", typeid(PointCollection));
       add_vector_input("polygons", typeid(LinearRing));
+      add_vector_input("ground_elevations", typeid(float));
       add_output("point_cloud", typeid(PointCollection));
       add_output("ground_point_cloud", typeid(PointCollection));
       add_output("polygon", typeid(LinearRing));
+      add_output("ground_elevation", typeid(float));
 
       add_param(ParamBoundedInt(building_id, 0, polygon_count-1,  "building_id", "building_id"));
     }
@@ -1136,4 +1137,23 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+<<<<<<< Updated upstream
+=======
+  class SnapRoundNode:public Node {
+    float pixel_size = 0.001;
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("arrangement", typeid(Arrangement_2));
+      add_output("arrangement", typeid(Arrangement_2));
+
+      add_param(ParamBoundedFloat(pixel_size, 0, 1, "pixel_size",  "pixel size"));   
+    }
+
+    void process() override;
+  };
+
+>>>>>>> Stashed changes
 }

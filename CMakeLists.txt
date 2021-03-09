@@ -64,6 +64,7 @@ geoflow_create_plugin(
   src/alpha_shape.cpp
   src/CityGMLMeshWriter.cpp
   src/data_coverage_node.cpp
+  src/detect_planes_node.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE
