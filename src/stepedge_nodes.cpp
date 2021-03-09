@@ -19,10 +19,6 @@
 #include <CGAL/Direction_3.h>
 
 #include "stepedge_nodes.hpp"
-#include "plane_detect.hpp"
-
-// #include <filesystem>
-// namespace fs=std::filesystem;
 
 typedef std::array<float,3> vertex;
 vertex get_normal(vertex v0, vertex v1, vertex v2) {

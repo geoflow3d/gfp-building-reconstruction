@@ -60,6 +60,7 @@ geoflow_create_plugin(
   src/build_arrangement_lines.cpp
   # src/build_arrangement_rings.cpp
   src/arrangement.cpp
+  src/snap_round.cpp
   src/polygon_offset.cpp
   src/alpha_shape.cpp
   src/CityGMLMeshWriter.cpp

@@ -1137,8 +1137,6 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
-<<<<<<< Updated upstream
-=======
   class SnapRoundNode:public Node {
     float pixel_size = 0.001;
 
@@ -1155,5 +1153,4 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
->>>>>>> Stashed changes
 }
