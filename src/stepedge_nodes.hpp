@@ -172,6 +172,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("labels", typeid(int)); // 0==ground, 1==roof, 2==outerwall, 3==innerwall
       add_vector_output("faces", typeid(LinearRing));
       add_vector_output("mesh", typeid(Mesh));
+      add_output("multisolid", typeid(std::unordered_map<int, Mesh>));
 
       add_param(ParamBool(do_walls, "do_walls", "Do walls"));
       add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
