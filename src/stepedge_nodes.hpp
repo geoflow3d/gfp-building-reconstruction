@@ -103,7 +103,7 @@ namespace geoflow::nodes::stepedge {
       add_input("roof_elevation", typeid(float));
       add_vector_output("3d_polygons", typeid(LinearRing));
       add_output("surface_types", typeid(vec1i));
-      add_output("mesh", typeid(Mesh));
+      add_output("mesh", typeid(std::unordered_map<int, Mesh>));
     }
 
     bool inputs_valid() override {
@@ -906,7 +906,7 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() override {
-      add_vector_input("polygons", {typeid(LinearRing), typeid(Mesh)});
+      add_vector_input("polygons", {typeid(LinearRing), typeid(std::unordered_map<int, Mesh>)});
       // add_vector_output("dupe_rings", typeid(LinearRing));
       add_output("triangles", typeid(TriangleCollection));
       add_output("multi_triangle_collections", typeid(MultiTriangleCollection));
@@ -944,9 +944,9 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("skip", typeid(bool));
       add_input("replace", typeid(bool));
-      add_vector_input("faces_A", typeid(Mesh));
-      add_vector_input("faces_B", typeid(Mesh));
-      add_vector_output("faces", typeid(Mesh));
+      add_vector_input("faces_A", typeid(std::unordered_map<int, Mesh>));
+      add_vector_input("faces_B", typeid(std::unordered_map<int, Mesh>));
+      add_vector_output("faces", typeid(std::unordered_map<int, Mesh>));
     }
     void process() override {
       auto skip = input("skip").get<bool>();

@@ -181,9 +181,11 @@ void LOD1ExtruderNode::process() {
   surf_type.push_back(0);
   mesh.push_polygon(r_floor, int(0));
   // mesh.push_attribute("surface_type", int(0));
+  std::unordered_map<int, Mesh> meshmap;
+  meshmap[0] = mesh;
 
   output("surface_types").set(surf_type);
-  output("mesh").set(mesh);
+  output("mesh").set(meshmap);
 }
 
 inline arr3f grow(const arr3f& p_, const arr3f& q_, const arr3f& r_, const float& extension) {
