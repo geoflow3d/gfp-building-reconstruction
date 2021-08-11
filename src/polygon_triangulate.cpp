@@ -1,44 +1,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Constrained_Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_with_info_2.h>
-#include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/linear_least_squares_fitting_3.h>
 #include <CGAL/Polygon_2.h>
 
 #include <stepedge_nodes.hpp>
+#include "polygon_util.hpp"
+#include "cdt_util.hpp"
 
 namespace geoflow::nodes::stepedge {
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Exact_predicates_tag Tag;
-struct VertexInfo {
-  bool hasPoint = false;
-  geoflow::arr3f point;
-  VertexInfo() : hasPoint(){};
-  void set_point(geoflow::arr3f& p) {
-    hasPoint=true;
-    point = p;
-  };
-};
-struct FaceInfo {
-  bool interior = false, visited = false;
-  int nesting_level = -1;
-  void set_interior(bool is_interior) {
-    visited = true;
-    interior = is_interior;
-  }
-  bool in_domain() {
-    return nesting_level % 2 == 1;
-  }
-};
-typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfo, K> VertexBase;
-typedef CGAL::Constrained_triangulation_face_base_2<K> FaceBase;
-typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo, K, FaceBase> FaceBaseWithInfo;
-typedef CGAL::Triangulation_data_structure_2<VertexBase, FaceBaseWithInfo> TriangulationDataStructure;
-typedef CGAL::Constrained_Delaunay_triangulation_2<K, TriangulationDataStructure, Tag> CDT;
 typedef CGAL::Polygon_2<K> Polygon_2;
 typedef CGAL::Plane_3<K> Plane_3;
 
@@ -56,65 +27,6 @@ glm::vec3 calculate_normal(const LinearRing ring)
   return glm::normalize(normal);
 }
 
-/**
- * mark the triangles that are inside the original 2D polygon.
- * explore set of facets connected with non constrained edges,
- * and attribute to each such set a nesting level.
- * start from facets incident to the infinite vertex, with a nesting
- * level of 0. Then recursively consider the non-explored facets incident
- * to constrained edges bounding the former set and increase the nesting level by 1.
- * facets in the domain are those with an odd nesting level.
- */
- void mark_domains(CDT& ct,
-  CDT::Face_handle start,
-  int index,
-  std::list<CDT::Edge>& border) {
-  if (start->info().nesting_level != -1) {
-    return;
-  }
-  std::list<CDT::Face_handle> queue;
-  queue.push_back(start);
-  while (!queue.empty()) {
-    CDT::Face_handle fh = queue.front();
-    queue.pop_front();
-    if (fh->info().nesting_level == -1) {
-      fh->info().nesting_level = index;
-      for (int i = 0; i < 3; i++) {
-        CDT::Edge e(fh, i);
-        CDT::Face_handle n = fh->neighbor(i);
-        if (n->info().nesting_level == -1) {
-          if (ct.is_constrained(e)) border.push_back(e);
-          else queue.push_back(n);
-        }
-      }
-    }
-  }
-}
-
-/**
- * mark the triangles that are inside the original 2D polygon.
- * explore set of facets connected with non constrained edges,
- * and attribute to each such set a nesting level.
- * start from facets incident to the infinite vertex, with a nesting
- * level of 0. Then recursively consider the non-explored facets incident
- * to constrained edges bounding the former set and increase the nesting level by 1.
- * facets in the domain are those with an odd nesting level.
- */
-void mark_domains(CDT& cdt) {
-  // for (CDT::All_faces_iterator it = cdt.all_faces_begin(); it != cdt.all_faces_end(); ++it) {
-  //   it->info().nesting_level = -1;
-  // }
-  std::list<CDT::Edge> border;
-  mark_domains(cdt, cdt.infinite_face(), 0, border);
-  while (!border.empty()) {
-    CDT::Edge e = border.front();
-    border.pop_front();
-    CDT::Face_handle n = e.first->neighbor(e.second);
-    if (n->info().nesting_level == -1) {
-      mark_domains(cdt, n, e.first->info().nesting_level + 1, border);
-    }
-  }
-}
 // void mark_domains(CDT& cdt) {
 
 //   std::list<CDT::Face_handle> explorables;
@@ -165,29 +77,6 @@ void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, CDT& cdt) {
     vh = vh_next;
   }
 }
-
-bool has_duplicates_ring(vec3f& poly, float& dupe_threshold) {
-  auto pl = *poly.rbegin();
-  for (auto& p : poly) {
-    if (std::fabs(pl[0]-p[0])< dupe_threshold && std::fabs(pl[1]-p[1])< dupe_threshold && std::fabs(pl[2]-p[2])< dupe_threshold) {
-      return true;
-    }
-    pl=p;
-  }
-  return false;
-}
-
-bool is_degenerate(LinearRing& poly, float& dupe_threshold) {
-  if (poly.size() < 3) return true;
-  if (has_duplicates_ring(poly, dupe_threshold)) return true;
-
-  for (auto& ring : poly.interior_rings()) {
-    if (ring.size() < 3) return true;
-    if (has_duplicates_ring(ring, dupe_threshold)) return true;
-  }
-  return false;
-}
-
 
 void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids) {
 

@@ -1,10 +1,10 @@
 #include "arrangement.hpp"
 
-template<typename E, typename P> void ccb_to_polygon_3(E he, P& polygon, double h=0) {
+template<typename E, typename P> bool ccb_to_polygon_3(E he, P& polygon, double h=0) {
   auto first = he;
 
   while(true){
-    // if (!he->source()- at_infinity())
+    if (he->is_fictitious()) return false;
       polygon.push_back({
         float(CGAL::to_double(he->source()->point().x())),
         float(CGAL::to_double(he->source()->point().y())),
@@ -15,6 +15,7 @@ template<typename E, typename P> void ccb_to_polygon_3(E he, P& polygon, double 
     if (he==first) break;
   // }
   }
+  return true;
 }
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
   // if(extract_face){ // ie it is a face on the interior of the footprint
@@ -33,16 +34,17 @@ void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
   // }
   }
 }
-void arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygon, double h){
+bool arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygon, double h){
   // if(extract_face){ // ie it is a face on the interior of the footprint
   auto he = face->outer_ccb();
-  ccb_to_polygon_3(he, polygon);
+  if (!ccb_to_polygon_3(he, polygon, h)) return false;
 
   for (auto ccb = face->inner_ccbs_begin(); ccb != face->inner_ccbs_end(); ++ccb) {
     geoflow::vec3f ring;
-    ccb_to_polygon_3(*ccb, ring, h);
+    if (!ccb_to_polygon_3(*ccb, ring, h)) return false;
     polygon.interior_rings().push_back(ring);
   }
+  return true;
 }
 
 // helper functions

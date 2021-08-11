@@ -218,7 +218,7 @@ typedef std::vector<std::array<float,2>> vec2f;
 void arr_filter_biggest_face(Arrangement_2& arr, const float& rel_area_thres);
 
 void arrangementface_to_polygon(Face_handle face, vec2f& polygons);
-void arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygons, double h=0);
+bool arrangementface_to_polygon(Face_handle face, geoflow::LinearRing& polygons, double h=0);
 
 Polygon_2 arr_cell2polygon(const Face_handle& fh);
 
