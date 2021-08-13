@@ -68,6 +68,7 @@ geoflow_create_plugin(
   src/detect_planes_node.cpp
   src/polygon_util.cpp
   src/cdt_util.cpp
+  src/trisnap.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

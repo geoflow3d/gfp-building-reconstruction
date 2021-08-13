@@ -1148,7 +1148,28 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_output("arrangement", typeid(Arrangement_2));
 
-      add_param(ParamBoundedFloat(pixel_size, 0, 1, "pixel_size",  "pixel size"));   
+      add_param(ParamBoundedFloat(pixel_size, 0, 1, "pixel_size",  "pixel size"));
+    }
+
+    void process() override;
+  };
+
+  class TriSnapNode:public Node {
+    // float pixel_size = 0.001;
+    float dist_thres = 0.005;
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("arrangement", typeid(Arrangement_2));
+      add_output("arrangement", typeid(Arrangement_2));
+      add_output("triangles_og", typeid(TriangleCollection));
+      add_output("segment_ids_og", typeid(vec1i));
+      add_output("triangles_snapped", typeid(TriangleCollection));
+      add_output("segment_ids_snapped", typeid(vec1i));
+
+      add_param(ParamBoundedFloat(dist_thres, 0, 1, "dist_thres",  "Snapping threshold"));
     }
 
     void process() override;
