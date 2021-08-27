@@ -147,6 +147,49 @@ namespace RasterTools {
   void Raster::set_val(size_t col, size_t row, double val) {
     (*vals_)[col+row*dimx_] = val;
   }
+  
+  double Raster::get_val(size_t col, size_t row) {
+    return (*vals_)[col+row*dimx_];
+  }
+
+  void Raster::set_nodata(double new_nodata_val) {
+    for (size_t i=0; i<dimx_*dimy_; ++i) {
+      if ((*vals_)[i] == noDataVal_) {
+        (*vals_)[i] = new_nodata_val;
+      }
+    }
+    noDataVal_ = new_nodata_val;
+  }
+
+  void Raster::fill_nn(size_t window_size) {
+    // set nodata to max float
+    std::vector<float> new_vals(dimx_*dimy_);
+    
+    set_nodata(std::numeric_limits<float>::max());
+    // iterate though raster pixels
+    for(size_t col=0; col < dimx_; ++col) {
+      for(size_t row=0; row < dimy_; ++row) {
+        // if there is nodata here 
+        if (get_val(col, row) == noDataVal_) {
+          // look in window of size radius around this pixel and collect the minimal value
+          size_t left = std::max(int(0), int(col)-int(window_size));
+          size_t right = std::min(int(dimx_), int(col)+int(window_size));
+          size_t bottom = std::max(int(0), int(row)-int(window_size));
+          size_t top = std::min(int(dimy_), int(row)+int(window_size));
+          double min_val = noDataVal_;
+          for (size_t wc = left; wc < right; ++wc ) {
+            for (size_t wr = bottom; wr < top; ++wr ) {
+              min_val = std::min(min_val, get_val(wc, wr));
+            }
+          }
+          new_vals[col+row*dimx_] = min_val;
+        } else {
+          new_vals[col+row*dimx_] = get_val(col, row);
+        }
+      }
+    }
+    (*vals_) = new_vals;
+  }
 
   // void Raster::write(const char* WKGCS, alg a, void * dataPtr, const char* outFile)
   // {

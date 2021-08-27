@@ -244,6 +244,8 @@ namespace geoflow::nodes::stepedge {
     if(use_ground)
       rasterise_input(ground_triangles, r, grounddata_area_cnt);
 
+    if (fill_nodata_) r.fill_nn(fill_nodata_window_size_);
+
     PointCollection grid_points;
     vec1f values;
     double nodata = r.getNoDataVal();
