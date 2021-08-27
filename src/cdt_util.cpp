@@ -1,6 +1,6 @@
 #include "cdt_util.hpp"
 
-namespace geoflow::nodes::stepedge {
+namespace tri_util {
 
   void mark_domains(CDT& ct,
     CDT::Face_handle start,
@@ -67,5 +67,21 @@ namespace geoflow::nodes::stepedge {
       cdt.insert_constraint(vh, vh_next);
       vh = vh_next;
     }
+  }
+
+  CDT create_from_polygon(geoflow::LinearRing& poly) {
+    CDT triangulation;
+
+    insert_ring(poly, triangulation);
+    for (auto& ring : poly.interior_rings()) {
+      insert_ring(ring, triangulation);
+    }
+
+    if (triangulation.number_of_faces()==0)
+      return triangulation;
+
+    mark_domains(triangulation);
+
+    return triangulation;
   }
 }

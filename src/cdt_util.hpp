@@ -5,7 +5,7 @@
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 
-namespace geoflow::nodes::stepedge {
+namespace tri_util {
 
   typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
   typedef CGAL::Exact_predicates_inexact_constructions_kernel Epeck;
@@ -44,4 +44,6 @@ namespace geoflow::nodes::stepedge {
   void mark_domains(CDT& cdt);
 
   void insert_ring(geoflow::vec3f& ring, CDT& cdt);
+
+  CDT create_from_polygon(geoflow::LinearRing& poly);
 }

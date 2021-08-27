@@ -14,65 +14,7 @@
 
 namespace geoflow::nodes::stepedge {
 
-  CDT triangulate_polygon(LinearRing& poly, float dupe_threshold_exp=3) {
-    CDT triangulation;
-
-    float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
-    // if (is_degenerate(poly, dupe_threshold)) {
-    //   std::cout << "skipping ring with duplicates\n";
-    //   // dupe_rings.push_back(poly);
-    //   return triangulation;
-    // }
-    // auto normal = calculate_normal(poly);
-    // if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){
-    //   std::cout << "degenerate normal: " << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
-    //   return;
-    // }
-    // auto& p0 = poly[0];
-    // Plane_3 plane(K::Point_3(p0[0], p0[1], p0[2]), K::Vector_3(normal.x, normal.y, normal.z));
-    
-    // project and triangulate
-    
-    // Polygon_2 poly_2d = project(poly, plane);
-    // if(CGAL::abs(poly_2d.area())<1E-4) {
-    //   return;
-    // }
-    insert_ring(poly, triangulation);
-    // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
-    for (auto& ring : poly.interior_rings()) {
-      insert_ring(ring, triangulation);
-      // poly_2d = project(poly, plane);
-      // triangulation.insert_constraint(poly_2d.vertices_begin(), poly_2d.vertices_end(), true);
-    }
-
-    if (triangulation.number_of_faces()==0)
-      return triangulation;
-
-    mark_domains(triangulation);
-
-    // for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
-    // fit != triangulation.finite_faces_end(); ++fit) {
-
-    //   if (!output_all_triangles && !fit->info().in_domain()) continue;
-
-    //   Triangle triangle;
-    //   triangle = {
-    //     fit->vertex(0)->info().point, 
-    //     fit->vertex(1)->info().point, 
-    //     fit->vertex(2)->info().point
-    //   };
-    //   // for (size_t j = 0; j < 3; ++j)
-    //   // {
-    //     // normals.push_back({normal.x, normal.y, normal.z});
-    //     // values_out.push_back(values_in[vi]);
-    //     // ring_ids.push_back(ring_id);
-    //     // nesting_levels.push_back(fit->info().nesting_level);
-    //   // }
-    //   triangles.push_back(triangle);
-    // }
-    return triangulation;
-  }
-
+  typedef tri_util::CDT CDT;
 
   void SnapRoundNode::process() {
     typedef CGAL::Quotient<CGAL::MP_Float>           Number_type;
@@ -146,7 +88,7 @@ namespace geoflow::nodes::stepedge {
       
       if (arrangementface_to_polygon(arrFace, poly)) {
 
-        CDT cdt = triangulate_polygon(poly);
+        CDT cdt = tri_util::create_from_polygon(poly);
         for (CDT::Finite_faces_iterator fit = cdt.finite_faces_begin();
           fit != cdt.finite_faces_end(); ++fit) {
 

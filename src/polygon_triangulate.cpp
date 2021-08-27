@@ -10,8 +10,10 @@
 
 namespace geoflow::nodes::stepedge {
 
-typedef CGAL::Polygon_2<K> Polygon_2;
-typedef CGAL::Plane_3<K> Plane_3;
+namespace tri = tri_util;
+
+typedef CGAL::Polygon_2<tri::K> Polygon_2;
+typedef CGAL::Plane_3<tri::K> Plane_3;
 
 glm::vec3 calculate_normal(const LinearRing ring)
 {
@@ -56,21 +58,21 @@ glm::vec3 calculate_normal(const LinearRing ring)
 Polygon_2 project(geoflow::vec3f& ring, Plane_3& plane) {
   Polygon_2 poly_2d;
   for (auto& p : ring) {
-    poly_2d.push_back(plane.to_2d(K::Point_3(p[0], p[1], p[2])));
+    poly_2d.push_back(plane.to_2d(tri::K::Point_3(p[0], p[1], p[2])));
   }
   return poly_2d;
 }
 
-void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, CDT& cdt) {
+void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, tri::CDT& cdt) {
   auto pit_last = ring.end()-1;
-  CDT::Vertex_handle vh_next, vh_last, vh = cdt.insert(plane.to_2d(K::Point_3((*pit_last)[0], (*pit_last)[1], (*pit_last)[2])));
+  tri::CDT::Vertex_handle vh_next, vh_last, vh = cdt.insert(plane.to_2d(tri::K::Point_3((*pit_last)[0], (*pit_last)[1], (*pit_last)[2])));
   vh_last = vh;
   vh->info().set_point(*pit_last);
   for (auto pit = ring.begin(); pit != ring.end(); ++pit) {
     if(pit==pit_last){
       vh_next=vh_last;
     } else {
-      vh_next = cdt.insert(plane.to_2d(K::Point_3((*pit)[0], (*pit)[1], (*pit)[2])));
+      vh_next = cdt.insert(plane.to_2d(tri::K::Point_3((*pit)[0], (*pit)[1], (*pit)[2])));
       vh_next->info().set_point(*pit);
     }
     cdt.insert_constraint(vh, vh_next);
@@ -92,10 +94,10 @@ void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& norma
     return;
   }
   auto& p0 = poly[0];
-  Plane_3 plane(K::Point_3(p0[0], p0[1], p0[2]), K::Vector_3(normal.x, normal.y, normal.z));
+  Plane_3 plane(tri::K::Point_3(p0[0], p0[1], p0[2]), tri::K::Vector_3(normal.x, normal.y, normal.z));
   
   // project and triangulate
-  CDT triangulation;
+  tri::CDT triangulation;
   // Polygon_2 poly_2d = project(poly, plane);
   // if(CGAL::abs(poly_2d.area())<1E-4) {
   //   return;
@@ -125,7 +127,7 @@ void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& norma
     // edges_constr.push_back(constr);
   // }
 
-  for (CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
+  for (tri::CDT::Finite_faces_iterator fit = triangulation.finite_faces_begin();
   fit != triangulation.finite_faces_end(); ++fit) {
 
     if (!output_all_triangles && !fit->info().in_domain()) continue;
