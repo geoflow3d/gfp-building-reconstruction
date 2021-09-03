@@ -101,21 +101,21 @@ namespace geoflow::nodes::stepedge {
       tri.insert_constraint(vnew, vh);
 
       // find the ccw face to the edge vnew->vh
-      Face_circulator fc = tri.incident_faces(vnew),
-        done(fc);
-      if (fc != nullptr) {
-        do { 
-          if (fc->has_vertex(vh)) {
-            // check if fc is ccw to edge vnew->vh
-            if (vh == fc->vertex( tri.ccw( fc->index(vnew) ) ) ) {
-              fc->info() = finfo;
-            } else {
-              // fc is cw to edge, so find the neighbor on the other side of edge
-              fc->neighbor( tri.cw( fc->index(vh) ) )->info() = finfo;
-            }
-          }
-        } while (++fc != done);
-      }
+      // Face_circulator fc = tri.incident_faces(vnew),
+      //   done(fc);
+      // if (fc != nullptr) {
+      //   do { 
+      //     if (fc->has_vertex(vh)) {
+      //       // check if fc is ccw to edge vnew->vh
+      //       if (vh == fc->vertex( tri.ccw( fc->index(vnew) ) ) ) {
+      //         fc->info() = finfo;
+      //       } else {
+      //         // fc is cw to edge, so find the neighbor on the other side of edge
+      //         fc->neighbor( tri.cw( fc->index(vh) ) )->info() = finfo;
+      //       }
+      //     }
+      //   } while (++fc != done);
+      // }
     }
   }
 
@@ -173,21 +173,21 @@ namespace geoflow::nodes::stepedge {
       // else CGAL_error_msg("Invalid object.");
     }
 
-    TriangleCollection triangles_og;
-    vec1i segment_ids_og;
-    for (auto fh = tri.finite_faces_begin(); fh != tri.finite_faces_end(); ++fh) {
-      // only export triangles in the interior of a shape (thus excluding holes and exterior)
+    // TriangleCollection triangles_og;
+    // vec1i segment_ids_og;
+    // for (auto fh = tri.finite_faces_begin(); fh != tri.finite_faces_end(); ++fh) {
+    //   // only export triangles in the interior of a shape (thus excluding holes and exterior)
 
-        arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), 0};
-        arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), 0};
-        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), 0};
-        triangles_og.push_back({ p0,p1,p2 });
-        segment_ids_og.push_back(fh->info()->segid);
-        segment_ids_og.push_back(fh->info()->segid);
-        segment_ids_og.push_back(fh->info()->segid);
-    }
-    output("triangles_og").set(triangles_og);
-    output("segment_ids_og").set(segment_ids_og);
+    //     arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), 0};
+    //     arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), 0};
+    //     arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), 0};
+    //     triangles_og.push_back({ p0,p1,p2 });
+    //     segment_ids_og.push_back(fh->info()->segid);
+    //     segment_ids_og.push_back(fh->info()->segid);
+    //     segment_ids_og.push_back(fh->info()->segid);
+    // }
+    // output("triangles_og").set(triangles_og);
+    // output("segment_ids_og").set(segment_ids_og);
 
     // Detect triangles with 3 short edges => collapse triangle to point (remove 2 vertices)
     Finite_faces_iterator fit;
@@ -244,7 +244,6 @@ namespace geoflow::nodes::stepedge {
     } while (fit != tri.finite_faces_end());
 
     // Detect triangles with 1 short edge  => collapse the short edge to point (remove one vertex)
-    // Detect triangles with 3 short edges => collapse triangle to point (remove 2 vertices)
     Finite_edges_iterator ceit;
     do {
       for (ceit = tri.finite_edges_begin(); ceit != tri.finite_edges_end(); ++ceit) {
@@ -279,19 +278,19 @@ namespace geoflow::nodes::stepedge {
 
     // ?? Detect triangles with 1 vertex close to opposing edge  => split opposing edge to contain the vertex ??
 
-    TriangleCollection triangles_snapped;
-    vec1i segment_ids_snapped;
-    for (auto fh = tri.finite_faces_begin(); fh != tri.finite_faces_end(); ++fh) {
-      // only export triangles in the interior of a shape (thus excluding holes and exterior)
+    // TriangleCollection triangles_snapped;
+    // vec1i segment_ids_snapped;
+    // for (auto fh = tri.finite_faces_begin(); fh != tri.finite_faces_end(); ++fh) {
+    //   // only export triangles in the interior of a shape (thus excluding holes and exterior)
 
-        arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), 0};
-        arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), 0};
-        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), 0};
-        triangles_snapped.push_back({ p0,p1,p2 });
-        // segment_ids_snapped.push_back(fh->info()->segid);
-        // segment_ids_snapped.push_back(fh->info()->segid);
-        // segment_ids_snapped.push_back(fh->info()->segid);
-    }
+    //     arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), 0};
+    //     arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), 0};
+    //     arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), 0};
+    //     triangles_snapped.push_back({ p0,p1,p2 });
+    //     // segment_ids_snapped.push_back(fh->info()->segid);
+    //     // segment_ids_snapped.push_back(fh->info()->segid);
+    //     // segment_ids_snapped.push_back(fh->info()->segid);
+    // }
 
     // convert back from triangulation to arrangement
     Arrangement_2 arr_snap;
@@ -363,8 +362,8 @@ namespace geoflow::nodes::stepedge {
     }
 
     output("arrangement").set(arr_snap);
-    output("triangles_snapped").set(triangles_snapped);
-    output("segment_ids_snapped").set(segment_ids_snapped);
+    // output("triangles_snapped").set(triangles_snapped);
+    // output("segment_ids_snapped").set(segment_ids_snapped);
 
   }
 }
