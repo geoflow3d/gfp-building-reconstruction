@@ -284,7 +284,7 @@ void arr_label_buildingparts(Arrangement_2& arr) {
     if(fh->data().in_footprint) seeds.push(fh);
   }
 
-  int part_counter = 1;
+  int part_counter = 0;
   while (seeds.size()) {
     auto f_seed = seeds.top(); seeds.pop();
     if (f_seed->data().part_id == -1) {
