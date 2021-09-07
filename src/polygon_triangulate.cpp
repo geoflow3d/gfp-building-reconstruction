@@ -195,6 +195,7 @@ void PolygonTriangulatorNode::process()
         mesh_attributes["labels"] = tri_labels;
         multitrianglecols.push_back(mesh_triangles);
         multitrianglecols.push_back(mesh_attributes);
+        multitrianglecols.building_part_ids_.push_back(sid);
       }
     }
   }
