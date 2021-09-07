@@ -95,7 +95,7 @@ namespace geoflow::nodes::stepedge {
     auto vnew = tri.insert(pnew);
 
     // restore constraints
-    // std::cout << "restoring " << constraints_to_restore.size() << " constraints\n";
+    std::cout << "restoring " << constraints_to_restore.size() << " constraints\n";
     for (auto& [vh, finfo] : constraints_to_restore) {
       // std::cout << "reinsert constrained " << *vnew << " - " << *vh << std::endl;
       tri.insert_constraint(vnew, vh);
@@ -149,6 +149,20 @@ namespace geoflow::nodes::stepedge {
         vertex_map[ arrEdge->target() ]
       );
     }
+
+    // remove isolated vertices (sometimes these result from input arrangements with edge between 2 vertices with the same coordinates)
+    // {
+    //   std::vector<T::Vertex_handle> to_remove;
+    //   for (auto vh = tri.finite_vertices_begin(); vh != tri.finite_vertices_end(); ++vh) {   
+    //     if (!tri.are_there_incident_constraints(vh)) {
+    //       to_remove.push_back(vh);
+    //     }
+    //   }
+    //   for (auto& v: to_remove) {
+    //     std:: cout << "removing vertex without incident constraints...\n"
+    //     tri.remove(v);
+    //   }
+    // }
 
     // copy semantics
     for (auto fit : tri.finite_face_handles()) {
@@ -346,12 +360,10 @@ namespace geoflow::nodes::stepedge {
     std::unordered_map<T::Vertex_handle, Arrangement_2::Vertex_handle> vertex2arr_map;
 
     for (auto vh = tri.finite_vertices_begin(); vh != tri.finite_vertices_end(); ++vh) {
-
-      // remove isolated vertices (sometimes these result from input arrangements with edge between 2 vertices with the same coordinates)
-      if (tri.are_there_incident_constraints(vh)) {
-        vertex2arr_map[vh] = insert_point( arr_snap, Arrangement_2::Point_2(vh->point().x(), vh->point().y()) );
-      }
-
+        // make sure not to add isolated vertices
+        if (tri.are_there_incident_constraints(vh)) {
+          vertex2arr_map[vh] = insert_point( arr_snap, Arrangement_2::Point_2(vh->point().x(), vh->point().y()) );
+        }
     }
 
     for (auto ce : tri.constrained_edges()) {
