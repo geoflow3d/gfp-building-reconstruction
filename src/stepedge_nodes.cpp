@@ -442,6 +442,18 @@ void Arr2LinearRingsDebugNode::process() {
       input_attr_map["in_footprint"]->push_back((bool)face->data().in_footprint);
       input_attr_map["is_footprint_hole"]->push_back((bool)face->data().is_footprint_hole);
     }
+
+    PointCollection isolated_vertices;
+    for (auto vertex: arr.vertex_handles()) {
+      if (vertex->is_isolated()) {
+        isolated_vertices.push_back({
+          float(CGAL::to_double(vertex->point().x())),
+          float(CGAL::to_double(vertex->point().y())),
+          0
+        });
+      }
+    }
+    output("isolated_vertices").set(isolated_vertices);
   // }
 }
 

@@ -190,9 +190,10 @@ namespace geoflow::nodes::stepedge {
     // output("segment_ids_og").set(segment_ids_og);
 
     // Detect triangles with 3 short edges => collapse triangle to point (remove 2 vertices)
-    Finite_faces_iterator fit;
+    bool found_small_face;
     do {
-      for (fit = tri.finite_faces_begin(); fit != tri.finite_faces_end(); ++fit) {
+      found_small_face = false;
+      for (Finite_faces_iterator fit = tri.finite_faces_begin(); fit != tri.finite_faces_end(); ++fit) {
         auto v0 = fit->vertex(0);
         auto v1 = fit->vertex(1);
         auto v2 = fit->vertex(2);
@@ -213,6 +214,7 @@ namespace geoflow::nodes::stepedge {
           //   tri.is_constrained( e2 )
           // )
         ) {
+          std::cout << "small triangle between " << p0 << " and " << p1 << "  and  " << p2 << std::endl;
           ConstraintMap constraints_to_restore;
 
           // collect incident constraint edges
@@ -237,16 +239,18 @@ namespace geoflow::nodes::stepedge {
           auto pnew = CGAL::centroid(p0,p1,p2);
           restore_constraints(tri, pnew, constraints_to_restore);
           
+          found_small_face = true;
           break; // we need to restart the loop because we may have invalidated the finite faces iterator by modifying the faces of the triangulation 
         }
       }
 
-    } while (fit != tri.finite_faces_end());
+    } while (found_small_face);
 
     // Detect triangles with 1 short edge  => collapse the short edge to point (remove one vertex)
-    Finite_edges_iterator ceit;
+    bool found_short_edge;
     do {
-      for (ceit = tri.finite_edges_begin(); ceit != tri.finite_edges_end(); ++ceit) {
+      found_short_edge = false;
+      for (Finite_edges_iterator ceit = tri.finite_edges_begin(); ceit != tri.finite_edges_end(); ++ceit) {
         if (tri.is_constrained(*ceit)) {
           auto v1 = ceit->first->vertex(tri.cw(ceit->second));
           auto v2 = ceit->first->vertex(tri.ccw(ceit->second));
@@ -270,13 +274,56 @@ namespace geoflow::nodes::stepedge {
             auto pnew = CGAL::midpoint(p1, p2);
             restore_constraints(tri, pnew, constraints_to_restore);
 
+            found_short_edge = true;
             break;
           }
         }
       }
-    } while (ceit != tri.finite_edges_end());
+    } while (found_short_edge);
 
-    // ?? Detect triangles with 1 vertex close to opposing edge  => split opposing edge to contain the vertex ??
+    // Detect triangles with 1 vertex close to opposing (longest) edge  => remove long edge as constraint and ensure both short ones are constrained
+    // TODO: move the vertex opposed to long edge to be on the long edge ??
+
+    // bool found_small_face;
+    // do {
+    //   found_small_face = false;
+      for (Finite_faces_iterator fit = tri.finite_faces_begin(); fit != tri.finite_faces_end(); ++fit) {
+        auto v0 = fit->vertex(0);
+        auto v1 = fit->vertex(1);
+        auto v2 = fit->vertex(2);
+        auto& p0 = v0->point();
+        auto& p1 = v1->point();
+        auto& p2 = v2->point();
+        auto e0 = std::make_pair(fit, 0);
+        auto e1 = std::make_pair(fit, 1);
+        auto e2 = std::make_pair(fit, 2);
+        auto s0 = tri.segment(e0);
+        auto s1 = tri.segment(e1);
+        auto s2 = tri.segment(e2);
+        if ( (CGAL::squared_distance(s0, p0) < sq_dist_thres ) && tri.is_constrained( e0 ) ) {
+          if ( tri.is_constrained( e1 ) || tri.is_constrained( e2 ) ) {
+            std::cout << "flat triangle between " << s0 << " and " << p0 << std::endl;
+            tri.remove_constrained_edge(fit, 0);
+            if ( !tri.is_constrained( e2 ) ) tri.insert_constraint(v0, v1);
+            if ( !tri.is_constrained( e1 ) ) tri.insert_constraint(v0, v2);
+          }
+        } else if ( (CGAL::squared_distance(s1, p1) < sq_dist_thres) && tri.is_constrained( e1 ) ) {
+          if ( tri.is_constrained( e0 ) || tri.is_constrained( e2 ) ) {
+            std::cout << "flat triangle between " << s1 << " and " << p1 << std::endl;
+            tri.remove_constrained_edge(fit, 1);
+            if ( !tri.is_constrained( e2 ) ) tri.insert_constraint(v1, v0);
+            if ( !tri.is_constrained( e0 ) ) tri.insert_constraint(v1, v2);
+          }
+        } else if ( (CGAL::squared_distance(s2, p2) < sq_dist_thres) && tri.is_constrained( e2 ) ) {
+          if ( tri.is_constrained( e0 ) || tri.is_constrained( e1 ) ) {
+            std::cout << "flat triangle between " << s2 << " and " << p2 << std::endl;
+            tri.remove_constrained_edge(fit, 2);
+            if ( !tri.is_constrained( e1 ) ) tri.insert_constraint(v2, v0);
+            if ( !tri.is_constrained( e0 ) ) tri.insert_constraint(v2, v1);
+          }
+        }
+      }
+    // } while (found_short_edge);
 
     // TriangleCollection triangles_snapped;
     // vec1i segment_ids_snapped;
@@ -291,13 +338,20 @@ namespace geoflow::nodes::stepedge {
     //     // segment_ids_snapped.push_back(fh->info()->segid);
     //     // segment_ids_snapped.push_back(fh->info()->segid);
     // }
+    // output("triangles_snapped").set(triangles_snapped);
+    // output("segment_ids_snapped").set(segment_ids_snapped);
 
     // convert back from triangulation to arrangement
     Arrangement_2 arr_snap;
     std::unordered_map<T::Vertex_handle, Arrangement_2::Vertex_handle> vertex2arr_map;
 
     for (auto vh = tri.finite_vertices_begin(); vh != tri.finite_vertices_end(); ++vh) {
-      vertex2arr_map[vh] = insert_point( arr_snap, Arrangement_2::Point_2(vh->point().x(), vh->point().y()) );
+
+      // remove isolated vertices (sometimes these result from input arrangements with edge between 2 vertices with the same coordinates)
+      if (tri.are_there_incident_constraints(vh)) {
+        vertex2arr_map[vh] = insert_point( arr_snap, Arrangement_2::Point_2(vh->point().x(), vh->point().y()) );
+      }
+
     }
 
     for (auto ce : tri.constrained_edges()) {
@@ -308,7 +362,7 @@ namespace geoflow::nodes::stepedge {
       auto p1 = Arrangement_2::Point_2(p1_.x(), p1_.y());
       auto p2 = Arrangement_2::Point_2(p2_.x(), p2_.y());
 
-      std::cout << p1 << "  --  " << p2 << std::endl;
+      // std::cout << p1 << "  --  " << p2 << std::endl;
 
       // if (vertex2arr_map[v1] != vertex2arr_map[v2]) {
         arr_snap.insert_at_vertices(
@@ -362,8 +416,5 @@ namespace geoflow::nodes::stepedge {
     }
 
     output("arrangement").set(arr_snap);
-    // output("triangles_snapped").set(triangles_snapped);
-    // output("segment_ids_snapped").set(segment_ids_snapped);
-
   }
 }

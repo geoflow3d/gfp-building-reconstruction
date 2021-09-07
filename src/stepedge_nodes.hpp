@@ -151,6 +151,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("arrangement", typeid(Arrangement_2));
       add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
       add_vector_output("linear_rings", typeid(LinearRing));
+      add_output("isolated_vertices", typeid(PointCollection));
     }
     void process() override;
   };
