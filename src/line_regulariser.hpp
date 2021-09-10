@@ -202,7 +202,8 @@ namespace linereg {
     const typename Kernel::Segment_3& a, 
     const typename Kernel::Segment_3& b, 
     std::vector<typename Kernel::Point_3>& ring_pts, 
-    const float& snap_threshold) {
+    const float& snap_threshold,
+    const float& line_extend) {
 
     typedef typename Kernel::Segment_2 Segment_2;
     typedef typename Kernel::Point_2 Point_2;
@@ -223,14 +224,26 @@ namespace linereg {
           ring_pts.push_back( Point_3(p->x(), p->y(), z) );
           // ring_pts.push_back( plane.to_3d(*p) );
         } else {
-          ring_pts.push_back(a.target());
-          ring_pts.push_back(b.source());
+          // undo any previously applied line extension prior to connected the endpoints
+          auto va = (a.target()-a.source());
+          va = va/CGAL::sqrt(va.squared_length());
+          auto vb = (b.source()-b.target());
+          vb = vb/CGAL::sqrt(vb.squared_length());
+
+          ring_pts.push_back(a.target() - va*line_extend);
+          ring_pts.push_back(b.source() - vb*line_extend);
         }
       }
     // } else if (auto l = boost::get<K::Line_2>(&*result)) {
     } else { // there is no intersection
-      ring_pts.push_back(a.target());
-      ring_pts.push_back(b.source());
+      // undo any previously applied line extension prior to connected the endpoints
+      auto va = (a.target()-a.source());
+      va = va/CGAL::sqrt(va.squared_length());
+      auto vb = (b.source()-b.target());
+      vb = vb/CGAL::sqrt(vb.squared_length());
+
+      ring_pts.push_back(a.target() - va*line_extend);
+      ring_pts.push_back(b.source() - vb*line_extend);
     }
   }
 
@@ -246,15 +259,16 @@ namespace linereg {
     const std::vector<size_t>& idx,
     const typename Kernel::Plane_3& plane,
     const std::vector<typename Kernel::Segment_3>& segments, 
-    const float& snap_threshold) {
+    const float& snap_threshold,
+    const float& line_extend) {
 
     std::vector<typename Kernel::Point_3> ring_points, new_ring_points;
 
     if (idx.size()>1) { // we need at least 2 segments
       for (size_t i=1; i<idx.size(); ++i) {
-        chain<Kernel>(plane, segments[idx[i-1]], segments[idx[i]], ring_points, snap_threshold);
+        chain<Kernel>(plane, segments[idx[i-1]], segments[idx[i]], ring_points, snap_threshold, line_extend);
       }
-      chain<Kernel>(plane, segments[idx[idx.size()-1]], segments[idx[0]], ring_points, snap_threshold);
+      chain<Kernel>(plane, segments[idx[idx.size()-1]], segments[idx[0]], ring_points, snap_threshold, line_extend);
 
       // get rid of segments with zero length (ie duplicate points)
       // check again the size, to ignore degenerate case of input ring that consists of 3 co-linear segments (would get chained to eg 0 vertices)

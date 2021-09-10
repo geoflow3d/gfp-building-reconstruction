@@ -1288,7 +1288,7 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
       }
       // TODO: chain the ring? for better regularisation results
       SegmentCollection new_ring;
-      auto chained_ring_pts = linereg::chain_ring<SCK>(idx, SCK::Plane_3(plane.a(), plane.b(), plane.c(), plane.d()), prechain_segments, snap_threshold);
+      auto chained_ring_pts = linereg::chain_ring<SCK>(idx, SCK::Plane_3(plane.a(), plane.b(), plane.c(), plane.d()), prechain_segments, snap_threshold, line_extend);
 
       if (chained_ring_pts.size() > 2) {
         auto first = chained_ring_pts.begin();
