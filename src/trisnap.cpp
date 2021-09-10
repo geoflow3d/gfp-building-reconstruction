@@ -3,7 +3,8 @@
 #include "cdt_util.hpp"
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Constrained_triangulation_2.h>
+// #include <CGAL/Constrained_triangulation_2.h>
+#include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 
@@ -20,7 +21,7 @@ namespace geoflow::nodes::stepedge {
   typedef CGAL::Constrained_triangulation_face_base_2<K> FaceBase;
   typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo*, K, FaceBase> FaceBaseWithInfo;
   typedef CGAL::Triangulation_data_structure_2<VertexBaseWithInfo, FaceBaseWithInfo> TriangulationDataStructure;
-  typedef CGAL::Constrained_triangulation_2<K, TriangulationDataStructure, Tag> T;
+  typedef CGAL::Constrained_Delaunay_triangulation_2<K, TriangulationDataStructure, Tag> T;
   typedef T::Edge_circulator Edge_circulator;
   typedef T::Face_circulator Face_circulator;
   typedef T::Finite_faces_iterator Finite_faces_iterator;
