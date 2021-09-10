@@ -4,7 +4,7 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Constrained_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_2.h>
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 
 #include <CGAL/Arr_walk_along_line_point_location.h>
@@ -16,9 +16,10 @@ namespace geoflow::nodes::stepedge {
   typedef CGAL::Exact_predicates_tag Tag;
 
   typedef CGAL::Triangulation_vertex_base_2<K> VertexBase;
+  typedef CGAL::Triangulation_vertex_base_with_info_2<bool, K, VertexBase> VertexBaseWithInfo;
   typedef CGAL::Constrained_triangulation_face_base_2<K> FaceBase;
   typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo*, K, FaceBase> FaceBaseWithInfo;
-  typedef CGAL::Triangulation_data_structure_2<VertexBase, FaceBaseWithInfo> TriangulationDataStructure;
+  typedef CGAL::Triangulation_data_structure_2<VertexBaseWithInfo, FaceBaseWithInfo> TriangulationDataStructure;
   typedef CGAL::Constrained_triangulation_2<K, TriangulationDataStructure, Tag> T;
   typedef T::Edge_circulator Edge_circulator;
   typedef T::Face_circulator Face_circulator;
@@ -135,10 +136,24 @@ namespace geoflow::nodes::stepedge {
     // Polyline_list_2 output_list;
     for (auto arrVertex : arr.vertex_handles()) {
       // auto& p = v->point();
-      vertex_map[arrVertex] = tri.insert(T::Point_2(
+
+      // check if this vertex is on the footprint
+      Arrangement_2::Halfedge_around_vertex_circulator ec = arrVertex->incident_halfedges(),
+      done(ec);
+      bool has_ext_face(false), has_int_face(false);
+      if (ec != nullptr) {
+        do {
+          has_ext_face = !ec->face()->data().in_footprint || has_ext_face;
+          has_int_face = ec->face()->data().in_footprint || has_int_face;
+        } while ( ++ec != done );
+      }
+      
+      auto vtri = tri.insert(T::Point_2(
         CGAL::to_double(arrVertex->point().x()), 
         CGAL::to_double(arrVertex->point().y())
       ));
+      vtri->info() = has_ext_face && has_int_face;
+      vertex_map[arrVertex] = vtri;
     }
 
 
@@ -217,6 +232,11 @@ namespace geoflow::nodes::stepedge {
         // auto e0 = std::make_pair(fit, 0);
         // auto e1 = std::make_pair(fit, 1);
         // auto e2 = std::make_pair(fit, 2);
+        // do not collapse if all vertices are on footprint boundary
+        // if ( 
+        //   v1->info() && v2->info() && v0->info()
+        // ) 
+          // continue;
         if (
           (
             CGAL::squared_distance(p0, p1) < sq_dist_thres &&
@@ -250,7 +270,17 @@ namespace geoflow::nodes::stepedge {
           tri.remove_incident_constraints(v2);
           tri.remove(v2);
           
-          auto pnew = CGAL::centroid(p0,p1,p2);
+          // but first check points for being on the footprint boundary
+          T::Point_2 pnew;
+          if (v0->info()) {
+            pnew = p0;
+          } else if (v1->info()) {
+            pnew = p1;
+          } else if (v2->info()) {
+            pnew = p2;
+          } else {
+            pnew = CGAL::centroid(p0,p1,p2);
+          }
           restore_constraints(tri, pnew, constraints_to_restore);
           
           found_small_face = true;
@@ -270,6 +300,10 @@ namespace geoflow::nodes::stepedge {
           auto v2 = ceit->first->vertex(tri.ccw(ceit->second));
           auto& p1 = v1->point();
           auto& p2 = v2->point();
+          
+          // do not collapse if this edge is on the footprint boundary
+          // if (v1->info() && v2->info()) continue;
+
           if (CGAL::squared_distance(p1, p2) < sq_dist_thres) {
             std::cout << "short edge between " << p1 << "  and  " << p2 << std::endl;
 
@@ -285,7 +319,15 @@ namespace geoflow::nodes::stepedge {
             tri.remove(v2);
 
             // insert midpoint and restore constraints
-            auto pnew = CGAL::midpoint(p1, p2);
+            // first check points for being on the footprint boundary
+            T::Point_2 pnew;
+            if (v1->info()) {
+              pnew = p1;
+            } else if (v2->info()) {
+              pnew = p2;
+            } else {
+              pnew = CGAL::midpoint(p1, p2);
+            }
             restore_constraints(tri, pnew, constraints_to_restore);
 
             found_short_edge = true;
@@ -297,6 +339,7 @@ namespace geoflow::nodes::stepedge {
 
     // Detect triangles with 1 vertex close to opposing (longest) edge  => remove long edge as constraint and ensure both short ones are constrained
     // TODO: move the vertex opposed to long edge to be on the long edge ??
+    // TODO: detect if an edge of the triangle is on the footprint boundary
 
     // bool found_small_face;
     // do {
