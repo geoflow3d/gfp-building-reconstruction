@@ -128,8 +128,8 @@ namespace geoflow::nodes::stepedge {
       // add_vector_input("mesh_error", typeid(float));
       // add_vector_input("roof_type", typeid(int));
       // add_vector_input("arr_complexity", typeid(int));
-      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
-      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
+      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
       add_vector_output("linear_rings", typeid(LinearRing));
       // add_vector_output("plane_a", typeid(float));
       // add_vector_output("plane_b", typeid(float));
@@ -971,7 +971,7 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() override {
-      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_input("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
       add_output("result", typeid(bool));
 
       add_param(ParamString(attribute_name, "attribute_name", "Attribute name (should be a boolean attribute)"));
@@ -1064,11 +1064,11 @@ namespace geoflow::nodes::stepedge {
       add_input("replace", typeid(bool));
       add_vector_input("linear_rings_A", typeid(LinearRing));
       add_vector_input("linear_rings_B", typeid(LinearRing));
-      add_poly_input("attributes_A", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
-      add_poly_input("attributes_B", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_input("attributes_A", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
+      add_poly_input("attributes_B", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
 
       add_vector_output("linear_rings", typeid(LinearRing));
-      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string)});
+      add_poly_output("attributes", {typeid(bool), typeid(int), typeid(float), typeid(std::string), typeid(std::string), typeid(Date), typeid(Time), typeid(DateTime)});
     }
     void process() override {
       auto skip = input("skip").get<bool>();
