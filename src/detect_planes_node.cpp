@@ -129,15 +129,20 @@ namespace geoflow::nodes::stepedge {
     }
 
     bool b_is_horizontal = float(horiz_pt_cnt)/float(total_pt_cnt) > horiz_min_count;
-    int roof_type=-2; // as built: -2=undefined; -1=no pts; 0=LOD1, 1=LOD1.3, 2=LOD2
+    // int roof_type=-2; // as built: -2=undefined; -1=no pts; 0=LOD1, 1=LOD1.3, 2=LOD2
+    std::string roof_type = "no planes";
     if (R.regions.size()==0) {
-      roof_type=-1;
+      // roof_type=-1;
+      roof_type = "no points";
     } else if (horiz_roofplane_cnt==1 && slant_roofplane_cnt==0){
-      roof_type=0;
+      // roof_type=0;
+      roof_type = "horizontal";
     } else if (b_is_horizontal){
-      roof_type=1;
+      // roof_type=1;
+      roof_type = "multiple horizontal";
     } else if (slant_roofplane_cnt > 0) {
-      roof_type=2;
+      // roof_type=2;
+      roof_type = "slanted";
     }
 
     if (roof_elevations.size()) {

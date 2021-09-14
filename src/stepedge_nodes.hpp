@@ -533,7 +533,7 @@ namespace geoflow::nodes::stepedge {
       add_output("roof_pt_cnt", typeid(int));
       add_output("wall_pt_cnt", typeid(int));
       add_output("unsegmented_pt_cnt", typeid(int));
-      add_output("roof_type", typeid(int));
+      add_output("roof_type", typeid(std::string));
       add_output("roof_elevation_70p", typeid(float));
       add_output("roof_elevation_50p", typeid(float));
       add_output("roof_elevation_min", typeid(float));
@@ -1000,8 +1000,8 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("skip", typeid(bool));
       add_vector_input("alpha_rings", {typeid(LinearRing)});
-      add_input("roof_type", typeid(int));
-      add_output("roof_type", typeid(int));
+      add_input("roof_type", typeid(std::string));
+      add_output("roof_type", typeid(std::string));
       add_output("skip", typeid(bool));
       add_output("replace", typeid(bool));
 
@@ -1023,11 +1023,11 @@ namespace geoflow::nodes::stepedge {
       bool skip = input("skip").get<bool>();
       bool replace = skip;
       
-      auto roof_type = input("roof_type").get<int>();
-      if(vector_input("alpha_rings").is_touched() && vector_input("alpha_rings").size()==0 && roof_type>=0) {
-        roof_type = -1;
+      auto roof_type = input("roof_type").get<std::string>();
+      if(vector_input("alpha_rings").is_touched() && vector_input("alpha_rings").size()==0 && roof_type != "no points" && roof_type != "no planes") {
+        roof_type = "no points";
       }
-      if (roof_type < 0) {{
+      if (roof_type == "no points" || roof_type == "no planes") {{
         skip=true;
         replace=false;
       }}
