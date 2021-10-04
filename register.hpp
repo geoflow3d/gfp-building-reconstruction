@@ -45,4 +45,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<DataCoverageCalcNode>("DataCoverageCalc");
     node_register.register_node<SnapRoundNode>("SnapRound");
     node_register.register_node<TriSnapNode>("TriSnap");
+    node_register.register_node<BuildingRasteriseNode>("BuildingRasterise");
 }

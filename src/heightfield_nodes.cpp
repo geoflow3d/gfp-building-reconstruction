@@ -5,6 +5,7 @@
 #include <CGAL/Projection_traits_xy_3.h>
 
 #include "stepedge_nodes.hpp"
+#include "pip_util.hpp"
 
 namespace geoflow::nodes::stepedge {
 
@@ -160,6 +161,85 @@ namespace geoflow::nodes::stepedge {
         }
       }
     }
+    geoflow::Image I;
+    I.dim_x = r.dimx_;
+    I.dim_y = r.dimy_;
+    I.min_x = r.minx_;
+    I.min_y = r.miny_;
+    I.cellsize = r.cellSize_;
+    I.nodataval = r.noDataVal_;
+    I.array = *r.vals_;
+    output("image").set(I);
+    output("heightfield").set(r);
+    output("values").set(values);
+    output("grid_points").set(grid_points);
+  }
+
+
+  void BuildingRasteriseNode::process() {
+    auto& points = input("points").get<PointCollection&>();
+    auto h_ground = input("h_ground").get<float>();
+    auto& footprint = input("footprint").get<LinearRing&>();
+
+    auto box = points.box();
+    auto boxmin = box.min();
+    auto boxmax = box.max();
+
+    RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+    r.prefill_arrays(RasterTools::MAX);
+
+    // point in polygon
+    auto exterior = build_grid(footprint);
+    std::vector<pGridSet> holes;
+    for (auto& hole : footprint.interior_rings()) {
+      holes.push_back(build_grid(hole));
+    }
+    
+    for (size_t col = 0; col < r.dimx_; ++col) {
+      for (size_t row = 0; row < r.dimy_; ++row) {
+        auto p = r.getPointFromRasterCoords(col, row);
+        pPipoint pipoint = new Pipoint{p[0],p[1]};
+        if (!GridTest(exterior, pipoint)) {
+          if (r.add_point(p[0], p[1], h_ground, RasterTools::MAX)) {
+            // ++data_pixel_cnt; //only count new cells (that were not written to before)
+          }
+        }
+        for (auto& hole : holes) {
+          if (GridTest(hole, pipoint)) {
+            r.add_point(p[0], p[1], h_ground, RasterTools::MAX);
+          }
+        }
+        delete pipoint;
+      }
+    }
+    delete exterior;
+    for (auto& hole: holes) delete hole;
+
+    for(auto& p : points) {
+      r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+    }
+
+    PointCollection grid_points;
+    vec1f values;
+    double nodata = r.getNoDataVal();
+    for(size_t i=0; i<r.dimx_ ; ++i) {
+      for(size_t j=0; j<r.dimy_ ; ++j) {
+        auto p = r.getPointFromRasterCoords(i,j);
+        if (p[2]!=nodata) {
+          grid_points.push_back(p);
+          values.push_back(p[2]);
+        }
+      }
+    }
+    geoflow::Image I;
+    I.dim_x = r.dimx_;
+    I.dim_y = r.dimy_;
+    I.min_x = r.minx_;
+    I.min_y = r.miny_;
+    I.cellsize = r.cellSize_;
+    I.nodataval = r.noDataVal_;
+    I.array = *r.vals_;
+    output("image").set(I);
     output("heightfield").set(r);
     output("values").set(values);
     output("grid_points").set(grid_points);

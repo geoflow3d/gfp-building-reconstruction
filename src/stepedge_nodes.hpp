@@ -804,6 +804,26 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
+      add_output("image", typeid(geoflow::Image));
+
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+    }
+    void process() override;
+  };
+
+  class BuildingRasteriseNode:public Node {
+    float cellsize = 0.5;
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("points", typeid(PointCollection));
+      add_input("h_ground", typeid(float));
+      add_input("footprint", typeid(LinearRing));
+      
+      add_output("heightfield", typeid(RasterTools::Raster));
+      add_output("grid_points", typeid(PointCollection));
+      add_output("values", typeid(vec1f));
+      add_output("image", typeid(geoflow::Image));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }
