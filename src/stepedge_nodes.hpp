@@ -903,10 +903,17 @@ namespace geoflow::nodes::stepedge {
   class Filter25DNode:public Node {
     float cellsize = 0.1;
     float angle_thres = 5;
+    float normal_angle_thres = 10;
     float area_thres = 0.3;
-    int count_thres = 1;
+    float len_thres = 0.65;
+    bool do_angle_thres = false;
+    bool do_normal_angle_thres = false;
+    bool do_area_thres = false;
+    bool do_len_thres = true;
+    // int count_thres = 1;
   public:
     using Node::Node;
+    template<typename T> void mark_big_triangles(T& dt);
     void init() override {
       add_input("points", {typeid(PointCollection), typeid(IndexedPlanesWithPoints)});
       add_output("points", typeid(PointCollection));
@@ -916,9 +923,15 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield_pts", typeid(PointCollection));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+      // add_param(ParamBoundedInt(count_thres, 0, 10, "count_thres", "count_thres"));
       add_param(ParamBoundedFloat(angle_thres, 0, 180, "angle_thres",  "angle_thres"));
-      add_param(ParamBoundedInt(count_thres, 0, 10, "count_thres", "count_thres"));
+      add_param(ParamBoundedFloat(normal_angle_thres, 0, 180, "normal_angle_thres",  "normal_angle_thres"));
+      add_param(ParamBoundedFloat(len_thres, 0, 3, "len_thres",  "len_thres"));
       add_param(ParamBoundedFloat(area_thres, 0, 100, "area_thres",  "area_thres"));
+      add_param(ParamBool(do_angle_thres, "do_angle_thres",  "do_angle_thres"));
+      add_param(ParamBool(do_normal_angle_thres, "do_normal_angle_thres",  "do_normal_angle_thres"));
+      add_param(ParamBool(do_len_thres, "do_len_thres",  "do_len_thres"));
+      add_param(ParamBool(do_area_thres, "do_area_thres",  "do_area_thres"));
     }
     void process() override;
   };

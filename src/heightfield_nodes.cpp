@@ -9,6 +9,46 @@
 
 namespace geoflow::nodes::stepedge {
 
+  template<typename T> void Filter25DNode::mark_big_triangles(T& dt) {
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+      // mark big triangles
+    auto sq_area_thres = area_thres*area_thres;
+    auto sq_len_thres = len_thres*len_thres;
+    K::Vector_3 up(0.0,0.0,1.0);
+    for (auto& fh : dt.finite_face_handles()) {
+      fh->info().is_big = false;
+      if (do_area_thres) {
+        if( dt.triangle(fh).squared_area() > sq_area_thres ) {
+          fh->info().is_big |= true;
+        }
+      }
+      if (do_angle_thres) {
+        if( 
+          CGAL::approximate_angle(fh->vertex(0)->point(), fh->vertex(1)->point(), fh->vertex(2)->point()) < angle_thres ||
+          CGAL::approximate_angle(fh->vertex(1)->point(), fh->vertex(2)->point(), fh->vertex(0)->point()) < angle_thres ||
+          CGAL::approximate_angle(fh->vertex(2)->point(), fh->vertex(0)->point(), fh->vertex(1)->point()) < angle_thres
+         ) {
+          fh->info().is_big |= true;
+        }
+      }
+      if (do_normal_angle_thres) {
+        if( 
+          CGAL::approximate_angle(dt.triangle(fh).supporting_plane().orthogonal_vector(), up) > normal_angle_thres
+         ) {
+          fh->info().is_big |= true;
+        }
+      }
+      if (do_len_thres)  {
+        if( (K::Segment_3(fh->vertex(0)->point(), fh->vertex(1)->point()).squared_length() > sq_len_thres) ||  
+            (K::Segment_3(fh->vertex(1)->point(), fh->vertex(2)->point()).squared_length() > sq_len_thres) || 
+            (K::Segment_3(fh->vertex(2)->point(), fh->vertex(0)->point()).squared_length() > sq_len_thres) ) {
+          fh->info().is_big |= true;
+        }
+      }
+    }
+
+  }
+
   void Filter25DNode::process(){
     struct FaceInfo
     {
@@ -24,7 +64,9 @@ namespace geoflow::nodes::stepedge {
     typedef CGAL::Delaunay_triangulation_2<Gt, TDS>             DT_;
     typedef CGAL::Triangulation_hierarchy_2<DT_>                DT;
     typedef DT::Edge_circulator                                 Edge_circulator;
+    typedef DT::Face_circulator                                 Face_circulator;
 
+    // build triangulation
     DT dt;
     arr3f boxmin;
     arr3f boxmax;
@@ -49,54 +91,43 @@ namespace geoflow::nodes::stepedge {
       boxmin = box.min();
       boxmax = box.max();
     }
-    // build triangulation
+
+    mark_big_triangles(dt);
 
     // mark low vertices
     size_t cnt_total, cnt_sharp;
-    K::Vector_3 up(0.0,0.0,1.0);
+    
     std::vector<DT::Vertex_handle> to_remove;
     PointCollection pts_removed, pts_remaining;
     for (auto& v: dt.finite_vertex_handles()) {
       cnt_total = cnt_sharp = 0;
-      Edge_circulator ec = dt.incident_edges(v),
-      done(ec);
-      if (ec != 0) {
+      bool remove_vertex = true;
+      Face_circulator fc = dt.incident_faces(v),
+      done(fc);
+      if (fc != 0) {
         do {
-          K::Vector_3 a(v->point(), ec->first->vertex(dt.ccw(ec->second))->point());
-          K::Vector_3 b(v->point(), ec->first->vertex(dt.cw(ec->second))->point());
-          // auto angle = CGAL::approximate_angle(a,up);
-          auto tri_angle = CGAL::approximate_angle(a,b);
-          // auto up_angle = std::min(CGAL::approximate_angle(a,up), CGAL::approximate_angle(b,up));
-          auto up_angle = CGAL::approximate_angle(a,up);
-          // std::cout << angle << "\n";
-          if ((up_angle < angle_thres)) {
-            ++cnt_sharp;
-          }
-          ++cnt_total;
-          // std::cout << dt.segment(ec) << std::endl;
-          // compute polar angle of ec
-        } while (++ec != done);
+          remove_vertex &= fc->info().is_big;
+        } while (++fc != done);
       }
       auto p = v->point();
-      if (cnt_sharp >= count_thres) {
+      if (remove_vertex) {
         to_remove.push_back(v);
         pts_removed.push_back({float(p.x()), float(p.y()), float(p.z())});
       } else {
         pts_remaining.push_back({float(p.x()), float(p.y()), float(p.z())});
       }
     }
-    // delete low vertices
+    // delete outlier vertices
     for (auto& v : to_remove) {
       dt.remove(v);
     }
 
-    // mark big triangles
+    mark_big_triangles(dt);
+
+    // get triangles
     TriangleCollection triangles;
-    auto sq_area_thres = area_thres*area_thres;
     for (auto& fh : dt.finite_face_handles()) {
-      if( dt.triangle(fh).squared_area() > sq_area_thres ) {
-        fh->info().is_big = true;
-      } else {
+      if ( !fh->info().is_big ) {
         arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), float (fh->vertex(0)->point().z())};
         arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), float (fh->vertex(1)->point().z())};
         arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
