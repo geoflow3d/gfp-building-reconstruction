@@ -813,10 +813,12 @@ namespace geoflow::nodes::stepedge {
 
   class BuildingRasteriseNode:public Node {
     float cellsize = 0.5;
+    bool use_tin = false;
     public:
     using Node::Node;
     void init() override {
       add_input("points", typeid(PointCollection));
+      add_input("ground_points", typeid(PointCollection));
       add_input("h_ground", typeid(float));
       add_input("footprint", typeid(LinearRing));
       
@@ -826,6 +828,7 @@ namespace geoflow::nodes::stepedge {
       add_output("image", typeid(geoflow::Image));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+      add_param(ParamBool(use_tin, "use_tin",  "use_tin"));
     }
     void process() override;
   };

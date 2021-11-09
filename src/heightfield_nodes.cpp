@@ -9,53 +9,16 @@
 
 namespace geoflow::nodes::stepedge {
 
-  template<typename T> void Filter25DNode::mark_big_triangles(T& dt) {
+  class PointCloud25DTriangulator {
+    
+    public: 
     typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-      // mark big triangles
-    auto sq_area_thres = area_thres*area_thres;
-    auto sq_len_thres = len_thres*len_thres;
-    K::Vector_3 up(0.0,0.0,1.0);
-    for (auto& fh : dt.finite_face_handles()) {
-      fh->info().is_big = false;
-      if (do_area_thres) {
-        if( dt.triangle(fh).squared_area() > sq_area_thres ) {
-          fh->info().is_big |= true;
-        }
-      }
-      if (do_angle_thres) {
-        if( 
-          CGAL::approximate_angle(fh->vertex(0)->point(), fh->vertex(1)->point(), fh->vertex(2)->point()) < angle_thres ||
-          CGAL::approximate_angle(fh->vertex(1)->point(), fh->vertex(2)->point(), fh->vertex(0)->point()) < angle_thres ||
-          CGAL::approximate_angle(fh->vertex(2)->point(), fh->vertex(0)->point(), fh->vertex(1)->point()) < angle_thres
-         ) {
-          fh->info().is_big |= true;
-        }
-      }
-      if (do_normal_angle_thres) {
-        if( 
-          CGAL::approximate_angle(dt.triangle(fh).supporting_plane().orthogonal_vector(), up) > normal_angle_thres
-         ) {
-          fh->info().is_big |= true;
-        }
-      }
-      if (do_len_thres)  {
-        if( (K::Segment_3(fh->vertex(0)->point(), fh->vertex(1)->point()).squared_length() > sq_len_thres) ||  
-            (K::Segment_3(fh->vertex(1)->point(), fh->vertex(2)->point()).squared_length() > sq_len_thres) || 
-            (K::Segment_3(fh->vertex(2)->point(), fh->vertex(0)->point()).squared_length() > sq_len_thres) ) {
-          fh->info().is_big |= true;
-        }
-      }
-    }
-
-  }
-
-  void Filter25DNode::process(){
+    private:
     struct FaceInfo
     {
       FaceInfo(){}
       bool is_big=false;
     };
-    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
     typedef CGAL::Projection_traits_xy_3<K>                     Gt;
     typedef CGAL::Triangulation_vertex_base_2<Gt>               Vbb;
     typedef CGAL::Triangulation_hierarchy_vertex_base_2<Vbb>    Vb;
@@ -66,14 +29,154 @@ namespace geoflow::nodes::stepedge {
     typedef DT::Edge_circulator                                 Edge_circulator;
     typedef DT::Face_circulator                                 Face_circulator;
 
-    // build triangulation
     DT dt;
+    bool do_area_thres;
+    float area_thres;
+    bool do_angle_thres;
+    float angle_thres;
+    bool do_normal_angle_thres;
+    float normal_angle_thres;
+    bool do_len_thres;
+    float len_thres;
+
+    public:
+
+    PointCloud25DTriangulator(
+      bool do_area_thres,
+      float area_thres,
+      bool do_angle_thres,
+      float angle_thres,
+      bool do_normal_angle_thres,
+      float normal_angle_thres,
+      bool do_len_thres,
+      float len_thres
+    ) : do_area_thres(do_area_thres),
+        area_thres(area_thres),
+        do_angle_thres(do_angle_thres),
+        angle_thres(angle_thres),
+        do_normal_angle_thres(do_normal_angle_thres),
+        normal_angle_thres(normal_angle_thres), 
+        do_len_thres(do_len_thres),
+        len_thres(len_thres)
+    {};
+
+    void insert_point(float x, float y, float z) {
+      dt.insert(DT::Point(x,y,z));
+    }
+
+    bool get_z(std::array<float,3>& p, float& z_interpolate) {
+      auto face = dt.locate(K::Point_3(double(p[0]),double(p[1]),0));
+      if (face==nullptr) return false;
+      if (dt.is_infinite(face)) return false;
+      if (face->info().is_big) return false;
+      CGAL::Plane_3<K> plane(
+        face->vertex(0)->point(),
+        face->vertex(1)->point(),
+        face->vertex(2)->point()
+      );
+      z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+      return true;
+    }
+
+    void mark_big_triangles() {
+      typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+        // mark big triangles
+      auto sq_area_thres = area_thres*area_thres;
+      auto sq_len_thres = len_thres*len_thres;
+      K::Vector_3 up(0.0,0.0,1.0);
+      for (auto& fh : dt.finite_face_handles()) {
+        fh->info().is_big = false;
+        if (do_area_thres) {
+          if( dt.triangle(fh).squared_area() > sq_area_thres ) {
+            fh->info().is_big |= true;
+          }
+        }
+        if (do_angle_thres) {
+          if( 
+            CGAL::approximate_angle(fh->vertex(0)->point(), fh->vertex(1)->point(), fh->vertex(2)->point()) < angle_thres ||
+            CGAL::approximate_angle(fh->vertex(1)->point(), fh->vertex(2)->point(), fh->vertex(0)->point()) < angle_thres ||
+            CGAL::approximate_angle(fh->vertex(2)->point(), fh->vertex(0)->point(), fh->vertex(1)->point()) < angle_thres
+          ) {
+            fh->info().is_big |= true;
+          }
+        }
+        if (do_normal_angle_thres) {
+          if( 
+            CGAL::approximate_angle(dt.triangle(fh).supporting_plane().orthogonal_vector(), up) > normal_angle_thres
+          ) {
+            fh->info().is_big |= true;
+          }
+        }
+        if (do_len_thres)  {
+          if( (K::Segment_3(fh->vertex(0)->point(), fh->vertex(1)->point()).squared_length() > sq_len_thres) ||  
+              (K::Segment_3(fh->vertex(1)->point(), fh->vertex(2)->point()).squared_length() > sq_len_thres) || 
+              (K::Segment_3(fh->vertex(2)->point(), fh->vertex(0)->point()).squared_length() > sq_len_thres) ) {
+            fh->info().is_big |= true;
+          }
+        }
+      }
+
+    }
+
+    void remove_marked() {
+      std::vector<DT::Vertex_handle> to_remove;
+      // PointCollection pts_removed, pts_remaining;
+      for (auto& v: dt.finite_vertex_handles()) {
+        bool remove_vertex = true;
+        Face_circulator fc = dt.incident_faces(v),
+        done(fc);
+        if (fc != 0) {
+          do {
+            remove_vertex &= fc->info().is_big;
+          } while (++fc != done);
+        }
+        auto p = v->point();
+        if (remove_vertex) {
+          to_remove.push_back(v);
+          // pts_removed.push_back({float(p.x()), float(p.y()), float(p.z())});
+        } else {
+          // pts_remaining.push_back({float(p.x()), float(p.y()), float(p.z())});
+        }
+      }
+      // delete outlier vertices
+      for (auto& v : to_remove) {
+        dt.remove(v);
+      }
+    }
+
+    void get_triangles(TriangleCollection& triangles) {
+      for (auto& fh : dt.finite_face_handles()) {
+        if ( !fh->info().is_big ) {
+          arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), float (fh->vertex(0)->point().z())};
+          arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), float (fh->vertex(1)->point().z())};
+          arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
+            };
+          triangles.push_back({ p0,p1,p2 });
+        }
+      }
+    }
+
+  };
+
+  void Filter25DNode::process(){
+    
+    // build triangulation
+    PointCloud25DTriangulator pdt(
+      do_area_thres,
+      area_thres,
+      do_angle_thres,
+      angle_thres,
+      do_normal_angle_thres,
+      normal_angle_thres,
+      do_len_thres,
+      len_thres
+    );
     arr3f boxmin;
     arr3f boxmax;
     if(input("points").is_connected_type(typeid(PointCollection))) {
       auto& points = input("points").get<PointCollection&>();
       for (auto& p : points) {
-        dt.insert(DT::Point(p[0], p[1], p[2]));
+        pdt.insert_point(p[0], p[1], p[2]);
       }
       auto box = points.box();
       boxmin = box.min();
@@ -84,7 +187,7 @@ namespace geoflow::nodes::stepedge {
       for (auto& [plane_id, plane_pts] : points_per_plane) {
         if (plane_id<1) continue;
         for (auto& p : plane_pts.second) {
-          dt.insert(DT::Point(p.x(), p.y(), p.z()));
+          pdt.insert_point(p.x(), p.y(), p.z());
           box.add({float(p.x()), float(p.y()), float(p.z())});
         }
       }
@@ -92,76 +195,37 @@ namespace geoflow::nodes::stepedge {
       boxmax = box.max();
     }
 
-    mark_big_triangles(dt);
+    pdt.mark_big_triangles();
 
-    // mark low vertices
-    size_t cnt_total, cnt_sharp;
+    // remove vertices with all marked neighbour triangles
     
-    std::vector<DT::Vertex_handle> to_remove;
-    PointCollection pts_removed, pts_remaining;
-    for (auto& v: dt.finite_vertex_handles()) {
-      cnt_total = cnt_sharp = 0;
-      bool remove_vertex = true;
-      Face_circulator fc = dt.incident_faces(v),
-      done(fc);
-      if (fc != 0) {
-        do {
-          remove_vertex &= fc->info().is_big;
-        } while (++fc != done);
-      }
-      auto p = v->point();
-      if (remove_vertex) {
-        to_remove.push_back(v);
-        pts_removed.push_back({float(p.x()), float(p.y()), float(p.z())});
-      } else {
-        pts_remaining.push_back({float(p.x()), float(p.y()), float(p.z())});
-      }
-    }
-    // delete outlier vertices
-    for (auto& v : to_remove) {
-      dt.remove(v);
-    }
+    pdt.remove_marked();
 
-    mark_big_triangles(dt);
+    pdt.mark_big_triangles();
 
     // get triangles
     TriangleCollection triangles;
-    for (auto& fh : dt.finite_face_handles()) {
-      if ( !fh->info().is_big ) {
-        arr3f p0 = {float (fh->vertex(0)->point().x()), float (fh->vertex(0)->point().y()), float (fh->vertex(0)->point().z())};
-        arr3f p1 = {float (fh->vertex(1)->point().x()), float (fh->vertex(1)->point().y()), float (fh->vertex(1)->point().z())};
-        arr3f p2 = {float (fh->vertex(2)->point().x()), float (fh->vertex(2)->point().y()), float (fh->vertex(2)->point().z())
-          };
-        triangles.push_back({ p0,p1,p2 });
-      }
-    }
+    pdt.get_triangles(triangles);
 
     // build heightfield
     RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
     r.prefill_arrays(RasterTools::MAX);
     PointCollection heightfield_pts;
+    float z_interpolate;
     for(size_t col=0; col<r.dimx_; ++col) {
       for(size_t row=0; row<r.dimy_; ++row) {
         auto p = r.getPointFromRasterCoords(col, row);
         // do linear TIN interpolation
-        auto face = dt.locate(K::Point_3(double(p[0]),double(p[1]),0));
-        if (face==nullptr) continue;
-        if (dt.is_infinite(face)) continue;
-        if (face->info().is_big) continue;
-        CGAL::Plane_3<K> plane(
-          face->vertex(0)->point(),
-          face->vertex(1)->point(),
-          face->vertex(2)->point()
-        );
-        double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-        r.set_val(col, row, z_interpolate);
-        p[2] = z_interpolate;
-        heightfield_pts.push_back(p);
+        if( pdt.get_z(p, z_interpolate) ) {
+          r.set_val(col, row, z_interpolate);
+          p[2] = z_interpolate;
+          heightfield_pts.push_back(p);
+        }
       }
     }
 
-    output("points").set(pts_remaining);
-    output("points_filtered").set(pts_removed);
+    // output("points").set(pts_remaining);
+    // output("points_filtered").set(pts_removed);
     output("triangles").set(triangles);
     output("heightfield").set(r);
     output("heightfield_pts").set(heightfield_pts);
@@ -209,6 +273,7 @@ namespace geoflow::nodes::stepedge {
 
   void BuildingRasteriseNode::process() {
     auto& points = input("points").get<PointCollection&>();
+    auto& ground_points = input("ground_points").get<PointCollection&>();
     auto h_ground = input("h_ground").get<float>();
     auto& footprint = input("footprint").get<LinearRing&>();
 
@@ -219,7 +284,7 @@ namespace geoflow::nodes::stepedge {
     RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
     r.prefill_arrays(RasterTools::MAX);
 
-    // point in polygon
+    // point in polygon to set ground plane outside footprint
     auto exterior = build_grid(footprint);
     std::vector<pGridSet> holes;
     for (auto& hole : footprint.interior_rings()) {
@@ -246,10 +311,16 @@ namespace geoflow::nodes::stepedge {
     delete exterior;
     for (auto& hole: holes) delete hole;
 
-    for(auto& p : points) {
-      r.add_point(p[0], p[1], p[2], RasterTools::MAX);
-    }
+    if (use_tin) {
 
+    } else {
+      for(auto& p : points) {
+        r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      }
+      for(auto& p : ground_points) {
+        r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      }
+  }
     PointCollection grid_points;
     vec1f values;
     double nodata = r.getNoDataVal();
