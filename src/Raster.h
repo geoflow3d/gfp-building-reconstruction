@@ -46,6 +46,7 @@ namespace RasterTools {
         ~Raster(){};
         void prefill_arrays(alg a);
         bool add_point(double x, double y, double z, alg a);
+        bool check_point(double x, double y);
         void add_raster(double x, double y, double z, alg a);
         size_t getRow(double x, double y) const;
         size_t getCol(double x, double y) const;
@@ -56,6 +57,7 @@ namespace RasterTools {
         double sample(double &x, double &y);
         void set_val(size_t col, size_t row, double val);
         double get_val(size_t col, size_t row);
+        bool isNoData(size_t col, size_t row);
         void set_nodata(double new_nodata_val);
         void fill_nn(size_t window_size);
         // void write(const char* WKGCS, alg a, void * dataPtr, const char* outFile);

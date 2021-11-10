@@ -79,6 +79,15 @@ namespace RasterTools {
     }
     return first;
   }
+  bool Raster::check_point(double x, double y)
+  {
+    auto col = getCol(x,y);
+    if (col >= dimx_ || col < 0) return false;
+    auto row = getRow(x,y);
+    if (row >= dimy_ || row < 0) return false;
+    
+    return true;
+  }
 
   // inline void Raster::avg(double &x, double &y, double &val)
   // {
@@ -150,6 +159,10 @@ namespace RasterTools {
   
   double Raster::get_val(size_t col, size_t row) {
     return (*vals_)[col+row*dimx_];
+  }
+
+  bool Raster::isNoData(size_t col, size_t row) {
+    return get_val(col, row) == noDataVal_;
   }
 
   void Raster::set_nodata(double new_nodata_val) {

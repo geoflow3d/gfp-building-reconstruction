@@ -60,6 +60,10 @@ namespace geoflow::nodes::stepedge {
         len_thres(len_thres)
     {};
 
+    void insert_point(std::array<float,3>& p) {
+      dt.insert(DT::Point(p[0], p[1], p[2]));
+    }
+
     void insert_point(float x, float y, float z) {
       dt.insert(DT::Point(x,y,z));
     }
@@ -88,7 +92,7 @@ namespace geoflow::nodes::stepedge {
         fh->info().is_big = false;
         if (do_area_thres) {
           if( dt.triangle(fh).squared_area() > sq_area_thres ) {
-            fh->info().is_big |= true;
+            fh->info().is_big = fh->info().is_big || true;
           }
         }
         if (do_angle_thres) {
@@ -97,21 +101,21 @@ namespace geoflow::nodes::stepedge {
             CGAL::approximate_angle(fh->vertex(1)->point(), fh->vertex(2)->point(), fh->vertex(0)->point()) < angle_thres ||
             CGAL::approximate_angle(fh->vertex(2)->point(), fh->vertex(0)->point(), fh->vertex(1)->point()) < angle_thres
           ) {
-            fh->info().is_big |= true;
+            fh->info().is_big = fh->info().is_big || true;
           }
         }
         if (do_normal_angle_thres) {
           if( 
             CGAL::approximate_angle(dt.triangle(fh).supporting_plane().orthogonal_vector(), up) > normal_angle_thres
           ) {
-            fh->info().is_big |= true;
+            fh->info().is_big = fh->info().is_big || true;
           }
         }
         if (do_len_thres)  {
           if( (K::Segment_3(fh->vertex(0)->point(), fh->vertex(1)->point()).squared_length() > sq_len_thres) ||  
               (K::Segment_3(fh->vertex(1)->point(), fh->vertex(2)->point()).squared_length() > sq_len_thres) || 
               (K::Segment_3(fh->vertex(2)->point(), fh->vertex(0)->point()).squared_length() > sq_len_thres) ) {
-            fh->info().is_big |= true;
+            fh->info().is_big = fh->info().is_big || true;
           }
         }
       }
@@ -127,7 +131,7 @@ namespace geoflow::nodes::stepedge {
         done(fc);
         if (fc != 0) {
           do {
-            remove_vertex &= fc->info().is_big;
+            remove_vertex = remove_vertex && fc->info().is_big;
           } while (++fc != done);
         }
         auto p = v->point();
@@ -176,7 +180,7 @@ namespace geoflow::nodes::stepedge {
     if(input("points").is_connected_type(typeid(PointCollection))) {
       auto& points = input("points").get<PointCollection&>();
       for (auto& p : points) {
-        pdt.insert_point(p[0], p[1], p[2]);
+        pdt.insert_point(p);
       }
       auto box = points.box();
       boxmin = box.min();
@@ -312,15 +316,51 @@ namespace geoflow::nodes::stepedge {
     for (auto& hole: holes) delete hole;
 
     if (use_tin) {
-
+      PointCloud25DTriangulator pdt(
+        do_area_thres,
+        area_thres,
+        do_angle_thres,
+        angle_thres,
+        do_normal_angle_thres,
+        normal_angle_thres,
+        do_len_thres,
+        len_thres
+      );
+      for(auto& p : points) {
+        pdt.insert_point(p);
+      }
+      for(auto& p : ground_points) {
+        pdt.insert_point(p);
+      }
+      pdt.mark_big_triangles();
+      pdt.remove_marked();
+      pdt.mark_big_triangles();
+      TriangleCollection triangles;
+      pdt.get_triangles(triangles);
+      
+      float z_interpolate;
+      for(size_t col=0; col<r.dimx_; ++col) {
+        for(size_t row=0; row<r.dimy_; ++row) {
+          // do linear TIN interpolation
+          if (r.isNoData(col, row)) {
+            auto p = r.getPointFromRasterCoords(col, row);
+            if( pdt.get_z(p, z_interpolate) ) {
+              r.set_val(col, row, z_interpolate);
+            }
+          }
+        }
+      }
     } else {
       for(auto& p : points) {
         r.add_point(p[0], p[1], p[2], RasterTools::MAX);
       }
       for(auto& p : ground_points) {
-        r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+        if (r.check_point(p[0], p[1])) {
+          r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+        }
       }
-  }
+    }
+
     PointCollection grid_points;
     vec1f values;
     double nodata = r.getNoDataVal();
