@@ -336,6 +336,7 @@ namespace geoflow::nodes::stepedge {
     float smoothness_multiplier = 1.0;
     bool preset_labels = false;
     bool do_normalise = true;
+    bool use_extra_planes = true;
     int n_iterations = 3;
     int graph_cut_impl = 2;
     bool use_ground = true;
@@ -349,6 +350,7 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+      add_input("extra_pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_input("ground_pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
       add_output("arrangement", typeid(Arrangement_2));
       add_vector_output("groundparts", typeid(LinearRing));
@@ -359,6 +361,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(smoothness_multiplier, 0.001, 100,  "smoothness_multiplier", "Multiplier on smoothness term"));
       add_param(ParamBool(preset_labels, "preset_labels", "Preset face labels"));
       add_param(ParamBool(do_normalise, "do_normalise", "Normalise weights"));
+      add_param(ParamBool(use_extra_planes, "use_extra_planes", "Use the extra planes"));
       add_param(ParamBoundedFloat(z_percentile, 0, 1, "z_percentile",  "Elevation percentile"));
       add_param(ParamBool(use_ground, "use_ground", "Use ground planes in optimisation"));
       add_param(ParamBool(label_ground_outside_fp, "label_ground_outside_fp", "Label faces that get assigned a ground plane as begin outside the footprint"));
@@ -856,6 +859,7 @@ namespace geoflow::nodes::stepedge {
     float cellsize = 0.05;
     float thres_alpha = 0.25;
     bool use_ground = false;
+    bool use_extra_points = false;
     int megapixel_limit = 600;
     bool fill_nodata_ = true;
     int fill_nodata_window_size_ = 5;
@@ -867,6 +871,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("ground_triangles", typeid(TriangleCollection));
       add_vector_input("alpha_rings", typeid(LinearRing));
       add_input("roofplane_ids", typeid(vec1i));
+      add_input("extra_points", typeid(PointCollection));
       add_input("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
       // add_input("heightfield", typeid(RasterTools::Raster));
       add_output("heightfield", typeid(RasterTools::Raster));
@@ -878,6 +883,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
       add_param(ParamBool(use_ground, "use_ground",  "Rasterise the ground_triangles input"));
+      add_param(ParamBool(use_extra_points, "use_extra_points",  "Rasterise extra points where there is a gap in heightfield"));
       add_param(ParamBoundedInt(fill_nodata_window_size_, 0, 50, "fill_nodata_window_size",  "fill_nodata_window_size"));
       add_param(ParamBool(fill_nodata_, "fill_nodata",  "Fill nodata values with NN interpolation"));
       add_param(ParamInt(megapixel_limit, "megapixel_limit", "Max size of raster in megalpixels. If exceeded cellsize is increased."));

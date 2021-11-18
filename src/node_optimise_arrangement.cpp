@@ -174,6 +174,7 @@ void OptimiseArrangmentGridNode::process() {
 
   auto arr = input("arrangement").get<Arrangement_2>();
   auto& planes = input("pts_per_roofplane").get<IndexedPlanesWithPoints>();
+  
   auto& heightfield = input("heightfield").get<RasterTools::Raster>();
 
   std::vector<std::tuple<Plane, size_t>> points_per_plane; // plane, points, seg_id
@@ -181,15 +182,28 @@ void OptimiseArrangmentGridNode::process() {
     if (plane_id<1) continue; // ignore unclassified points
     points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id));
   }
-  size_t roofplane_cnt = points_per_plane.size();
+  
+  size_t base_roofplane_cnt = points_per_plane.size();
+  if (use_extra_planes) {
+    auto& planes_extra = input("extra_pts_per_roofplane").get<IndexedPlanesWithPoints>();
+    for (auto& [plane_id, plane_pts] : planes_extra) {
+      if (plane_id<1) continue; // ignore unclassified points
+      size_t plane_id_ = (base_roofplane_cnt-1) + plane_id;
+      points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id_));
+    }
+  }
+  
+  size_t total_roofplane_cnt = points_per_plane.size();
   if (use_ground) {
     auto& ground_planes = input("ground_pts_per_roofplane").get<IndexedPlanesWithPoints>();
     for (auto& [plane_id, plane_pts] : ground_planes) {
       if (plane_id<1) continue; // ignore unclassified points
-      size_t plane_id_ = (roofplane_cnt-1) + plane_id;
+      size_t plane_id_ = (total_roofplane_cnt-1) + plane_id;
       points_per_plane.push_back(std::make_tuple(plane_pts.first, plane_id_));
     }
   }
+
+
 
   // compute vertex_label_cost (data term)
   // 1 compute for each face the error to each plane
@@ -227,7 +241,7 @@ void OptimiseArrangmentGridNode::process() {
 
   // std::cerr << "  Graph-cut with " << faces.size() << " faces and " << points_per_plane.size() << " plane labels\n";
   // don't bother if there are no planes or faces
-  if (roofplane_cnt==0 || faces.size()==0) {
+  if (total_roofplane_cnt==0 || faces.size()==0) {
     arr_dissolve_fp(arr, true, true);
     output("arrangement").set(arr);
     return;
@@ -312,7 +326,7 @@ void OptimiseArrangmentGridNode::process() {
     face->data().plane = std::get<0>(points_per_plane[i]);
     face->data().segid = std::get<1>(points_per_plane[i]);
     face->data().rms_error_to_avg = face->data().vertex_label_cost[i];
-    if(i>=roofplane_cnt && label_ground_outside_fp) {
+    if(i>=total_roofplane_cnt && label_ground_outside_fp) {
       face->data().in_footprint = false;
       face->data().is_ground = true;
       LinearRing polygon;

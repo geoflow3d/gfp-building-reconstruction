@@ -466,6 +466,14 @@ namespace geoflow::nodes::stepedge {
     if(use_ground)
       rasterise_input(ground_triangles, r, grounddata_area_cnt);
 
+    if (use_extra_points) {
+      auto& extra_points = vector_input("extra_points").get<PointCollection&>();
+      for (auto& p : extra_points) {
+        if ( r.isNoData( r.getCol(p[0],p[1]), r.getRow(p[0],p[1]) ) )
+          r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      }
+    }
+
     if (fill_nodata_) r.fill_nn(fill_nodata_window_size_);
 
     PointCollection grid_points;
