@@ -2108,6 +2108,16 @@ void PolygonUnionNode::process() {
   }
 }
 
+void PointCloudMergerNode::process() {
+  PointCollection point_cloud;
+  for (auto &iterm : poly_input("pointclouds").sub_terminals()) {
+    if (iterm->has_data()) {
+      auto& pc = iterm->get<PointCollection>();
+      point_cloud.insert(point_cloud.begin(), pc.begin(), pc.end());
+    }
+  }
+  output("pointcloud").set(point_cloud);
+}
 
 // void PlaneDetectorNode::process() {
 //   auto points = input("point_clouds").get<Feature>();

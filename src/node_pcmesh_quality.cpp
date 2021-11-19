@@ -82,6 +82,28 @@ namespace geoflow::nodes::stepedge {
     return errors;
   }
 
+  vec1f compute_pc2pc_errors(PointCollection points_from, PointCollection points_to) {
+    // KD tree
+    typedef CGAL::Search_traits_3<K> TreeTraits;
+    typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
+    typedef Neighbor_search::Tree Tree;
+
+    std::vector<K::Point_3> points_to_;
+    for (auto& p : points_to) {
+      points_to_.push_back(K::Point_3(p[0],p[1],p[2]));
+    }
+    Tree tree(points_to_.begin(), points_to_.end());
+    vec1f errors;
+    const unsigned int N = 1;
+    for(const auto& p : points_from) {
+      Neighbor_search search(tree, K::Point_3(p[0],p[1],p[2]), N);
+      for(Neighbor_search::iterator it = search.begin(); it != search.end(); ++it) {
+        errors.push_back(std::sqrt(it->second));
+      }
+    }
+    return errors;
+  }
+
   std::string get_json_histogram(vec1f& values) {
     std::sort(values.begin(), values.end(), [](auto& p1, auto& p2) {
       return p1 < p2;
@@ -232,5 +254,19 @@ namespace geoflow::nodes::stepedge {
     output("face_errors").set(face_errors);
     output("mesh_error_f").set(rms_error);
     output("mesh_error").set(mesh_error);
+  }
+
+  void PC2PCDistancesCalculatorNode::process() {
+    auto& pc_a = input("pointcloud_a").get<PointCollection>();
+    auto& pc_b = input("pointcloud_b").get<PointCollection>();
+    
+    auto errors_from_a = compute_pc2pc_errors(pc_a, pc_b);
+
+    auto& oterm = poly_output("attributes").add_vector("errors_a_to_b", typeid(float));
+    for (auto& e: errors_from_a) {
+      oterm.push_back(e);
+    }
+
+    output("errors_a_to_b").set(errors_from_a);
   }
 }

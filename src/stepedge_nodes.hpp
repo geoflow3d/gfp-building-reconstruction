@@ -106,9 +106,9 @@ namespace geoflow::nodes::stepedge {
       add_output("mesh", typeid(std::unordered_map<int, Mesh>));
     }
 
-    bool inputs_valid() override {
-      return input("polygon").has_data() && input("floor_elevation").has_data();
-    }
+    // bool inputs_valid() override {
+    //   return input("polygon").has_data() && input("floor_elevation").has_data();
+    // }
 
     void process() override;
   };
@@ -1230,6 +1230,34 @@ namespace geoflow::nodes::stepedge {
       add_output("segment_ids_snapped", typeid(vec1i));
 
       add_param(ParamBoundedFloat(dist_thres, 0, 1, "dist_thres",  "Snapping threshold"));
+    }
+
+    void process() override;
+  };
+
+  class PointCloudMergerNode:public Node {
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_poly_input("pointclouds", {typeid(PointCollection)});
+      add_output("pointcloud", typeid(PointCollection));
+    }
+
+    void process() override;
+  };
+
+  class PC2PCDistancesCalculatorNode:public Node {
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("pointcloud_a", {typeid(PointCollection)});
+      add_input("pointcloud_b", {typeid(PointCollection)});
+      add_output("errors_a_to_b", typeid(vec1f));
+      add_poly_output("attributes", {typeid(float)});
     }
 
     void process() override;

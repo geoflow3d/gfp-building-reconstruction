@@ -46,4 +46,6 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<SnapRoundNode>("SnapRound");
     node_register.register_node<TriSnapNode>("TriSnap");
     node_register.register_node<BuildingRasteriseNode>("BuildingRasterise");
+    node_register.register_node<PointCloudMergerNode>("PointCloudMerger");
+    node_register.register_node<PC2PCDistancesCalculatorNode>("PC2PCDistancesCalculator");
 }
