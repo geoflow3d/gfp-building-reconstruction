@@ -281,7 +281,7 @@ namespace geoflow::nodes::stepedge {
     auto h_ground = input("h_ground").get<float>();
     auto& footprint = input("footprint").get<LinearRing&>();
 
-    auto box = points.box();
+    auto box = footprint.box();
     auto boxmin = box.min();
     auto boxmax = box.max();
 
