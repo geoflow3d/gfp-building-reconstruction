@@ -2109,14 +2109,18 @@ void PolygonUnionNode::process() {
 }
 
 void PointCloudMergerNode::process() {
-  PointCollection point_cloud;
-  for (auto &iterm : poly_input("pointclouds").sub_terminals()) {
-    if (iterm->has_data()) {
-      auto& pc = iterm->get<PointCollection>();
-      point_cloud.insert(point_cloud.begin(), pc.begin(), pc.end());
+  
+  for (size_t i=0; i<poly_input("pointclouds").sub_terminals()[0]->size(); ++i)
+  {
+    PointCollection point_cloud;
+    for (auto &iterm : poly_input("pointclouds").sub_terminals()) {
+      if (iterm->has_data()) {
+        auto& pc = iterm->get<PointCollection>(i);
+        point_cloud.insert(point_cloud.begin(), pc.begin(), pc.end());
+      }
     }
+    output("pointcloud").push_back(point_cloud);
   }
-  output("pointcloud").set(point_cloud);
 }
 
 // void PlaneDetectorNode::process() {
