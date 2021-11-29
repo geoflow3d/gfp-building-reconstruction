@@ -202,6 +202,12 @@ namespace as {
         for (int i=0; i<3; ++i) {
           auto e = std::make_pair(fh,i);
           auto neighbor = fh->neighbor(i);
+          
+          // check if neighbor handle is not pointing anywhere. Should not happen, but it does occasionally in practice.
+          if (neighbor == nullptr) {
+            // std::cout << "null\n" << std::flush; 
+            continue;
+          }
 
           if (mode == LABEL_INFINITE_FACE) {
             // add neighbor if it is not on the ohter side of alpha boundary
