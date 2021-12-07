@@ -178,7 +178,9 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_walls, "do_walls", "Do walls"));
       add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
       add_param(ParamBool(do_floor, "do_floor", "Do floor"));
-      add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
+      #ifdef GFP_WITH_LOD2
+        add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
+      #endif
       // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
       // add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
