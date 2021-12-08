@@ -816,6 +816,7 @@ namespace geoflow::nodes::stepedge {
   class BuildingRasteriseNode:public Node {
     float cellsize = 0.5;
     bool use_tin = false;
+    bool use_ground_pts = true;
 
     float angle_thres = 5;
     float normal_angle_thres = 10;
@@ -839,8 +840,9 @@ namespace geoflow::nodes::stepedge {
       add_output("values", typeid(vec1f));
       add_output("image", typeid(geoflow::Image));
 
-      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
-      add_param(ParamBool(use_tin, "use_tin",  "use_tin"));
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "Cellsize"));
+      add_param(ParamBool(use_tin, "use_tin",  "Use TIN for rasterisation"));
+      add_param(ParamBool(use_ground_pts, "use_ground_pts",  "Rasterise the ground points"));
 
       add_param(ParamBoundedFloat(angle_thres, 0, 180, "angle_thres",  "angle_thres"));
       add_param(ParamBoundedFloat(normal_angle_thres, 0, 180, "normal_angle_thres",  "normal_angle_thres"));

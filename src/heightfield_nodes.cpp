@@ -329,8 +329,10 @@ namespace geoflow::nodes::stepedge {
       for(auto& p : points) {
         pdt.insert_point(p);
       }
-      for(auto& p : ground_points) {
-        pdt.insert_point(p);
+      if (use_ground_pts) {
+        for(auto& p : ground_points) {
+          pdt.insert_point(p);
+        }
       }
       pdt.mark_big_triangles();
       pdt.remove_marked();
@@ -354,9 +356,13 @@ namespace geoflow::nodes::stepedge {
       for(auto& p : points) {
         r.add_point(p[0], p[1], p[2], RasterTools::MAX);
       }
-      for(auto& p : ground_points) {
-        if (r.check_point(p[0], p[1])) {
-          r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      if (use_ground_pts) {
+        for(auto& p : ground_points) {
+          if (r.check_point(p[0], p[1])) {
+            if (r.isNoData(p[0], p[1])) {
+              r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+            }
+          }
         }
       }
     }

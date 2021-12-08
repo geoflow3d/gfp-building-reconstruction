@@ -164,6 +164,9 @@ namespace RasterTools {
   bool Raster::isNoData(size_t col, size_t row) {
     return get_val(col, row) == noDataVal_;
   }
+  bool Raster::isNoData(double &x, double &y) {
+    return (*vals_)[getLinearCoord(x,y)] == noDataVal_;
+  }
 
   void Raster::set_nodata(double new_nodata_val) {
     for (size_t i=0; i<dimx_*dimy_; ++i) {

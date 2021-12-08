@@ -58,6 +58,7 @@ namespace RasterTools {
         void set_val(size_t col, size_t row, double val);
         double get_val(size_t col, size_t row);
         bool isNoData(size_t col, size_t row);
+        bool isNoData(double &x, double &y);
         void set_nodata(double new_nodata_val);
         void fill_nn(size_t window_size);
         // void write(const char* WKGCS, alg a, void * dataPtr, const char* outFile);
