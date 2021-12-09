@@ -289,31 +289,33 @@ namespace geoflow::nodes::stepedge {
     r.prefill_arrays(RasterTools::MAX);
 
     // point in polygon to set ground plane outside footprint
-    auto exterior = build_grid(footprint);
-    std::vector<pGridSet> holes;
-    for (auto& hole : footprint.interior_rings()) {
-      holes.push_back(build_grid(hole));
-    }
-    
-    for (size_t col = 0; col < r.dimx_; ++col) {
-      for (size_t row = 0; row < r.dimy_; ++row) {
-        auto p = r.getPointFromRasterCoords(col, row);
-        pPipoint pipoint = new Pipoint{p[0],p[1]};
-        if (!GridTest(exterior, pipoint)) {
-          if (r.add_point(p[0], p[1], h_ground, RasterTools::MAX)) {
-            // ++data_pixel_cnt; //only count new cells (that were not written to before)
-          }
-        }
-        for (auto& hole : holes) {
-          if (GridTest(hole, pipoint)) {
-            r.add_point(p[0], p[1], h_ground, RasterTools::MAX);
-          }
-        }
-        delete pipoint;
+    if (use_ground_pts) {
+      auto exterior = build_grid(footprint);
+      std::vector<pGridSet> holes;
+      for (auto& hole : footprint.interior_rings()) {
+        holes.push_back(build_grid(hole));
       }
+      
+      for (size_t col = 0; col < r.dimx_; ++col) {
+        for (size_t row = 0; row < r.dimy_; ++row) {
+          auto p = r.getPointFromRasterCoords(col, row);
+          pPipoint pipoint = new Pipoint{p[0],p[1]};
+          if (!GridTest(exterior, pipoint)) {
+            if (r.add_point(p[0], p[1], h_ground, RasterTools::MAX)) {
+              // ++data_pixel_cnt; //only count new cells (that were not written to before)
+            }
+          }
+          for (auto& hole : holes) {
+            if (GridTest(hole, pipoint)) {
+              r.add_point(p[0], p[1], h_ground, RasterTools::MAX);
+            }
+          }
+          delete pipoint;
+        }
+      }
+      delete exterior;
+      for (auto& hole: holes) delete hole;
     }
-    delete exterior;
-    for (auto& hole: holes) delete hole;
 
     if (use_tin) {
       PointCloud25DTriangulator pdt(
