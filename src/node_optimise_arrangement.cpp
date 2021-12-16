@@ -196,6 +196,7 @@ void OptimiseArrangmentGridNode::process() {
   double max_cost = 0;
   size_t face_i=0;
   size_t label = 0;
+  double cell_area = heightfield.cellSize_ * heightfield.cellSize_;
   std::vector<Face_handle> faces;
   for (auto face: arr.face_handles()) {
     if(face->data().in_footprint) {
@@ -204,7 +205,7 @@ void OptimiseArrangmentGridNode::process() {
       auto height_points = heightfield.rasterise_polygon(polygon, false);
 
       for (auto& [plane, plane_id] : points_per_plane) {
-        double volume = data_multiplier * volume_to_plane(plane, height_points);
+        double volume = data_multiplier * cell_area * volume_to_plane(plane, height_points);
         face->data().vertex_label_cost.push_back(volume);
         max_cost = std::max(max_cost, volume);
       }
