@@ -1239,6 +1239,23 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+  class SegmentExtendNode:public Node {
+    // float pixel_size = 0.001;
+    float extension = 0.005;
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("segments", typeid(SegmentCollection));
+      add_output("segments", typeid(SegmentCollection));
+
+      add_param(ParamBoundedFloat(extension, 0, 50, "extension",  "Extension"));
+    }
+
+    void process() override;
+  };
+
   class PointCloudMergerNode:public Node {
 
     public:

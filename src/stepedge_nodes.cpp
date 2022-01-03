@@ -2123,6 +2123,42 @@ void PointCloudMergerNode::process() {
   }
 }
 
+void SegmentExtendNode::process() {
+  typedef Kernel::Segment_3 Segment;
+  typedef Kernel::Point_3 Point;
+
+  auto segments = input("segments").get<SegmentCollection>();
+
+  SegmentCollection segments_out;
+  for (auto& segment : segments)  {
+    Segment s(
+      Point(segment[0][0], segment[0][1], segment[0][2]),
+      Point(segment[1][0], segment[1][1], segment[1][2])
+    );
+    auto va = (s.target()-s.source());
+    va = va/CGAL::sqrt(va.squared_length());
+    auto se = Segment( 
+      s.source() - va*extension,
+      s.target() + va*extension  
+    );
+    segments_out.push_back (
+      {
+        arr3f{
+          se.source().x(),
+          se.source().y(),
+          se.source().z()
+        },
+        arr3f{
+          se.target().x(),
+          se.target().y(),
+          se.target().z()
+        }
+      }
+    );
+  }
+  output("segments").set(segments_out);
+}
+
 // void PlaneDetectorNode::process() {
 //   auto points = input("point_clouds").get<Feature>();
 
