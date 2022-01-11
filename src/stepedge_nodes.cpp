@@ -2144,19 +2144,35 @@ void SegmentExtendNode::process() {
     segments_out.push_back (
       {
         arr3f{
-          se.source().x(),
-          se.source().y(),
-          se.source().z()
+          float(se.source().x()),
+          float(se.source().y()),
+          float(se.source().z())
         },
         arr3f{
-          se.target().x(),
-          se.target().y(),
-          se.target().z()
+          float(se.target().x()),
+          float(se.target().y()),
+          float(se.target().z())
         }
       }
     );
   }
   output("segments").set(segments_out);
+}
+
+void PCFilterNode::process() {
+  auto& pointcloud = input("pointcloud").get<PointCollection&>();
+  
+
+  PointCollection pointcloud_filtered;
+
+  size_t i=0;
+  for(auto& p : pointcloud) {
+    if(input("values").get<float>(i++) > threshold) {
+      pointcloud_filtered.push_back(p);
+    }
+  }
+
+  output("pointcloud").set(pointcloud_filtered);
 }
 
 // void PlaneDetectorNode::process() {

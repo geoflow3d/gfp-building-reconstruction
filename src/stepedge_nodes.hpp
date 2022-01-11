@@ -1278,7 +1278,25 @@ namespace geoflow::nodes::stepedge {
       add_input("pointcloud_a", {typeid(PointCollection)});
       add_input("pointcloud_b", {typeid(PointCollection)});
       add_output("errors_a_to_b", typeid(vec1f));
-      add_poly_output("attributes", {typeid(float)});
+      add_output("errors_a_to_b_", typeid(float));
+    }
+
+    void process() override;
+  };
+
+  class PCFilterNode:public Node {
+    
+    float threshold = 1.0;
+
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("pointcloud", {typeid(PointCollection)});
+      add_input("values", {typeid(float)});
+      add_output("pointcloud", typeid(PointCollection));
+
+      add_param(ParamFloat(threshold, "threshold",  "Threshold "));
     }
 
     void process() override;

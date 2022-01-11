@@ -262,7 +262,7 @@ namespace geoflow::nodes::stepedge {
     
     auto errors_from_a = compute_pc2pc_errors(pc_a, pc_b);
 
-    auto& oterm = poly_output("attributes").add_vector("errors_a_to_b", typeid(float));
+    auto& oterm = output("errors_a_to_b_");
     for (auto& e: errors_from_a) {
       oterm.push_back(e);
     }
