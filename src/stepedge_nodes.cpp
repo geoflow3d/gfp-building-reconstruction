@@ -1906,6 +1906,96 @@ void PlaneIntersectNode::process() {
   output("lines").set(lines);
 }
 
+void PlaneIntersectAllNode::process() {
+
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  typedef K::Point_3 Point;
+  typedef K::Triangle_3 Triangle;
+
+  auto pointcloud = input("clipbbox").get<PointCollection&>();
+  const auto bbox = pointcloud.box();
+
+  const auto& pmin = bbox.min();
+  const auto& pmax = bbox.max();
+
+  auto p0 = Point(pmin[0], pmin[1], pmin[2]);
+  auto px = Point(pmax[0], pmin[1], pmin[2]);
+  auto py = Point(pmin[0], pmax[1], pmin[2]);
+  auto pz = Point(pmin[0], pmin[1], pmax[2]);
+  auto pxy = Point(pmax[0], pmax[1], pmin[2]);
+  auto pyz = Point(pmin[0], pmax[1], pmax[2]);
+  auto pxz = Point(pmax[0], pmin[1], pmax[2]);
+  auto pxyz = Point(pmax[0], pmax[1], pmax[2]);
+
+  std::vector<Triangle> boxtriangles;
+  boxtriangles.push_back( Triangle(p0, px, pxz) );
+  boxtriangles.push_back( Triangle(p0, pz, pxz) );
+  boxtriangles.push_back( Triangle(pz, pyz, pxyz) );
+  boxtriangles.push_back( Triangle(pz, pxz, pxyz) );
+  boxtriangles.push_back( Triangle(px, pxz, pxyz) );
+  boxtriangles.push_back( Triangle(px, pxy, pxyz) );
+  
+  boxtriangles.push_back( Triangle(p0, px, pxy) );
+  boxtriangles.push_back( Triangle(p0, py, pxy) );
+  boxtriangles.push_back( Triangle(py, pxy, pxyz) );
+  boxtriangles.push_back( Triangle(py, pyz, pxyz) );
+  boxtriangles.push_back( Triangle(p0, py, pyz) );
+  boxtriangles.push_back( Triangle(p0, pz, pyz) );
+
+  std::vector<Plane> planes;
+  for (auto &iterm : poly_input("planes").sub_terminals()) {
+    if (iterm->has_data()) {
+      for (size_t i=0; i< iterm->size(); ++i) {
+        auto pl = iterm->get<Plane>(i);
+        planes.push_back(pl);
+      }
+    }
+  }
+  SegmentCollection segments;
+  for(auto& pl_a : planes) {
+    for(auto& pl_b : planes) {
+      if(&pl_a != &pl_b) {
+        // intersect planes
+        auto result = CGAL::intersection(pl_a, pl_b);
+        if (result) {
+          if (auto l = boost::get<typename Kernel::Line_3>(&*result)) {
+            // intersect resulting intersection line with bbox to obtain a segment of finite length
+            std::vector<Point> segmentpoints;
+            for (auto& tr : boxtriangles) {
+              auto tresult = CGAL::intersection(*l, tr);
+              if (tresult) {
+                if (auto p = boost::get<typename Kernel::Point_3>(&*tresult)) {
+                  segmentpoints.push_back(*p);
+                }
+              }
+            }
+            if (segmentpoints.size() == 2) {
+              segments.push_back( 
+                Segment(
+                  arr3f{
+                    float(segmentpoints[0].x()),
+                    float(segmentpoints[0].y()),
+                    float(segmentpoints[0].z())
+                  },
+                  arr3f{
+                    float(segmentpoints[1].x()),
+                    float(segmentpoints[1].y()),
+                    float(segmentpoints[1].z())
+                  }
+                )
+              );
+            } //else {
+            //   std::cout << "unexpected intersection result\n";
+            // }
+          }
+        }
+      }
+    }
+  }
+
+  output("segments").set(segments);
+}
+
 void SimplifyPolygonNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
 

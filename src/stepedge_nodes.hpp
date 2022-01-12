@@ -529,6 +529,7 @@ namespace geoflow::nodes::stepedge {
       add_output("plane_id", typeid(vec1i));
       add_output("is_wall", typeid(vec1i));
       add_output("is_horizontal", typeid(vec1i));
+      add_output("planes", typeid(Plane));
       
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
@@ -1297,6 +1298,35 @@ namespace geoflow::nodes::stepedge {
       add_output("pointcloud", typeid(PointCollection));
 
       add_param(ParamFloat(threshold, "threshold",  "Threshold "));
+    }
+
+    void process() override;
+  };
+
+  class PlaneIntersectAllNode:public Node {
+    
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("clipbbox", {typeid(PointCollection)});
+      add_poly_input("planes", {typeid(Plane)});
+      add_output("segments", typeid(SegmentCollection));
+    }
+
+    void process() override;
+  };
+
+  class RasterMergerNode:public Node {
+    
+    public:
+    using Node::Node;
+
+    void init() override {
+      add_input("rasterbase", {typeid(RasterTools::Raster)});
+      add_input("rasteradd", {typeid(RasterTools::Raster)});
+      
+      add_output("raster", typeid(RasterTools::Raster));
     }
 
     void process() override;

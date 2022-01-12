@@ -494,6 +494,20 @@ namespace geoflow::nodes::stepedge {
     output("grid_points").set(grid_points);
   }
 
+  void RasterMergerNode::process() {
+    auto rasterbase = input("rasterbase").get<RasterTools::Raster>();
+    auto& rasteradd = input("rasteradd").get<RasterTools::Raster>();
+    
+    for(size_t i=0; i<rasteradd.dimx_ ; ++i) {
+      for(size_t j=0; j<rasteradd.dimy_ ; ++j) {
+        auto p = rasteradd.getPointFromRasterCoords(i,j);
+        rasterbase.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      }
+    }
+
+    output("raster").set(rasterbase);
+  }
+
   // void GridMaxNode::process() {
   //   auto& g1 = input("grid_1").get<RasterTools::Raster>();
   //   auto& g2 = input("grid_2").get<RasterTools::Raster>();

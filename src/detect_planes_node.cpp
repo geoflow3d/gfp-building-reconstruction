@@ -83,14 +83,15 @@ namespace geoflow::nodes::stepedge {
     if (only_horizontal) pts_per_roofplane[-1].second = std::vector<Point>();
     size_t horiz_pt_cnt=0, total_pt_cnt=0, wall_pt_cnt=0, unsegmented_pt_cnt=0;
     vec1f roof_elevations;
+    
     for(auto region: R.regions){
       auto& plane = region.plane;
+      output("planes").push_back(plane);
       Vector n = plane.orthogonal_vector();
       // this dot product is close to 0 for vertical planes
       auto horizontality = CGAL::abs(n*Vector(0,0,1));
       bool is_wall = horizontality < metrics_is_wall_threshold;
       bool is_horizontal = horizontality > metrics_is_horizontal_threshold;
-
       // put slanted surface points at index -1 if we care only about horzontal surfaces
       if (!is_wall) {
         std::vector<Point> segpts;

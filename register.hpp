@@ -50,4 +50,6 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<PC2PCDistancesCalculatorNode>("PC2PCDistancesCalculator");
     node_register.register_node<SegmentExtendNode>("SegmentExtend");
     node_register.register_node<PCFilterNode>("PCFilter");
+    node_register.register_node<PlaneIntersectAllNode>("PlaneIntersectAll");
+    node_register.register_node<RasterMergerNode>("RasterMerger");
 }
