@@ -416,6 +416,12 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
+      
+      add_output("global_elevation_70p", typeid(float));
+      add_output("global_elevation_50p", typeid(float));
+      add_output("global_elevation_min", typeid(float));
+      add_output("global_elevation_max", typeid(float));
+
       add_output("arrangement", typeid(Arrangement_2));
 
       add_param(ParamBool(dissolve_outside_fp, "dissolve_outside_fp", "Dissolve edges outside footprint"));

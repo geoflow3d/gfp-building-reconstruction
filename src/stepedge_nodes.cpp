@@ -2025,43 +2025,46 @@ void ArrDissolveNode::process() {
     arr_dissolve_fp(arr, true, false);
   }
 
-  for (auto face: arr.face_handles()) {
-    if (face->data().in_footprint) {
-      LinearRing polygon;
-      arrangementface_to_polygon(face, polygon);
-
-      auto height_points = heightfield.rasterise_polygon(polygon, true);
-      size_t datasize = height_points.size(), data_cnt = 0;
-      if(datasize==0) { //polygon was too small to yield any pixels/height_points
-        auto& pz = polygon[0][2];
-        face->data().elevation_50p = pz;
-        face->data().elevation_70p = pz;
-        face->data().elevation_min = pz;
-        face->data().elevation_max = pz;
-        face->data().data_coverage = 0;
-      } else {
-        auto& plane = face->data().plane;
-        // compute elevations based on the assigned plane on this face. This is more reliable in case the data_coverage is limited
-        for (auto& p : height_points) {
-          if(p[2]!=heightfield.noDataVal_) data_cnt++;
-          p[2] = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
-        }
-        std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
-          return p1[2] < p2[2];
-        });
-        int elevation_id = std::floor(0.5*float(datasize-1));
-        face->data().elevation_50p = height_points[elevation_id][2];
-        elevation_id = std::floor(0.7*float(datasize-1));
-        face->data().elevation_70p = height_points[elevation_id][2];
-        face->data().elevation_min = height_points[0][2];
-        face->data().elevation_max = height_points[datasize-1][2];
-        face->data().data_coverage = float(data_cnt) / float(datasize);
-      }
-      face->data().pixel_count = datasize;
-    }
-  }
-
   if (dissolve_step_edges) {
+    // compute elevations so we can do perform the generalisation lod2.2 -> lod1.3
+    for (auto face: arr.face_handles()) {
+      if (face->data().in_footprint) {
+        LinearRing polygon;
+        arrangementface_to_polygon(face, polygon);
+
+        auto height_points = heightfield.rasterise_polygon(polygon, true);
+        size_t datasize = height_points.size(), data_cnt = 0;
+        if(datasize==0) { //polygon was too small to yield any pixels/height_points
+          auto& pz = polygon[0][2];
+          face->data().elevation_50p = pz;
+          face->data().elevation_70p = pz;
+          face->data().elevation_min = pz;
+          face->data().elevation_max = pz;
+          face->data().data_coverage = 0;
+        } else {
+          auto& plane = face->data().plane;
+          // fall back to elevation based on the plane of this face. This is more reliable in case the data_coverage is limited
+          for (auto& p : height_points) {
+            if(p[2]!=heightfield.noDataVal_) 
+              data_cnt++;
+            else
+              p[2] = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+          }
+          std::sort(height_points.begin(), height_points.end(), [](auto& p1, auto& p2) {
+            return p1[2] < p2[2];
+          });
+          int elevation_id = std::floor(0.5*float(datasize-1));
+          face->data().elevation_50p = height_points[elevation_id][2];
+          elevation_id = std::floor(0.7*float(datasize-1));
+          face->data().elevation_70p = height_points[elevation_id][2];
+          face->data().elevation_min = height_points[0][2];
+          face->data().elevation_max = height_points[datasize-1][2];
+          face->data().data_coverage = float(data_cnt) / float(datasize);
+        }
+        face->data().pixel_count = datasize;
+      }
+    }
+  
     Face_merge_observer obs(arr);
     arr_dissolve_step_edges(arr, step_height_threshold);
   }
@@ -2106,53 +2109,63 @@ void ArrDissolveNode::process() {
   //     arr.remove_edge(he->twin()->previous());
   //   }
   // }
-  // compute data_area and elevation stats for each face, only for lod22 (lod13 needs to have this before dissolving stepedges)
-  // if (!dissolve_step_edges) {
-  //   for (auto face: arr.face_handles()) {
-  //     if (face->data().in_footprint) {
-  //       LinearRing polygon;
-  //       arrangementface_to_polygon(face, polygon);
+  // compute final data_area and elevation stats for each face
+  std::vector<float> all_elevations;
+  for (auto face: arr.face_handles()) {
+    if (face->data().in_footprint) {
+      LinearRing polygon;
+      arrangementface_to_polygon(face, polygon);
 
-  //       auto height_points = heightfield.rasterise_polygon(polygon, true);
-  //       size_t data_cnt = 0;
-  //       bool skip_face = height_points.size()==0;
-  //       {
-  //         // auto& plane = face->data().plane;
-  //         // compute elevations based on the assigned plane on this face
-  //         std::vector<arr3f*> pts;
-  //         if (!skip_face){
-  //           for (auto& p : height_points) {
-  //             if(p[2]!=heightfield.noDataVal_) {
-  //               data_cnt++;
-  //               pts.push_back(&p);
-  //             };
-  //           }
-  //         }
-  //         if(data_cnt==0 || skip_face) {
-  //           auto& pz = polygon[0][2];
-  //           face->data().elevation_50p = pz;
-  //           face->data().elevation_70p = pz;
-  //           face->data().elevation_min = pz;
-  //           face->data().elevation_max = pz;
-  //           face->data().data_coverage = 0;
-  //         } else {
-  //           std::sort(pts.begin(), pts.end(), [](auto& p1, auto& p2) {
-  //             return (*p1)[2] < (*p2)[2];
-  //           });
-  //           size_t datasize = pts.size();
-  //           int elevation_id = std::floor(0.5*float(datasize-1));
-  //           face->data().elevation_50p = (*(pts[elevation_id])) [2];
-  //           elevation_id = std::floor(0.7*float(datasize-1));
-  //           face->data().elevation_70p = (*(pts[elevation_id])) [2];
-  //           face->data().elevation_min = (*(pts[0])) [2];
-  //           face->data().elevation_max = (*(pts[datasize-1])) [2];
-  //           face->data().data_coverage = float(data_cnt) / float(height_points.size());
-  //         }
-  //         face->data().pixel_count = data_cnt;
-  //       }
-  //     }
-  //   }
-  // }
+      auto height_points = heightfield.rasterise_polygon(polygon, true);
+      size_t data_cnt = 0;
+      bool skip_face = height_points.size()==0;
+      {
+        // auto& plane = face->data().plane;
+        // compute elevations based on the assigned plane on this face
+        std::vector<arr3f*> pts;
+        if (!skip_face){
+          for (auto& p : height_points) {
+            if(p[2]!=heightfield.noDataVal_) {
+              data_cnt++;
+              pts.push_back(&p);
+              all_elevations.push_back(p[2]);
+            };
+          }
+        }
+        if(data_cnt==0) {
+          auto& pz = polygon[0][2];
+          face->data().elevation_50p = heightfield.noDataVal_;
+          face->data().elevation_70p = heightfield.noDataVal_;
+          face->data().elevation_min = heightfield.noDataVal_;
+          face->data().elevation_max = heightfield.noDataVal_;
+          face->data().data_coverage = 0;
+        } else {
+          std::sort(pts.begin(), pts.end(), [](auto& p1, auto& p2) {
+            return (*p1)[2] < (*p2)[2];
+          });
+          size_t datasize = pts.size();
+          int elevation_id = std::floor(0.5*float(datasize-1));
+          face->data().elevation_50p = (*(pts[elevation_id])) [2];
+          elevation_id = std::floor(0.7*float(datasize-1));
+          face->data().elevation_70p = (*(pts[elevation_id])) [2];
+          face->data().elevation_min = (*(pts[0])) [2];
+          face->data().elevation_max = (*(pts[datasize-1])) [2];
+          face->data().data_coverage = float(data_cnt) / float(height_points.size());
+        }
+        face->data().pixel_count = data_cnt;
+      }
+    }
+  }
+
+  // compute golbal height statistics
+  std::sort(all_elevations.begin(), all_elevations.end());
+  size_t last_id = all_elevations.size()-1;
+  int elevation_id = std::floor(0.5*float(last_id));
+  output("global_elevation_50p").set(all_elevations[elevation_id]);
+  elevation_id = std::floor(0.7*float(last_id));
+  output("global_elevation_70p").set(all_elevations[elevation_id]);
+  output("global_elevation_min").set(all_elevations[0]);
+  output("global_elevation_max").set(all_elevations[last_id]);
 
   output("arrangement").set(arr);
 }
