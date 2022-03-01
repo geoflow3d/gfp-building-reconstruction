@@ -97,3 +97,11 @@ target_link_libraries( gfp_buildingreconstruction PRIVATE
 target_link_directories( gfp_buildingreconstruction PRIVATE
   ${PDAL_LIBRARY_DIRS}
 )
+
+if (MSVC)
+  # collect dll's required for runtime
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Release/ DESTINATION bin
+    FILES_MATCHING 
+    PATTERN "*.dll"
+    PATTERN "gfp*" EXCLUDE)
+endif()
