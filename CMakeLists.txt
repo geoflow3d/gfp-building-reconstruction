@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 project (building-reconstruction VERSION 0.0.1)
 
-option(GFP_WITH_PDAL "Build parts dependent on PDAL" ON)
+option(GFP_WITH_PDAL "Build parts dependent on PDAL" OFF)
 option(GFP_WITH_LOD2 "Build parts for LOD2" ON)
 
 add_definitions(-DGF_PLUGIN_NAME=\"${CMAKE_PROJECT_NAME}\")
+
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(geoflow REQUIRED)
+endif()
 
 if(GFP_WITH_PDAL)
   add_definitions(-DGFP_WITH_PDAL)
@@ -13,8 +17,6 @@ endif(GFP_WITH_PDAL)
 if(GFP_WITH_LOD2)
   add_definitions(-DGFP_WITH_LOD2)
 endif(GFP_WITH_LOD2)
-
-find_package(geoflow REQUIRED)
 
 # ptinpoly
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
@@ -33,7 +35,7 @@ endif()
 
 set(GLM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/thirdparty/glm)
 
-find_package(LASlib REQUIRED)
+find_package(laslib CONFIG REQUIRED)
 find_package(CGAL QUIET COMPONENTS Core REQUIRED)
 # PDAL
 if(GFP_WITH_PDAL)

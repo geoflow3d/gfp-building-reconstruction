@@ -29,7 +29,7 @@
 
 namespace MaxFlow
 {
-#include <CGAL/internal/auxiliary/graph.h>
+#include "graph.h"
 }
 
 

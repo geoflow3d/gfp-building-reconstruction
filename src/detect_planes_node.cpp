@@ -1,5 +1,5 @@
 #include "stepedge_nodes.hpp"
-#include <CGAL/Regularization/regularize_planes.h>
+// #include <CGAL/Regularization/regularize_planes.h>
 
 #include "plane_detect.hpp"
 
