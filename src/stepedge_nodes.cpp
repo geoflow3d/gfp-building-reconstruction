@@ -2158,15 +2158,21 @@ void ArrDissolveNode::process() {
   }
 
   // compute golbal height statistics
-  std::sort(all_elevations.begin(), all_elevations.end());
-  size_t last_id = all_elevations.size()-1;
-  int elevation_id = std::floor(0.5*float(last_id));
-  output("global_elevation_50p").set(all_elevations[elevation_id]);
-  elevation_id = std::floor(0.7*float(last_id));
-  output("global_elevation_70p").set(all_elevations[elevation_id]);
-  output("global_elevation_min").set(all_elevations[0]);
-  output("global_elevation_max").set(all_elevations[last_id]);
-
+  if (all_elevations.size()==0) {
+    output("global_elevation_50p").set_from_any(std::any());
+    output("global_elevation_70p").set_from_any(std::any());
+    output("global_elevation_min").set_from_any(std::any());
+    output("global_elevation_max").set_from_any(std::any());  
+  } else {
+    std::sort(all_elevations.begin(), all_elevations.end());
+    size_t last_id = all_elevations.size()-1;
+    int elevation_id = std::floor(0.5*float(last_id));
+    output("global_elevation_50p").set(all_elevations[elevation_id]);
+    elevation_id = std::floor(0.7*float(last_id));
+    output("global_elevation_70p").set(all_elevations[elevation_id]);
+    output("global_elevation_min").set(all_elevations[0]);
+    output("global_elevation_max").set(all_elevations[last_id]);
+  }
   output("arrangement").set(arr);
 }
 
