@@ -461,12 +461,21 @@ namespace geoflow::nodes::stepedge {
         }
 
         // pick the candidate with the largest overlapping area
-        auto best_face = std::max_element(canidate_faces.begin(), canidate_faces.end(),
-          [](const std::pair<Arrangement_2::Face_handle, float>& p1, const std::pair<Arrangement_2::Face_handle, float>& p2) {
-              return p1.second < p2.second; 
-          }
-        );
-        arrFace->data() = best_face->first->data();
+        // std::cerr << "Size=" << canidate_faces.size() << std::endl;
+        if (canidate_faces.size()) {
+          auto best_face = std::max_element(canidate_faces.begin(), canidate_faces.end(),
+            [](const std::pair<Arrangement_2::Face_handle, float>& p1, const std::pair<Arrangement_2::Face_handle, float>& p2) {
+                return p1.second < p2.second;
+            }
+          );
+          arrFace->data() = best_face->first->data();
+        } else {
+          std::cout << "Unable to locate overlapping triangle\n";
+          arrFace->data().is_finite=true;
+          arrFace->data().is_ground=true;
+          arrFace->data().in_footprint=false;
+          arrFace->data().is_footprint_hole=false;
+        }
 
       }
     }
