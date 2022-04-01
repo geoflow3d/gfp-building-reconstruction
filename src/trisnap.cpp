@@ -160,10 +160,12 @@ namespace geoflow::nodes::stepedge {
 
     Walk_pl walk_pl (arr);
     for (auto& arrEdge : arr.edge_handles()) {
-      tri.insert_constraint(
-        vertex_map[ arrEdge->source() ] ,
-        vertex_map[ arrEdge->target() ]
-      );
+      if ( vertex_map[ arrEdge->source() ] != vertex_map[ arrEdge->target() ]) {
+        tri.insert_constraint(
+          vertex_map[ arrEdge->source() ] ,
+          vertex_map[ arrEdge->target() ]
+        );
+      }
     }
 
     // remove isolated vertices (sometimes these result from input arrangements with edge between 2 vertices with the same coordinates)
