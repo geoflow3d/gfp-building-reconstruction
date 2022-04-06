@@ -145,14 +145,23 @@ public:
     n_faces++;
   }
   virtual void after_split_face (Face_handle old_face,
-                                 Face_handle new_face, bool )
+                                 Face_handle new_face, bool is_hole)
   {
     // Assign index to the new face.
     if(n_faces == 1)
       new_face->data().in_footprint = true;
     else if(old_face->data().in_footprint) {
-      new_face->data().in_footprint = !hole_mode;
-      new_face->data().is_footprint_hole = hole_mode;
+      if (!is_hole && hole_mode) { // detect case where a `hole` is added that touches surrounding outer_ccb (in one vertex)
+        // these holes are ignored
+        new_face->data().in_footprint = true;
+        new_face->data().is_footprint_hole = false;
+        old_face->data().in_footprint = true;
+        old_face->data().is_footprint_hole = false;
+        std::cout << "Ignored input footprint hole that is touching footprint exterior\n";
+      } else { // normal holes that do not touch outer_ccb of existing face
+        new_face->data().in_footprint = !hole_mode;
+        new_face->data().is_footprint_hole = hole_mode;
+      }
     } else {
       new_face->data().in_footprint = false;
       new_face->data().is_footprint_hole = old_face->data().is_footprint_hole;

@@ -482,6 +482,18 @@ namespace geoflow::nodes::stepedge {
       }
     }
 
+    // remove dangling edges if any, eg holes that collapse to a single edge after snapping
+    {
+      std::vector<Arrangement_2::Halfedge_handle> to_remove;
+      for (auto he : arr_snap.edge_handles()) {
+        if (he->face()==he->twin()->face())
+          to_remove.push_back(he);
+      }
+      for (auto he : to_remove) {
+        arr_snap.remove_edge(he);
+      }
+    }
+
     output("arrangement").set(arr_snap);
   }
 }
