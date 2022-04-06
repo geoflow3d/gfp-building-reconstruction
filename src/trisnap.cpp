@@ -251,7 +251,7 @@ namespace geoflow::nodes::stepedge {
           //   tri.is_constrained( e2 )
           // )
         ) {
-          std::cout << "small triangle between " << p0 << " and " << p1 << "  and  " << p2 << std::endl;
+          // std::cout << "small triangle between " << p0 << " and " << p1 << "  and  " << p2 << std::endl;
           ConstraintMap constraints_to_restore;
 
           // collect incident constraint edges
@@ -308,7 +308,7 @@ namespace geoflow::nodes::stepedge {
           // if (v1->info() && v2->info()) continue;
 
           if (CGAL::squared_distance(p1, p2) < sq_dist_thres) {
-            std::cout << "short edge between " << p1 << "  and  " << p2 << std::endl;
+            // std::cout << "short edge between " << p1 << "  and  " << p2 << std::endl;
 
             // auto vi = ceit->second;
             ConstraintMap constraints_to_restore;
@@ -362,21 +362,21 @@ namespace geoflow::nodes::stepedge {
         auto s2 = tri.segment(e2);
         if ( (CGAL::squared_distance(s0, p0) < sq_dist_thres ) && tri.is_constrained( e0 ) ) {
           if ( tri.is_constrained( e1 ) || tri.is_constrained( e2 ) ) {
-            std::cout << "flat triangle between " << s0 << " and " << p0 << std::endl;
+            // std::cout << "flat triangle between " << s0 << " and " << p0 << std::endl;
             tri.remove_constrained_edge(fit, 0);
             if ( !tri.is_constrained( e2 ) ) tri.insert_constraint(v0, v1);
             if ( !tri.is_constrained( e1 ) ) tri.insert_constraint(v0, v2);
           }
         } else if ( (CGAL::squared_distance(s1, p1) < sq_dist_thres) && tri.is_constrained( e1 ) ) {
           if ( tri.is_constrained( e0 ) || tri.is_constrained( e2 ) ) {
-            std::cout << "flat triangle between " << s1 << " and " << p1 << std::endl;
+            // std::cout << "flat triangle between " << s1 << " and " << p1 << std::endl;
             tri.remove_constrained_edge(fit, 1);
             if ( !tri.is_constrained( e2 ) ) tri.insert_constraint(v1, v0);
             if ( !tri.is_constrained( e0 ) ) tri.insert_constraint(v1, v2);
           }
         } else if ( (CGAL::squared_distance(s2, p2) < sq_dist_thres) && tri.is_constrained( e2 ) ) {
           if ( tri.is_constrained( e0 ) || tri.is_constrained( e1 ) ) {
-            std::cout << "flat triangle between " << s2 << " and " << p2 << std::endl;
+            // std::cout << "flat triangle between " << s2 << " and " << p2 << std::endl;
             tri.remove_constrained_edge(fit, 2);
             if ( !tri.is_constrained( e1 ) ) tri.insert_constraint(v2, v0);
             if ( !tri.is_constrained( e0 ) ) tri.insert_constraint(v2, v1);
