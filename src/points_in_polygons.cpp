@@ -18,7 +18,6 @@ namespace geoflow::nodes::stepedge {
 class PointsInPolygonsCollector  {
   gfSingleFeatureInputTerminal& polygons;
   gfSingleFeatureOutputTerminal& point_clouds;
-  gfSingleFeatureOutputTerminal& ground_point_clouds;
   gfSingleFeatureOutputTerminal& ground_elevations;
 
   // ground elevations
@@ -26,6 +25,7 @@ class PointsInPolygonsCollector  {
   RasterTools::Raster pindex;
   std::vector<std::vector<size_t>> pindex_vals;
   std::vector<pGridSet> poly_grids, buf_poly_grids;
+  std::vector<vec1f> z_ground;
 
   int ground_class, building_class;
   
@@ -37,17 +37,20 @@ class PointsInPolygonsCollector  {
     gfSingleFeatureInputTerminal& polygons, 
     gfSingleFeatureInputTerminal& buf_polygons, 
     gfSingleFeatureOutputTerminal& point_clouds, 
-    gfSingleFeatureOutputTerminal& ground_point_clouds, 
     gfSingleFeatureOutputTerminal& ground_elevations, 
     float& cellsize, 
     float& buffer,
     int ground_class=2,
     int building_class=6
     )
-    : polygons(polygons), point_clouds(point_clouds), ground_point_clouds(ground_point_clouds), ground_elevations(ground_elevations), ground_class(ground_class), building_class(building_class) {
+    : polygons(polygons), point_clouds(point_clouds), ground_elevations(ground_elevations), ground_class(ground_class), building_class(building_class) {
     // point_clouds_ground.resize(polygons.size());
     point_clouds.resize<PointCollection>(polygons.size());
-    ground_point_clouds.resize<PointCollection>(polygons.size());
+    z_ground.resize(polygons.size());
+
+    for (size_t i=0; i< point_clouds.size(); ++i) {
+      point_clouds.get<PointCollection&>(i).add_attribute_vec1i("classification");
+    }
 
     // make a vector of BOX2D for the set of input polygons
     // build point in polygon grids
@@ -120,13 +123,18 @@ class PointsInPolygonsCollector  {
     pPipoint pipoint = new Pipoint{point[0],point[1]};
     for(size_t& poly_i : pindex_vals[lincoord]) {
       if (GridTest(buf_poly_grids[poly_i], pipoint)) {
+        auto& point_cloud = point_clouds.get<PointCollection&>(poly_i);
+        auto classification = point_cloud.get_attribute_vec1i("classification");
         if (point_class == ground_class) {
           // point_clouds_ground[poly_i].push_back(point[2]);
           min_ground_elevation = std::min(min_ground_elevation, point[2]);
-          ground_point_clouds.get<PointCollection&>(poly_i).push_back(point);
+          point_cloud.push_back(point);
+          z_ground[poly_i].push_back(point[2]);
+          (*classification).push_back(2);
         } else if (point_class == building_class) {
           if (GridTest(poly_grids[poly_i], pipoint)) {
-            point_clouds.get<PointCollection&>(poly_i).push_back(point);
+            point_cloud.push_back(point);
+            (*classification).push_back(6);
           }
         }
       }
@@ -137,15 +145,14 @@ class PointsInPolygonsCollector  {
   void compute_ground_elevation(float& ground_percentile) {
     // Compute average elevation per polygon
     std::cout <<"Computing the average elevation per polygon..." << std::endl;
-    for (size_t i=0; i<ground_point_clouds.size(); ++i) {
-      auto& gpt = ground_point_clouds.get<PointCollection&>(i);
+    for (size_t i=0; i<z_ground.size(); ++i) {
       float ground_ele = min_ground_elevation;
-      if (gpt.size()!=0) {
-        std::sort(gpt.begin(), gpt.end(), [](auto& p1, auto& p2) {
-          return p1[2] < p2[2];
+      if (z_ground[i].size()!=0) {
+        std::sort(z_ground[i].begin(), z_ground[i].end(), [](auto& z1, auto& z2) {
+          return z1 < z2;
         });
-        int elevation_id = std::floor(ground_percentile*float(gpt.size()-1));
-        ground_ele = gpt[elevation_id][2];
+        int elevation_id = std::floor(ground_percentile*float(z_ground[i].size()-1));
+        ground_ele = z_ground[i][elevation_id];
       } else {
         std::cout << "no ground pts found for polygon\n";
       }
@@ -173,10 +180,9 @@ void LASInPolygonsNode::process() {
   auto& buf_polygons = vector_input("buf_polygons");
 
   auto& point_clouds = vector_output("point_clouds");
-  auto& ground_point_clouds = vector_output("ground_point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
 
-  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_point_clouds, ground_elevations, cellsize, buffer, ground_class, building_class};
+  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_elevations, cellsize, buffer, ground_class, building_class};
 
   for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
   {

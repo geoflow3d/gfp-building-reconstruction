@@ -586,7 +586,6 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
-      add_vector_output("ground_point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
       add_param(ParamInt(ground_class, "ground_class", "LAS class number to use for ground"));
       add_param(ParamInt(building_class, "building_class", "LAS class number to use for buildings"));
