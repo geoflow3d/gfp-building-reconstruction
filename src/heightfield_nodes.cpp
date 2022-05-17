@@ -242,34 +242,72 @@ namespace geoflow::nodes::stepedge {
     auto boxmin = box.min();
     auto boxmax = box.max();
 
-    RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
-    r.prefill_arrays(RasterTools::MAX);
+    RasterTools::Raster r_max(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+    r_max.prefill_arrays(RasterTools::MAX);
+
+    RasterTools::Raster r_min(r_max);
+    r_min.prefill_arrays(RasterTools::MIN);
+
+    std::vector<std::vector<float>> buckets(r_max.dimx_*r_max.dimy_);
 
     for(auto& p : points) {
-      r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      r_max.add_point(p[0], p[1], p[2], RasterTools::MAX);
+      r_min.add_point(p[0], p[1], p[2], RasterTools::MIN);
+      buckets[ r_max.getLinearCoord(p[0],p[1]) ].push_back(p[2]);
     }
+    
     PointCollection grid_points;
     vec1f values;
-    double nodata = r.getNoDataVal();
-    for(size_t i=0; i<r.dimx_ ; ++i) {
-      for(size_t j=0; j<r.dimy_ ; ++j) {
-        auto p = r.getPointFromRasterCoords(i,j);
+    double nodata = r_max.getNoDataVal();
+    
+    geoflow::Image I_max;
+    I_max.dim_x = r_max.dimx_;
+    I_max.dim_y = r_max.dimy_;
+    I_max.min_x = r_max.minx_;
+    I_max.min_y = r_max.miny_;
+    I_max.cellsize = r_max.cellSize_;
+    I_max.nodataval = r_max.noDataVal_;
+    I_max.array = *r_max.vals_;
+    geoflow::Image I_min(I_max);
+    I_min.nodataval = r_min.noDataVal_;
+    I_min.array = *r_min.vals_;
+    geoflow::Image I_cnt(I_max), I_med(I_max), I_avg(I_max), I_var(I_max);
+
+    for(size_t i=0; i<r_max.dimx_ ; ++i) {
+      for(size_t j=0; j<r_max.dimy_ ; ++j) {
+        auto p = r_max.getPointFromRasterCoords(i,j);
         if (p[2]!=nodata) {
           grid_points.push_back(p);
           values.push_back(p[2]);
         }
+        auto lc = r_max.getLinearCoord(i,j);
+        auto& buck = buckets[ lc ];
+        if (buck.size() == 0) {
+          I_cnt.array[lc] = I_cnt.nodataval;
+          I_med.array[lc] = I_med.nodataval;
+          I_avg.array[lc] = I_avg.nodataval;
+          I_var.array[lc] = I_var.nodataval;
+        } else {
+          std::sort(buck.begin(), buck.end());
+          I_cnt.array[lc] = buck.size();
+          I_med.array[lc] = buck[ buck.size()/2 ];
+          I_avg.array[lc] = std::accumulate(buck.begin(), buck.end(), 0) / buck.size();
+          int ssum = 0;
+          for(auto& z : buck) {
+            ssum += std::pow(z-I_avg.array[lc], 2);
+          }
+          I_var.array[lc] = ssum / buck.size();
+        }
       }
     }
-    geoflow::Image I;
-    I.dim_x = r.dimx_;
-    I.dim_y = r.dimy_;
-    I.min_x = r.minx_;
-    I.min_y = r.miny_;
-    I.cellsize = r.cellSize_;
-    I.nodataval = r.noDataVal_;
-    I.array = *r.vals_;
-    output("image").set(I);
-    output("heightfield").set(r);
+    
+    output("image_max").set(I_max);
+    output("image_min").set(I_min);
+    output("image_cnt").set(I_cnt);
+    output("image_med").set(I_med);
+    output("image_avg").set(I_avg);
+    output("image_var").set(I_var);
+    output("heightfield").set(r_max);
     output("values").set(values);
     output("grid_points").set(grid_points);
   }

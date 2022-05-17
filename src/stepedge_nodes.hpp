@@ -812,7 +812,12 @@ namespace geoflow::nodes::stepedge {
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
-      add_output("image", typeid(geoflow::Image));
+      add_output("image_max", typeid(geoflow::Image));
+      add_output("image_min", typeid(geoflow::Image));
+      add_output("image_cnt", typeid(geoflow::Image));
+      add_output("image_med", typeid(geoflow::Image));
+      add_output("image_avg", typeid(geoflow::Image));
+      add_output("image_var", typeid(geoflow::Image));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
     }

@@ -51,6 +51,7 @@ namespace RasterTools {
         size_t getRow(double x, double y) const;
         size_t getCol(double x, double y) const;
         size_t getLinearCoord(double x, double y) const;
+        size_t getLinearCoord(size_t r, size_t c) const;
         std::array<double,2> getColRowCoord(double x, double y) const;
         point3d getPointFromRasterCoords(size_t col, size_t row) const;
         double getNoDataVal() {return noDataVal_;};

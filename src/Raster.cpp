@@ -139,6 +139,11 @@ namespace RasterTools {
     return r * dimx_ + c;
   }
 
+  size_t Raster::getLinearCoord(size_t r, size_t c) const
+  {    
+    return r * dimx_ + c;
+  }
+
   std::array<float,3> Raster::getPointFromRasterCoords(size_t col, size_t row) const
   {
     std::array<float,3> p;
