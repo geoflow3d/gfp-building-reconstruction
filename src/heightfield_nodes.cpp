@@ -238,22 +238,62 @@ namespace geoflow::nodes::stepedge {
 
   void PCRasteriseNode::process() {
     auto& points = input("points").get<PointCollection&>();
-    auto box = points.box();
+    auto& footprint = input("footprint").get<LinearRing&>();
+
+    Box box;
+    if (use_footprint_) {
+      box = footprint.box();
+    } else {
+      box = points.box();
+    }
     auto boxmin = box.min();
     auto boxmax = box.max();
 
     RasterTools::Raster r_max(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
     r_max.prefill_arrays(RasterTools::MAX);
 
-    RasterTools::Raster r_min(r_max);
+    RasterTools::Raster r_min(r_max), r_fp(r_max);
     r_min.prefill_arrays(RasterTools::MIN);
+    r_fp.prefill_arrays(RasterTools::MAX);
 
     std::vector<std::vector<float>> buckets(r_max.dimx_*r_max.dimy_);
 
+    if (use_footprint_) {
+      auto exterior = build_grid(footprint);
+      std::vector<pGridSet> holes;
+      for (auto& hole : footprint.interior_rings()) {
+        holes.push_back(build_grid(hole));
+      }
+      
+      for (size_t col = 0; col < r_fp.dimx_; ++col) {
+        for (size_t row = 0; row < r_fp.dimy_; ++row) {
+          auto p = r_fp.getPointFromRasterCoords(col, row);
+          pPipoint pipoint = new Pipoint{p[0],p[1]};
+          if (GridTest(exterior, pipoint)) {
+            r_fp.add_point(p[0], p[1], 1, RasterTools::MAX);
+          } else {
+            r_fp.add_point(p[0], p[1], 0, RasterTools::MAX);
+          }
+          for (auto& hole : holes) {
+          if (GridTest(hole, pipoint)) {
+            r_fp.add_point(p[0], p[1], 1, RasterTools::MAX);
+          } else {
+            r_fp.add_point(p[0], p[1], 0, RasterTools::MAX);
+          }
+          }
+          delete pipoint;
+        }
+      }
+      delete exterior;
+      for (auto& hole: holes) delete hole;
+    }
+
     for(auto& p : points) {
-      r_max.add_point(p[0], p[1], p[2], RasterTools::MAX);
-      r_min.add_point(p[0], p[1], p[2], RasterTools::MIN);
-      buckets[ r_max.getLinearCoord(p[0],p[1]) ].push_back(p[2]);
+      if (r_max.check_point(p[0], p[1])) {
+        r_max.add_point(p[0], p[1], p[2], RasterTools::MAX);
+        r_min.add_point(p[0], p[1], p[2], RasterTools::MIN);
+        buckets[ r_max.getLinearCoord(p[0],p[1]) ].push_back(p[2]);
+      }
     }
     
     PointCollection grid_points;
@@ -271,17 +311,19 @@ namespace geoflow::nodes::stepedge {
     geoflow::Image I_min(I_max);
     I_min.nodataval = r_min.noDataVal_;
     I_min.array = *r_min.vals_;
+    geoflow::Image I_fp(I_max);
+    I_fp.array = *r_fp.vals_;
     geoflow::Image I_cnt(I_max), I_med(I_max), I_avg(I_max), I_var(I_max);
 
-    for(size_t i=0; i<r_max.dimx_ ; ++i) {
-      for(size_t j=0; j<r_max.dimy_ ; ++j) {
+    for(size_t i=0; i<r_max.dimy_ ; ++i) {
+      for(size_t j=0; j<r_max.dimx_ ; ++j) {
         auto p = r_max.getPointFromRasterCoords(i,j);
         if (p[2]!=nodata) {
           grid_points.push_back(p);
           values.push_back(p[2]);
         }
         auto lc = r_max.getLinearCoord(i,j);
-        auto& buck = buckets[ lc ];
+        auto& buck = buckets.at( lc );
         if (buck.size() == 0) {
           I_cnt.array[lc] = I_cnt.nodataval;
           I_med.array[lc] = I_med.nodataval;
@@ -301,6 +343,7 @@ namespace geoflow::nodes::stepedge {
       }
     }
     
+    output("image_fp").set(I_fp);
     output("image_max").set(I_max);
     output("image_min").set(I_min);
     output("image_cnt").set(I_cnt);

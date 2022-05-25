@@ -804,14 +804,18 @@ namespace geoflow::nodes::stepedge {
 
   class PCRasteriseNode:public Node {
     float cellsize = 0.5;
+    bool use_footprint_ = false;
+
     public:
     using Node::Node;
     void init() override {
       add_input("points", typeid(PointCollection));
+      add_input("footprint", typeid(LinearRing));
       
       add_output("heightfield", typeid(RasterTools::Raster));
       add_output("grid_points", typeid(PointCollection));
       add_output("values", typeid(vec1f));
+      add_output("image_fp", typeid(geoflow::Image));
       add_output("image_max", typeid(geoflow::Image));
       add_output("image_min", typeid(geoflow::Image));
       add_output("image_cnt", typeid(geoflow::Image));
@@ -820,8 +824,20 @@ namespace geoflow::nodes::stepedge {
       add_output("image_var", typeid(geoflow::Image));
 
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+      add_param(ParamBool(use_footprint_, "use_footprint",  "use_footprint for setting raster bounds."));
     }
     void process() override;
+
+    bool inputs_valid() override {
+      for (auto& [name,iT] : input_terminals) {
+        if (name == "footprint" && !use_footprint_) {
+          continue;
+        } else if (!iT->has_data()) {
+          return false;
+        }
+      }
+      return true;
+    }
   };
 
   class BuildingRasteriseNode:public Node {
