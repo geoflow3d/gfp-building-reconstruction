@@ -476,6 +476,71 @@ namespace geoflow::nodes::stepedge {
     output("grid_points").set(grid_points);
   }
 
+  void RoofPartitionRasteriseNode::rasterise_arrangement(Arrangement_2& arr, RasterTools::Raster& r, size_t& data_pixel_cnt, bool use_planes) {
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+    for (auto face: arr.face_handles()) {
+      if (face->data().in_footprint){ 
+        
+        auto& plane = face->data().plane;
+        double z_interpolate = face->data().elevation_70p;
+        LinearRing polygon;
+        arrangementface_to_polygon(face, polygon);
+        auto box = polygon.box();
+        auto bb_min = box.min();
+        auto bb_max = box.max();
+        auto cr_min = r.getColRowCoord(bb_min[0], bb_min[1]);
+        auto cr_max = r.getColRowCoord(bb_max[0], bb_max[1]);
+
+        auto points_inside = r.rasterise_polygon(polygon, cr_min, cr_max);
+        for (auto& p : points_inside) {
+          if (use_planes)
+            z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+          if (r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX)) {
+            ++data_pixel_cnt; //only count new cells (that were not written to before)
+          }
+        }
+        // do plane projection
+        // auto& plane = pts_per_roofplane[roofplane_ids[i]].first;
+        // double z_interpolate = -plane.a()/plane.c() * p[0] - plane.b()/plane.c()*p[1] - plane.d()/plane.c();
+        // r.add_point(p[0], p[1], z_interpolate, RasterTools::MAX);
+      }
+    }
+  }
+  void RoofPartitionRasteriseNode::process(){
+    auto arr = input("arrangement").get<Arrangement_2>();
+
+    auto unbounded_face = arr.unbounded_face();
+    Box box;
+    for(Arrangement_2::Hole_iterator floorpart_ = unbounded_face->holes_begin(); floorpart_ != unbounded_face->holes_end(); ++floorpart_ ) {
+      LinearRing floor;
+      auto he = *floorpart_;
+      auto first = he;
+      do {
+        arr3f point = {
+          float(CGAL::to_double(he->source()->point().x())), 
+          float(CGAL::to_double(he->target()->point().y())), 0
+        };
+        box.add(point);
+        he = he->next();
+      } while(he!=first);
+    }
+    auto boxmin = box.min();
+    auto boxmax = box.max();
+    RasterTools::Raster r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);
+    r.prefill_arrays(RasterTools::MAX);
+    size_t roofdata_area_cnt = 0;
+    rasterise_arrangement(arr, r, roofdata_area_cnt, use_planes_);
+
+    geoflow::Image I;
+    I.dim_x = r.dimx_;
+    I.dim_y = r.dimy_;
+    I.min_x = r.minx_;
+    I.min_y = r.miny_;
+    I.cellsize = r.cellSize_;
+    I.nodataval = r.noDataVal_;
+    I.array = *r.vals_;
+    output("image").set(I);
+  }
 
   void SegmentRasteriseNode::rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt) {
     typedef CGAL::Exact_predicates_inexact_constructions_kernel K;

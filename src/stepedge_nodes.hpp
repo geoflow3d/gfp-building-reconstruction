@@ -840,6 +840,26 @@ namespace geoflow::nodes::stepedge {
     }
   };
 
+  class RoofPartitionRasteriseNode:public Node {
+    float cellsize = 0.5;
+    bool use_planes_ = true;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("arrangement", typeid(Arrangement_2));
+
+      // add_output("values", typeid(vec1f));
+      add_output("image", typeid(geoflow::Image));
+
+      add_param(ParamBool(use_planes_, "use_planes",  "Use actual planes to determine elevation of pixels instead of 70p elevation of whole roofpart."));
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+    }
+    void process() override;
+    void rasterise_arrangement(Arrangement_2& arr, RasterTools::Raster& r, size_t& data_pixel_cnt, bool use_planes);
+
+  };
+
   class BuildingRasteriseNode:public Node {
     float cellsize = 0.5;
     bool use_tin = false;
