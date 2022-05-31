@@ -510,20 +510,9 @@ namespace geoflow::nodes::stepedge {
     auto arr = input("arrangement").get<Arrangement_2>();
 
     auto unbounded_face = arr.unbounded_face();
-    Box box;
-    for(Arrangement_2::Hole_iterator floorpart_ = unbounded_face->holes_begin(); floorpart_ != unbounded_face->holes_end(); ++floorpart_ ) {
-      LinearRing floor;
-      auto he = *floorpart_;
-      auto first = he;
-      do {
-        arr3f point = {
-          float(CGAL::to_double(he->source()->point().x())), 
-          float(CGAL::to_double(he->target()->point().y())), 0
-        };
-        box.add(point);
-        he = he->next();
-      } while(he!=first);
-    }
+    auto& footprint = input("footprint").get<LinearRing&>();
+
+    auto box = footprint.box();
     auto boxmin = box.min();
     auto boxmax = box.max();
     RasterTools::Raster r = RasterTools::Raster(cellsize, boxmin[0]-0.5, boxmax[0]+0.5, boxmin[1]-0.5, boxmax[1]+0.5);

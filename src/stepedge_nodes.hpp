@@ -848,6 +848,7 @@ namespace geoflow::nodes::stepedge {
     using Node::Node;
     void init() override {
       add_input("arrangement", typeid(Arrangement_2));
+      add_input("footprint", typeid(LinearRing));
 
       // add_output("values", typeid(vec1f));
       add_output("image", typeid(geoflow::Image));
