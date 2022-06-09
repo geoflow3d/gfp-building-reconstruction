@@ -408,6 +408,7 @@ namespace geoflow::nodes::stepedge {
     bool dissolve_step_edges = false;
     bool dissolve_outside_fp = true;
     bool dissolve_all_interior = false;
+    bool skip_execution = false;
     // bool remove_duplicates = true;
     float step_height_threshold = 1.0;
     // int dupe_threshold_exp = 3;
@@ -428,11 +429,15 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(dissolve_all_interior, "dissolve_all_interior", "Dissolve all edges in intrerior of footprint"));
       add_param(ParamBool(dissolve_seg_edges, "dissolve_seg_edges", "Dissolve same label cells"));
       add_param(ParamBool(dissolve_step_edges, "dissolve_step_edges", "Dissolve step edges (check for LoD1.3)"));
+      add_param(ParamBool(skip_execution, "skip_execution", "Switch of autorun prior to execution in run_all()"));
       // add_param(ParamBool(remove_duplicates, "remove_duplicates", "Remove duplicates"));
       add_param(ParamBoundedFloat(step_height_threshold, 0, 10, "step_height_threshold",  "step_height_threshold"));
       // add_param(ParamBoundedInt(dupe_threshold_exp, 0, 15, "dupe_threshold_exp", "10-base exponent to set duplication threshold. Eg a value of 2 yields a value of 10^(-2) = 0.01"));
     }
     void process() override;
+    bool parameters_valid() override {
+      return !skip_execution;
+    }
   };
 
   class LinearRingtoRingsNode:public Node {
