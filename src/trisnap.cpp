@@ -97,7 +97,7 @@ namespace geoflow::nodes::stepedge {
     auto vnew = tri.insert(pnew);
 
     // restore constraints
-    std::cout << "restoring " << constraints_to_restore.size() << " constraints\n";
+    // std::cout << "restoring " << constraints_to_restore.size() << " constraints\n";
     for (auto& [vh, finfo] : constraints_to_restore) {
       // std::cout << "reinsert constrained " << *vnew << " - " << *vh << std::endl;
       tri.insert_constraint(vnew, vh);
