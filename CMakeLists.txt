@@ -14,10 +14,6 @@ if(GFP_WITH_PDAL)
   add_definitions(-DGFP_WITH_PDAL)
 endif(GFP_WITH_PDAL)
 
-if(GFP_WITH_LOD2)
-  add_definitions(-DGFP_WITH_LOD2)
-endif(GFP_WITH_LOD2)
-
 # ptinpoly
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
 set_target_properties(
