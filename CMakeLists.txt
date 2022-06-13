@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.14)
 project (building-reconstruction VERSION 0.0.1)
 
 option(GFP_WITH_PDAL "Build parts dependent on PDAL" OFF)
-option(GFP_WITH_LOD2 "Build parts for LOD2" ON)
 
 add_definitions(-DGF_PLUGIN_NAME=\"${CMAKE_PROJECT_NAME}\")
 
@@ -13,10 +12,6 @@ endif()
 if(GFP_WITH_PDAL)
   add_definitions(-DGFP_WITH_PDAL)
 endif(GFP_WITH_PDAL)
-
-if(GFP_WITH_LOD2)
-  add_definitions(-DGFP_WITH_LOD2)
-endif(GFP_WITH_LOD2)
 
 # ptinpoly
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
