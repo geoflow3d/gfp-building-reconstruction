@@ -20,5 +20,5 @@ cmake --build . --target install
 
 Dependencies:
 
-* GDAL
-* GEOS
+* [LASlib](https://github.com/LAStools/LAStools)
+* [CGAL](https://github.com/CGAL/cgal)
