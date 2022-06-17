@@ -1,8 +1,7 @@
-cmake_minimum_required(VERSION 3.14)
-project (building-reconstruction VERSION 0.0.1)
+cmake_minimum_required(VERSION 3.21)
+project (building-reconstruction VERSION 0.2.0)
 
 option(GFP_WITH_PDAL "Build parts dependent on PDAL" OFF)
-option(GFP_WITH_LOD2 "Build parts for LOD2" ON)
 
 add_definitions(-DGF_PLUGIN_NAME=\"${CMAKE_PROJECT_NAME}\")
 
