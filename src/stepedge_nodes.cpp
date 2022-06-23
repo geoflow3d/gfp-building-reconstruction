@@ -1840,8 +1840,11 @@ void PlaneIntersectNode::process() {
   // // auto& alpha_rings = vector_input("alpha_rings");//.get<LinearRingCollection>();
 
   float min_dist_to_line_sq = min_dist_to_line*min_dist_to_line;
+  float sq_min_length = min_length*min_length;
 
-  SegmentCollection lines;
+  SegmentCollection segments;
+  auto& length = segments.add_attribute_vec1f("length");
+  vec1f dists;
   size_t ring_cntr=0;
   for(auto& [id_hi, ids_lo] : plane_adj) {
     auto& plane_hi = pts_per_roofplane[id_hi].first;
@@ -1883,8 +1886,10 @@ void PlaneIntersectNode::process() {
           auto sy = float(CGAL::to_double(ppmin.y()));
           auto tx = float(CGAL::to_double(ppmax.x()));
           auto ty = float(CGAL::to_double(ppmax.y()));
+          float sq_length;
           if (!((std::isinf(sx) || std::isinf(sy)) || (std::isinf(tx) || std::isinf(ty)))) {
-            if(CGAL::squared_distance(ppmin, ppmax) > 1E-10) {
+            sq_length = float(CGAL::to_double(CGAL::squared_distance(ppmin, ppmax)));
+            if(sq_length > 1E-10) {
               arr3f source = {
                 sx,
                 sy,
@@ -1895,7 +1900,10 @@ void PlaneIntersectNode::process() {
                 ty,
                 float(CGAL::to_double(ppmax.z()))
               };
-              lines.push_back({source,target});
+              if (sq_length > sq_min_length) {
+                segments.push_back({source,target});
+                length.push_back(std::sqrt(sq_length));
+              }
             }
           }
         }
@@ -1903,7 +1911,8 @@ void PlaneIntersectNode::process() {
     }
   }
 
-  output("lines").set(lines);
+  std::cerr << "attrs: " << segments.get_attributes().size() << "\n";
+  output("lines").set(segments);
 }
 
 void PlaneIntersectAllNode::process() {

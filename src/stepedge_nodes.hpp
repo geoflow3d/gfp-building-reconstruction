@@ -745,6 +745,7 @@ namespace geoflow::nodes::stepedge {
   class PlaneIntersectNode:public Node {
     int min_neighb_pts = 5;
     float min_dist_to_line = 1.0;
+    float min_length = 0;
     public:
     using Node::Node;
     void init() override {
@@ -759,6 +760,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamInt(min_neighb_pts, "min_neighb_pts", "Minimum number of neighbouring points"));
       add_param(ParamFloat(min_dist_to_line, "min_dist_to_line", "Minimum number of neighbouring points"));
+      add_param(ParamFloat(min_length, "min_length", "Minimum length of segment in order to be outputted"));
     }
     void process() override;
   };
