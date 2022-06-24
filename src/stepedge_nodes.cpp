@@ -1604,6 +1604,67 @@ void RegulariseLinesNode::process(){
   // output("footprint_out").set(new_fp);
 }
 
+void ClusterLinesNode::process() {
+  // Set up vertex data (and buffer(s)) and attribute pointers
+  auto segments = input("segments").get<SegmentCollection>();
+  // auto footprint = input("footprint").get<LinearRing>();
+  // auto ring_id = input("ring_id").get<vec1i>();
+  // auto ring_order = input("ring_order").get<vec1i>();
+
+  // linereg::Polygon_2 cgal_footprint;
+  // std::vector<linereg::Polygon_2> ek_holes;
+  // for (auto& p : footprint) {
+  //   cgal_footprint.push_back(linereg::Point_2(p[0], p[1]));
+  // }
+  // for (auto& ring : footprint.interior_rings()) {
+  //   linereg::Polygon_2 ek_hole;
+  //   for (auto& p : ring) {
+  //     ek_hole.push_back(linereg::Point_2(p[0], p[1]));
+  //   }
+  //   ek_holes.push_back(ek_hole);
+  // }
+
+  // get clusters from line regularisation 
+  auto LR = linereg::LineRegulariser();
+  LR.add_segments(2,segments);
+  LR.dist_threshold = dist_threshold*dist_threshold;
+  LR.angle_threshold = angle_threshold;
+
+  std::cout << "\nangle clustering...";
+  LR.perform_angle_clustering();
+  std::cout << "distance clustering...";
+  LR.perform_distance_clustering();
+  std::cout << "...clustering complete\n";
+
+  // output("exact_footprint_out").set(linereg::Polygon_with_holes_2(cgal_footprint, ek_holes.begin(), ek_holes.end()));
+
+  // SegmentCollection edges_out_;
+  // vec1i angle_cluster_ids, dist_cluster_ids;
+  // we should iterate of the distance clusters and output one segment per cluster
+  auto& clusterID = segments.add_attribute_vec1i("clusterID");
+  for(auto& line : LR.lines) {
+    // linereg::Segment_2 segment;
+    // segment = line.segment;
+    // auto new_seg = Segment();
+    // new_seg[0] = {float(CGAL::to_double(segment.source().x())), float(CGAL::to_double(segment.source().y())), 0};
+    // new_seg[1] = {float(CGAL::to_double(segment.target().x())), float(CGAL::to_double(segment.target().y())), 0};
+    // edges_out_.push_back(new_seg);
+    // priorities.push_back(line.priority);
+    // priorities.push_back(line.priority);
+    // angle_cluster_ids.push_back(line.angle_cluster_id);
+    // angle_cluster_ids.push_back(line.angle_cluster_id);
+    // dist_cluster_ids.push_back(line.dist_cluster_id);
+    clusterID.push_back(line.dist_cluster_id);
+
+  }
+  output("segments").set(segments);
+  // output("dist_cluster_id").set(dist_cluster_ids);
+  // output("edges_out_").set(edges_out_);
+  // output("edges_out").set(new_segments);
+  // output("rings_out").set(new_rings);
+  // output("footprint_out").set(new_fp);
+}
+
 void chain(Segment& a, Segment& b, LinearRing& ring, const float& snap_threshold) {
   typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
   K::Line_2 l_a(K::Point_2(a[0][0], a[0][1]), K::Point_2(a[1][0], a[1][1]));

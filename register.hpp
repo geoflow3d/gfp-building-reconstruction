@@ -32,6 +32,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
       node_register.register_node<EptInPolygonsNode>("EptInPolygons");
     #endif
     node_register.register_node<BuildingSelectorNode>("BuildingSelector");
+    node_register.register_node<ClusterLinesNode>("ClusterLines");
     node_register.register_node<RegulariseLinesNode>("RegulariseLines");
     node_register.register_node<RegulariseRingsNode>("RegulariseRings");
     node_register.register_node<SimplifyPolygonNode>("SimplifyPolygon");

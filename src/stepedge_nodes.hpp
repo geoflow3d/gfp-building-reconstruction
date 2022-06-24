@@ -697,6 +697,23 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+  class ClusterLinesNode:public Node {
+    float dist_threshold = 0.5;
+    float angle_threshold = 0.15;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("segments", typeid(SegmentCollection));
+      add_output("segments", typeid(SegmentCollection));
+     
+      add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
+      add_param(ParamBoundedFloat(angle_threshold, 0.01, 3.1415, "angle_threshold", "Angle threshold"));
+
+    }
+    void process() override;
+  };
+
   class RegulariseRingsNode:public Node {
     float dist_threshold = 0.5;
     float angle_threshold = 0.15;
