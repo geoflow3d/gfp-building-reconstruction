@@ -1985,7 +1985,6 @@ void PlaneIntersectNode::process() {
     }
   }
 
-  std::cerr << "attrs: " << segments.get_attributes().size() << "\n";
   output("lines").set(segments);
 }
 
