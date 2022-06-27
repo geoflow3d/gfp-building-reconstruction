@@ -1282,7 +1282,7 @@ namespace geoflow::nodes::stepedge {
       add_output("data_coverage", typeid(float));
     }
     bool inputs_valid() override {
-      return vector_input("footprint_polygon").has_data() && input("data_area").has_data();
+      return input("ground_parts").is_touched() && vector_input("footprint_polygon").has_data() && input("data_area").has_data();
     }
     void process() override;
   };
