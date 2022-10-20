@@ -596,6 +596,8 @@ namespace geoflow::nodes::stepedge {
     float cellsize = 50.0;
     float buffer = 1.0;
     float ground_percentile=0.05;
+    float max_density_delta=0.05;
+    float min_pt_coverage=0.4;
     int ground_class = 2;
     int building_class = 6;
     public:
@@ -605,6 +607,9 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("buf_polygons", typeid(LinearRing));
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
+      add_vector_output("poly_areas", typeid(float));
+      add_vector_output("poly_pt_counts", typeid(int));
+      add_vector_output("poly_densities", typeid(float));
       add_param(ParamInt(ground_class, "ground_class", "LAS class number to use for ground"));
       add_param(ParamInt(building_class, "building_class", "LAS class number to use for buildings"));
 
@@ -612,6 +617,8 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
       add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
+      add_param(ParamBoundedFloat(max_density_delta, 0, 1, "Max_density_delta",  "Used for deciding to what footprint to assign a point that is inside multiple footprints. If the difference in point densities is higher than this threshold we pick the candidate footprint with the highest point density. Otherwise we pick the footprint with the highest average elevation."));
+      add_param(ParamBoundedFloat(min_pt_coverage, 0, 1, "min_pt_coverage",  "For footprints with a lower point coverage, its points are removed."));
     }
     void process() override;
   };

@@ -41,6 +41,7 @@ class PointsInPolygonsCollector  {
   std::vector<std::vector<size_t>> pindex_vals;
   std::vector<pGridSet> poly_grids, buf_poly_grids;
   std::vector<vec1f> z_ground;
+  std::unordered_map<std::unique_ptr<arr3f>, std::vector<size_t>> points_overlap; // point, [poly id's], these are points that intersect with multiple polygons
 
   int ground_class, building_class;
   
@@ -136,6 +137,7 @@ class PointsInPolygonsCollector  {
     //    representing the ground/floor elevation of the buildings in that
     //    grid cell.
     pPipoint pipoint = new Pipoint{point[0],point[1]};
+    std::vector<size_t> poly_intersect;
     for(size_t& poly_i : pindex_vals[lincoord]) {
       if (GridTest(buf_poly_grids[poly_i], pipoint)) {
         auto& point_cloud = point_clouds.get<PointCollection&>(poly_i);
@@ -148,18 +150,85 @@ class PointsInPolygonsCollector  {
           (*classification).push_back(2);
         } else if (point_class == building_class) {
           if (GridTest(poly_grids[poly_i], pipoint)) {
-            point_cloud.push_back(point);
-            (*classification).push_back(6);
+            poly_intersect.push_back(poly_i);
           }
         }
       }
     }
+
+    if (poly_intersect.size() == 1) {
+      auto& point_cloud = point_clouds.get<PointCollection&>(poly_intersect[0]);
+      auto classification = point_cloud.get_attribute_vec1i("classification");
+      point_cloud.push_back(point);
+      (*classification).push_back(6);
+    } else if (poly_intersect.size() > 1) {
+      points_overlap[std::make_unique<arr3f>(point)] = poly_intersect;
+    }
+
     delete pipoint;
   }
 
-  void compute_ground_elevation(float& ground_percentile) {
+  void do_post_process(
+      float& ground_percentile, 
+      float& max_density_delta, 
+      float& min_pt_coverage,
+      gfSingleFeatureOutputTerminal& poly_areas,
+      gfSingleFeatureOutputTerminal& poly_pt_counts,
+      gfSingleFeatureOutputTerminal& poly_densities
+    ) {
+    struct PolyInfo { size_t pt_count; float avg_elevation; float area; };
+    std::unordered_map<size_t, PolyInfo> poly_info;
+    for (size_t poly_i=0; poly_i < polygons.size(); poly_i++) {
+      auto& polygon = polygons.get<LinearRing>(poly_i);
+      auto& point_cloud = point_clouds.get<PointCollection&>(poly_i);
+      PolyInfo info;
+      // compute poly properties
+      info.area = polygon.signed_area();
+      info.pt_count = point_cloud.size();
+      if (info.pt_count > 0) {
+        float z_sum = 0;
+        for(auto& point : point_cloud) {
+          z_sum += point[2];
+        }
+        info.avg_elevation = z_sum/point_cloud.size();
+      }
+      poly_info.insert({poly_i, info});
+      
+    }
+
+    // assign points_overlap
+    for(auto& [p, polylist] : points_overlap) {
+      for( auto& poly_i : polylist ) {
+        poly_info[poly_i].pt_count++;
+      }
+    }
+    for(auto& [p, polylist] : points_overlap) {
+      // find best polygon to assign this point to
+      std::sort(polylist.begin(), polylist.end(), [&max_density_delta, &poly_info, this](auto& d1, auto& d2) {
+        // we look at the maximim possible point density (proxy for point coverage) and the average elevation
+        // compute poitncloud density for both polygons
+        float pd1 = (poly_info[d1].pt_count) / poly_info[d1].area;
+        float pd2 = (poly_info[d2].pt_count) / poly_info[d2].area;
+
+        // check if the difference in point densities is less than 5%
+        if (std::abs(1 - pd1/pd2) < max_density_delta) {
+          // if true, then look at the polygon with the highest elevation point cloud
+          return poly_info[d1].avg_elevation < poly_info[d2].avg_elevation;
+        } else {
+          // otherwise decide based on the density values
+          return pd1 < pd2;
+        }
+      });
+      
+      // now the most suitable polygon (footprint) is the last in the list. We will assign this point to that footprint.
+      auto& point_cloud = point_clouds.get<PointCollection&>( polylist.back() );
+      auto classification = point_cloud.get_attribute_vec1i("classification");
+      point_cloud.push_back(*p);
+      (*classification).push_back(6);
+      }
+
     // Compute average elevation per polygon
-    std::cout <<"Computing the average elevation per polygon..." << std::endl;
+    std::cout <<"Computing the average ground elevation per polygon..." << std::endl;
     for (size_t i=0; i<z_ground.size(); ++i) {
       float ground_ele = min_ground_elevation;
       if (z_ground[i].size()!=0) {
@@ -174,6 +243,28 @@ class PointsInPolygonsCollector  {
       // Assign the median ground elevation to each polygon
       ground_elevations.push_back(ground_ele);
     }
+
+    // clear footprints with very low coverage (ie. underground footprints)
+    // TODO: improve method for computing mean_density
+    float total_cnt=0, total_area=0;
+    for( auto& [poly_i, info] : poly_info ) {
+      total_cnt += info.pt_count;
+      total_area += info.area;
+    }
+    float mean_density = total_cnt/total_area;
+    std::cout << "Mean footprint density = " << mean_density << std::endl;
+
+    for (size_t poly_i=0; poly_i < polygons.size(); ++poly_i) {
+      auto& info = poly_info[poly_i];
+      if ( ( (info.pt_count / info.area) / mean_density ) < min_pt_coverage ) {
+        auto& point_cloud = point_clouds.get<PointCollection&>( poly_i );
+        // point_cloud.clear();
+      }
+      // info.pt_count = point_cloud.size();
+      poly_areas.push_back(float(info.area));
+      poly_pt_counts.push_back(int(info.pt_count));
+      poly_densities.push_back(float(info.pt_count / info.area));
+    }
   }
 };
 
@@ -183,8 +274,20 @@ void LASInPolygonsNode::process() {
 
   auto& point_clouds = vector_output("point_clouds");
   auto& ground_elevations = vector_output("ground_elevations");
+  auto& poly_areas = vector_output("poly_areas");
+  auto& poly_pt_counts = vector_output("poly_pt_counts");
+  auto& poly_densities = vector_output("poly_densities");
 
-  PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_elevations, cellsize, buffer, ground_class, building_class};
+  PointsInPolygonsCollector pip_collector{
+    polygons, 
+    buf_polygons, 
+    point_clouds, 
+    ground_elevations, 
+    cellsize, 
+    buffer, 
+    ground_class, 
+    building_class
+  };
 
   auto aoi_min = pip_collector.completearea_bb.min();
   auto aoi_max = pip_collector.completearea_bb.max();
@@ -239,7 +342,7 @@ void LASInPolygonsNode::process() {
     delete lasreader;
   }
 
-  pip_collector.compute_ground_elevation(ground_percentile);
+  pip_collector.do_post_process(ground_percentile, max_density_delta, min_pt_coverage, poly_areas, poly_pt_counts, poly_densities);
 }
 
 #ifdef GFP_WITH_PDAL
@@ -322,7 +425,7 @@ void EptInPolygonsNode::process()
     }
   }
 
-  pip_collector.compute_ground_elevation(ground_percentile);
+  pip_collector.do_post_process(ground_percentile, 0.05, 0.5);
 }
 #endif
 
