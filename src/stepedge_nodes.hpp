@@ -597,9 +597,10 @@ namespace geoflow::nodes::stepedge {
     float buffer = 1.0;
     float ground_percentile=0.05;
     float max_density_delta=0.05;
-    float min_pt_coverage=0.4;
+    float coverage_threshold=2.0;
     int ground_class = 2;
     int building_class = 6;
+    bool clear_if_insufficient = true;
     public:
     using Node::Node;
     void init() override {
@@ -608,7 +609,9 @@ namespace geoflow::nodes::stepedge {
       add_vector_output("point_clouds", typeid(PointCollection));
       add_vector_output("ground_elevations", typeid(float));
       add_vector_output("poly_areas", typeid(float));
-      add_vector_output("poly_pt_counts", typeid(int));
+      add_vector_output("poly_pt_counts_bld", typeid(int));
+      add_vector_output("poly_pt_counts_grd", typeid(int));
+      add_vector_output("poly_ptcoverage_class", typeid(std::string));
       add_vector_output("poly_densities", typeid(float));
       add_param(ParamInt(ground_class, "ground_class", "LAS class number to use for ground"));
       add_param(ParamInt(building_class, "building_class", "LAS class number to use for buildings"));
@@ -618,7 +621,8 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
       add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
       add_param(ParamBoundedFloat(max_density_delta, 0, 1, "Max_density_delta",  "Used for deciding to what footprint to assign a point that is inside multiple footprints. If the difference in point densities is higher than this threshold we pick the candidate footprint with the highest point density. Otherwise we pick the footprint with the highest average elevation."));
-      add_param(ParamBoundedFloat(min_pt_coverage, 0, 1, "min_pt_coverage",  "For footprints with a lower point coverage, its points are removed."));
+      add_param(ParamBoundedFloat(coverage_threshold, 0.5, 3, "coverage_threshold",  "Threshold to classify if a footprint has sufficient building point_coverage. If the building point density is below this threshold times the of standard deviation below the mean point density, the coverage is classified as insufficient."));
+      add_param(ParamBool(clear_if_insufficient, "clear_if_insufficient",  "Clear point clouds for footprints with insufficient coverage"));
     }
     void process() override;
   };
