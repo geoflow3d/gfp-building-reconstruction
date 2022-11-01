@@ -186,6 +186,9 @@ void LASInPolygonsNode::process() {
 
   PointsInPolygonsCollector pip_collector{polygons, buf_polygons, point_clouds, ground_elevations, cellsize, buffer, ground_class, building_class};
 
+  auto aoi_min = pip_collector.completearea_bb.min();
+  auto aoi_max = pip_collector.completearea_bb.max();
+
   for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
   {
     LASreadOpener lasreadopener;
@@ -213,6 +216,14 @@ void LASInPolygonsNode::process() {
       std::cout << "no intersection footprints with las file: " << filepath << "\n";
       continue;
     }
+
+    // tell lasreader our area of interest. It will then use quadtree indexing if available (.lax file created with lasindex)
+    lasreader->inside_rectangle(
+      aoi_min[0], 
+      aoi_min[1], 
+      aoi_max[0], 
+      aoi_max[1]
+    );
 
     while (lasreader->read_point()) {
       pip_collector.add_point(
