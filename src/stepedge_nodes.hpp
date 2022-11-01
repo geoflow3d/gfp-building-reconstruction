@@ -601,6 +601,7 @@ namespace geoflow::nodes::stepedge {
     int ground_class = 2;
     int building_class = 6;
     bool clear_if_insufficient = true;
+    bool only_first_return = true;
     public:
     using Node::Node;
     void init() override {
@@ -623,6 +624,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBoundedFloat(max_density_delta, 0, 1, "Max_density_delta",  "Used for deciding to what footprint to assign a point that is inside multiple footprints. If the difference in point densities is higher than this threshold we pick the candidate footprint with the highest point density. Otherwise we pick the footprint with the highest average elevation."));
       add_param(ParamBoundedFloat(coverage_threshold, 0.5, 3, "coverage_threshold",  "Threshold to classify if a footprint has sufficient building point_coverage. If the building point density is below this threshold times the of standard deviation below the mean point density, the coverage is classified as insufficient."));
       add_param(ParamBool(clear_if_insufficient, "clear_if_insufficient",  "Clear point clouds for footprints with insufficient coverage"));
+      add_param(ParamBool(only_first_return, "only_first_return",  "Only use points with return_number == 1"));
     }
     void process() override;
   };

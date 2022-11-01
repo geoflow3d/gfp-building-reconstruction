@@ -368,6 +368,11 @@ void LASInPolygonsNode::process() {
     }
 
     while (lasreader->read_point()) {
+      if ( only_first_return ) {
+        if (lasreader->point.get_return_number() != 1 ) {
+          continue;
+        }
+      }
       pip_collector.add_point(
         {
         float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
@@ -376,6 +381,7 @@ void LASInPolygonsNode::process() {
         }, 
         lasreader->point.get_classification()
       );
+
     }
     lasreader->close();
     delete lasreader;
