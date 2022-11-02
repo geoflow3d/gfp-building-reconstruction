@@ -372,10 +372,10 @@ void LASInPolygonsNode::process() {
 
     // tell lasreader our area of interest. It will then use quadtree indexing if available (.lax file created with lasindex)
     lasreader->inside_rectangle(
-      aoi_min[0], 
-      aoi_min[1], 
-      aoi_max[0], 
-      aoi_max[1]
+      aoi_min[0] + (*manager.data_offset)[0], 
+      aoi_min[1] + (*manager.data_offset)[1], 
+      aoi_max[0] + (*manager.data_offset)[0], 
+      aoi_max[1] + (*manager.data_offset)[1]
     );
 
     while (lasreader->read_point()) {
