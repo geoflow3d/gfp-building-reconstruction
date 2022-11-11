@@ -316,6 +316,43 @@ class PointsInPolygonsCollector  {
   }
 };
 
+void getOgcWkt(LASheader* lasheader, std::string& wkt) {
+  for (int i = 0; i < (int)lasheader->number_of_variable_length_records; i++)
+  {
+      if (lasheader->vlrs[i].record_id == 2111) // OGC MATH TRANSFORM WKT
+      {
+        std::cout << "Found and ignored: OGC MATH TRANSFORM WKT\n";
+      }
+      else if (lasheader->vlrs[i].record_id == 2112) // OGC COORDINATE SYSTEM WKT
+      {
+        std::cout << "Found: OGC COORDINATE SYSTEM WKT\n";
+        wkt = (char *)(lasheader->vlrs[i].data);
+      }
+      else if (lasheader->vlrs[i].record_id == 34735) // GeoKeyDirectoryTag
+      {
+        std::cout << "Found and ignored: GeoKeyDirectoryTag\n";
+      }
+  }
+
+  for (int i = 0; i < (int)lasheader->number_of_extended_variable_length_records; i++)
+  {
+    if (strcmp(lasheader->evlrs[i].user_id, "LASF_Projection") == 0)
+    {
+      if (lasheader->evlrs[i].record_id == 2111) // OGC MATH TRANSFORM WKT
+      {
+        std::cout << "Found and ignored: OGC MATH TRANSFORM WKT\n";
+
+      }
+      else if (lasheader->evlrs[i].record_id == 2112) // OGC COORDINATE SYSTEM WKT
+      {
+        std::cout << "Found: OGC COORDINATE SYSTEM WKT\n";
+        wkt = (char *)(lasheader->evlrs[i].data);
+      }
+    }
+  }
+  std::cout << wkt << std::endl;
+}
+
 void LASInPolygonsNode::process() {
   auto& polygons = vector_input("polygons");
   auto& buf_polygons = vector_input("buf_polygons");
@@ -347,6 +384,11 @@ void LASInPolygonsNode::process() {
     LASreadOpener lasreadopener;
     lasreadopener.set_file_name(filepath.c_str());
     LASreader* lasreader = lasreadopener.open();
+
+    std::string wkt;
+    getOgcWkt(&lasreader->header, wkt);
+    manager.set_fwd_crs_transform(wkt.c_str());
+    
     
     if (!lasreader){
       std::cout << "cannot read las file: " << filepath << "\n";
@@ -354,16 +396,16 @@ void LASInPolygonsNode::process() {
     }
 
     Box file_bbox;
-    file_bbox.add(arr3f{
-      float(lasreader->get_min_x()-(*manager.data_offset)[0]),
-      float(lasreader->get_min_y()-(*manager.data_offset)[1]),
-      float(lasreader->get_min_z()-(*manager.data_offset)[2])
-    });
-    file_bbox.add(arr3f{
-      float(lasreader->get_max_x()-(*manager.data_offset)[0]),
-      float(lasreader->get_max_y()-(*manager.data_offset)[1]),
-      float(lasreader->get_max_z()-(*manager.data_offset)[2])
-    });
+    file_bbox.add(manager.coord_transform_fwd(
+      lasreader->get_min_x(),
+      lasreader->get_min_y(),
+      lasreader->get_min_z()
+    ));
+    file_bbox.add(manager.coord_transform_fwd(
+      lasreader->get_max_x(),
+      lasreader->get_max_y(),
+      lasreader->get_max_z()
+    ));
 
     if(!file_bbox.intersects(pip_collector.completearea_bb)){
       std::cout << "no intersection footprints with las file: " << filepath << "\n";
@@ -380,14 +422,15 @@ void LASInPolygonsNode::process() {
 
     while (lasreader->read_point()) {
       pip_collector.add_point(
-        {
-        float(lasreader->point.get_x()-(*manager.data_offset)[0]), 
-        float(lasreader->point.get_y()-(*manager.data_offset)[1]),
-        float(lasreader->point.get_z()-(*manager.data_offset)[2]) 
-        }, 
+        manager.coord_transform_fwd(
+          lasreader->point.get_x(), 
+          lasreader->point.get_y(), 
+          lasreader->point.get_z()
+        ), 
         lasreader->point.get_classification()
       );
     }
+    manager.clear_fwd_crs_transform();
     lasreader->close();
     delete lasreader;
   }
