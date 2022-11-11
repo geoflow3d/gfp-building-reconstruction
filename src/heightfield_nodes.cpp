@@ -207,7 +207,7 @@ namespace geoflow::nodes::stepedge {
         if (plane_id<1) continue;
         for (auto& p : plane_pts.second) {
           pdt.insert_point(p.x(), p.y(), p.z());
-          box.add({float(p.x()), float(p.y()), float(p.z())});
+          box.add(arr3f{float(p.x()), float(p.y()), float(p.z())});
         }
       }
       boxmin = box.min();
