@@ -31,6 +31,8 @@ endif()
 set(GLM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/thirdparty/glm)
 
 find_package(laslib CONFIG REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
+add_definitions(-DCGAL_EIGEN3_ENABLED)
 find_package(CGAL QUIET COMPONENTS Core REQUIRED)
 # PDAL
 if(GFP_WITH_PDAL)
@@ -72,6 +74,7 @@ geoflow_create_plugin(
   src/cdt_util.cpp
   src/trisnap.cpp
   src/pip_util.cpp
+  src/ClusterPointCloudNode.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE
@@ -85,7 +88,7 @@ target_include_directories(gfp_buildingreconstruction PRIVATE
 target_link_libraries( gfp_buildingreconstruction PRIVATE
   geoflow-core
   ptinpoly
-  CGAL::CGAL CGAL::CGAL_Core
+  CGAL::CGAL CGAL::CGAL_Core Eigen3::Eigen
   LASlib
   ${PDAL_LIBRARIES} 
 )

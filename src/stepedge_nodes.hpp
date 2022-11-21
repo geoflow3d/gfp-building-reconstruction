@@ -1427,4 +1427,23 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+  class ClusterPointCloudNode:public Node {
+    // bool only_horizontal = true;
+    float spacing = 1.0;
+    // int metrics_normal_k = 5;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("points", typeid(PointCollection));
+      add_output("cluster_id", typeid(vec1i));
+      add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
+
+      // add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
+      add_param(ParamFloat(spacing, "spacing", "Spacing threshold used in clustering algorithm"));
+      // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
+    }
+    void process() override;
+  };
+
 }

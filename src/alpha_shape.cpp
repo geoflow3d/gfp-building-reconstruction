@@ -286,6 +286,7 @@ void AlphaShapeNode::process() {
   for (auto& it : points_per_segment ) {
     if (it.first == -1) continue; // skip points if they put at index -1 (eg if we care not about slanted surfaces for ring extraction)
     auto points = it.second.second;
+    if(points.size() < 3) continue;
     as::Triangulation_2 T;
     T.insert(points.begin(), points.end());
     as::Alpha_shape_2 A(T,
