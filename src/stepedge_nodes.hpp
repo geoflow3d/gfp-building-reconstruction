@@ -338,9 +338,12 @@ namespace geoflow::nodes::stepedge {
     }
     bool inputs_valid() override {
       for (auto& [name,iT] : input_terminals) {
-        if (!iT->is_touched())
+        if (name == "lines" && !insert_lines)
+          continue;
+        else if (!iT->is_touched())
           return false;
       }
+        
       return true;
     }
     void process() override;
@@ -1428,7 +1431,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class ClusterPointCloudNode:public Node {
-    // bool only_horizontal = true;
+    bool flatten = true;
     float spacing = 1.0;
     // int metrics_normal_k = 5;
 
@@ -1439,8 +1442,31 @@ namespace geoflow::nodes::stepedge {
       add_output("cluster_id", typeid(vec1i));
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints));
 
-      // add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
-      add_param(ParamFloat(spacing, "spacing", "Spacing threshold used in clustering algorithm"));
+      add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
+      add_param(ParamFloat(spacing, "spacing", "Radius threshold used in clustering algorithm"));
+      // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
+    }
+    void process() override;
+  };
+
+  class ContourRegulariserNode:public Node {
+    // bool flatten = true;
+    float min_length = 2.0;
+    float max_angle = 20.0;
+    float max_offset = 2.0;
+    // int metrics_normal_k = 5;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_vector_input("polygons", typeid(LinearRing));
+      // add_output("cluster_id", typeid(vec1i));
+      add_vector_output("regularised_polygons", typeid(LinearRing));
+
+      // add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
+      add_param(ParamFloat(min_length, "min_length", "Minimum length"));
+      add_param(ParamFloat(max_angle, "max_angle", "Max angle"));
+      add_param(ParamFloat(max_offset, "max_offset", "Max offset"));
       // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
     }
     void process() override;

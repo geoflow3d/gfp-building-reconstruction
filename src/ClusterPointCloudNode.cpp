@@ -40,7 +40,11 @@ namespace geoflow::nodes::stepedge {
     Point_set point_set;
 
     for(auto& p : points) {
-      point_set.insert(Point_3(p[0], p[1], p[2]));
+      if (flatten) {
+        point_set.insert(Point_3(p[0], p[1], 0));
+      } else { 
+        point_set.insert(Point_3(p[0], p[1], p[2]));
+      }
     }
 
     // Add a cluster map
@@ -74,7 +78,10 @@ namespace geoflow::nodes::stepedge {
     for(Point_set::const_iterator it = point_set.begin();
        it != point_set.end(); ++ it)
     {
-      pts_per_roofplane[cluster_map[i]].second.push_back(point_set.point(*it));
+      pts_per_roofplane[cluster_map[i]].second.push_back(
+        // point_set.point(*it)
+        Point_3(points[i][0], points[i][1], points[i][2])
+        );
       // One color per cluster
       cluster_idx[i] = cluster_map[i];
       CGAL::Random rand (cluster_map[i]);

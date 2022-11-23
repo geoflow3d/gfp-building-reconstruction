@@ -70,4 +70,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<RasterMergerNode>("RasterMerger");
     node_register.register_node<RoofPartitionRasteriseNode>("RoofPartitionRasterise");
     node_register.register_node<ClusterPointCloudNode>("ClusterPointCloud");
+    node_register.register_node<ContourRegulariserNode>("ContourRegulariser");
 }

@@ -75,6 +75,7 @@ geoflow_create_plugin(
   src/trisnap.cpp
   src/pip_util.cpp
   src/ClusterPointCloudNode.cpp
+  src/ContourRegulariserNode.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

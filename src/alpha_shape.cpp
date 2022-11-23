@@ -337,8 +337,10 @@ void AlphaShapeNode::process() {
 
     for (auto& kv : grower.region_map) {
       // finally, store the ring 
-      alpha_rings.push_back(kv.second);
-      plane_idx.push_back(it.first);
+      if(kv.second.size() > 2) {
+        alpha_rings.push_back(kv.second);
+        plane_idx.push_back(it.first);
+      }
       // alpha_dts.push_back(T);
     }
   }
