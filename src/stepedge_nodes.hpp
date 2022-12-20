@@ -1472,4 +1472,66 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+
+  class GridTilerNode : public Node {
+    float cellsize_ = 500;
+
+    public:
+    using Node::Node;
+    void init() override{
+      add_vector_input("polygons", typeid(LinearRing));
+      add_vector_output("tile_geoms", typeid(LinearRing));
+      add_vector_output("tile_geom_ids", typeid(int));
+      add_vector_output("polygon_tile_ids", typeid(int));
+
+      add_param(ParamFloat(cellsize_, "cellsize", "Cell size"));
+    };
+    void process() override {
+      auto& polygons = input("polygons");
+      auto& polygon_tile_ids = vector_output("polygon_tile_ids");
+      auto& tile_geoms = vector_output("tile_geoms");
+      auto& tile_geom_ids = vector_output("tile_geom_ids");
+
+      Box bbox;
+      for (size_t i=0; i<polygons.size(); ++i) {
+        bbox.add(polygons.get<LinearRing&>(i).box());
+      }
+      auto grid = RasterTools::Raster(cellsize_, bbox.min()[0], bbox.max()[0], bbox.min()[1], bbox.max()[1]);
+
+      for (size_t i=0; i<polygons.size(); ++i) {
+        auto c = polygons.get<LinearRing&>(i).box().center();
+        int lc = (int) grid.getLinearCoord(c[0], c[1]);
+        polygon_tile_ids.push_back(lc);
+      }
+
+      for(size_t col=0; col < grid.dimx_-1; ++col) {
+        for(size_t row=0; row < grid.dimy_-1; ++row) {
+          LinearRing g;
+          g.push_back(arr3f{
+            float(grid.minx_ + col*cellsize_),
+            float(grid.miny_ + row*cellsize_),
+            0            
+          });
+          g.push_back(arr3f{
+            float(grid.minx_ + (col+1)*cellsize_),
+            float(grid.miny_ + row*cellsize_),
+            0            
+          });
+          g.push_back(arr3f{
+            float(grid.minx_ + (col+1)*cellsize_),
+            float(grid.miny_ + (row+1)*cellsize_),
+            0            
+          });
+          g.push_back(arr3f{
+            float(grid.minx_ + col*cellsize_),
+            float(grid.miny_ + (row+1)*cellsize_),
+            0            
+          });
+          tile_geoms.push_back(g);
+          tile_geom_ids.push_back(int(grid.getLinearCoord(row,col)));
+        }
+      }
+    };
+  };
+
 }
