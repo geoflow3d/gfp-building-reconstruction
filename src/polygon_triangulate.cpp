@@ -226,4 +226,28 @@ void PolygonTriangulatorNode::process()
   // output("valuesf").set(values_out);
 }
 
+void MTC2MMNode::process()
+{
+  auto& mtc = input("multi_triangle_collections").get<MultiTriangleCollection&>();
+  std::unordered_map<int, Mesh> meshmap;
+
+  auto& attrmap = mtc.get_attributes();
+  size_t i=0;
+  for(auto& tc : mtc.get_tricollections()) {
+    Mesh mesh;
+    size_t j=0;
+    for (auto& triangle : tc) {
+      LinearRing lr;
+      lr.push_back(triangle[0]);
+      lr.push_back(triangle[1]);
+      lr.push_back(triangle[2]);
+      mesh.push_polygon( lr, std::get<int>( attrmap[i]["labels"][j++] ) );
+    }
+    
+    meshmap[mtc.building_part_ids_[i++]] = mesh;
+  }
+  output("meshmap").set(meshmap);
+
 }
+
+} // namespace geoflow::nodes::stepedge

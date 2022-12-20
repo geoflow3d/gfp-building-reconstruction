@@ -1087,6 +1087,18 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+  // convert from dreadful multitrianglecollection to slightly less dreadful meshmap.
+  class MTC2MMNode:public Node {
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("multi_triangle_collections", typeid(MultiTriangleCollection));
+      add_output("meshmap", typeid(std::unordered_map<int, Mesh>));
+
+    }
+    void process() override;
+  };
+
   class FacesSelectorNode:public Node {
     public:
     using Node::Node;
