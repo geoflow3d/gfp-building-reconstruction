@@ -76,6 +76,7 @@ geoflow_create_plugin(
   src/pip_util.cpp
   src/ClusterPointCloudNode.cpp
   src/ContourRegulariserNode.cpp
+  src/MaxInscribedCircleNode.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

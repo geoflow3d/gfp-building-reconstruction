@@ -379,10 +379,33 @@ void LASInPolygonsNode::process() {
   auto aoi_min = pip_collector.completearea_bb.min();
   auto aoi_max = pip_collector.completearea_bb.max();
 
-  for (auto filepath : split_string(manager.substitute_globals(filepaths), " "))
+  auto filepaths = manager.substitute_globals(filepaths_);
+
+  std::vector<std::string> lasfiles;
+  if(fs::is_directory(filepaths)) {
+    for(auto& p: fs::directory_iterator(filepaths)) {
+      auto ext = p.path().extension();
+      if (ext == ".las" ||
+          ext == ".LAS" ||
+          ext == ".laz" ||
+          ext == ".LAZ")
+      {
+        lasfiles.push_back(p.path().string());
+      }
+    }
+  } else {
+    std::cout << "filepaths_ is not a directory, assuming a list of LAS files" << std::endl;
+    for (std::string filepath : split_string(filepaths, " "))
+    {
+      if (fs::exists(filepath)) lasfiles.push_back(filepath);
+      else std::cout << filepath << " does not exist" << std::endl;
+    }
+  }
+
+  for (auto lasfile : lasfiles)
   {
     LASreadOpener lasreadopener;
-    lasreadopener.set_file_name(filepath.c_str());
+    lasreadopener.set_file_name(lasfile.c_str());
     LASreader* lasreader = lasreadopener.open();
 
     std::string wkt;
@@ -391,7 +414,7 @@ void LASInPolygonsNode::process() {
     
     
     if (!lasreader){
-      std::cout << "cannot read las file: " << filepath << "\n";
+      std::cout << "cannot read las file: " << lasfile << "\n";
       continue;
     }
 
@@ -408,7 +431,7 @@ void LASInPolygonsNode::process() {
     ));
 
     if(!file_bbox.intersects(pip_collector.completearea_bb)){
-      std::cout << "no intersection footprints with las file: " << filepath << "\n";
+      std::cout << "no intersection footprints with las file: " << lasfile << "\n";
       continue;
     }
 

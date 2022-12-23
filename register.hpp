@@ -73,4 +73,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<ContourRegulariserNode>("ContourRegulariser");
     node_register.register_node<GridTilerNode>("GridTiler");
     node_register.register_node<MTC2MMNode>("MTC2MM");
+    node_register.register_node<MaxInscribedCircleNode>("MaxInscribedCircle");
 }

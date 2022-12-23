@@ -22,6 +22,8 @@
 #include "line_regulariser.hpp"
 #include "Raster.h"
 
+#include "MaxInscribedCircleNode.hpp"
+
 namespace geoflow::nodes::stepedge {
 
   float compute_percentile(std::vector<float>& z_vec, float percentile);
@@ -595,7 +597,7 @@ namespace geoflow::nodes::stepedge {
   };
 
   class LASInPolygonsNode:public Node {
-    std::string filepaths = "";
+    std::string filepaths_ = "";
     float cellsize = 50.0;
     float buffer = 1.0;
     float ground_percentile=0.05;
@@ -619,7 +621,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamInt(ground_class, "ground_class", "LAS class number to use for ground"));
       add_param(ParamInt(building_class, "building_class", "LAS class number to use for buildings"));
 
-      add_param(ParamPath(filepaths, "las_filepaths", "LAS filepaths"));
+      add_param(ParamPath(filepaths_, "las_filepaths", "LAS filepaths"));
       add_param(ParamBoundedFloat(cellsize, 1, 1000, "cellsize",  "Grid index cellsize"));
       add_param(ParamBoundedFloat(buffer, 0.1, 100, "buffer", "Query buffer"));
       add_param(ParamBoundedFloat(ground_percentile, 0, 1, "ground_percentile",  "Ground elevation percentile"));
