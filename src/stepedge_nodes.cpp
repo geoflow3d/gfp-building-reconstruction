@@ -1599,6 +1599,7 @@ void RegulariseLinesNode::process(){
   output("dist_cluster_id").set(dist_cluster_ids);
   output("priorities").set(priorities);
   output("edges_out_").set(edges_out_);
+  output("n_angle_clusters").set(int(LR.angle_clusters.size()));
   // output("edges_out").set(new_segments);
   // output("rings_out").set(new_rings);
   // output("footprint_out").set(new_fp);

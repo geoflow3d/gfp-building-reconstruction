@@ -703,6 +703,7 @@ namespace geoflow::nodes::stepedge {
       add_output("angle_cluster_id", typeid(vec1i));
       add_output("dist_cluster_id", typeid(vec1i));
       add_output("exact_footprint_out", typeid(linereg::Polygon_with_holes_2));
+      add_output("n_angle_clusters", typeid(int));
       
       add_param(ParamFloat(dist_threshold, "dist_threshold", "Distance threshold"));
       add_param(ParamFloat(extension, "extension", "Line extension after regularisation"));
@@ -1496,6 +1497,7 @@ namespace geoflow::nodes::stepedge {
       add_vector_input("polygons", typeid(LinearRing));
       add_vector_output("tile_geoms", typeid(LinearRing));
       add_vector_output("tile_geom_ids", typeid(int));
+      add_vector_output("tile_geom_cnts", typeid(int));
       add_vector_output("polygon_tile_ids", typeid(int));
 
       add_param(ParamFloat(cellsize_, "cellsize", "Cell size"));
@@ -1505,6 +1507,7 @@ namespace geoflow::nodes::stepedge {
       auto& polygon_tile_ids = vector_output("polygon_tile_ids");
       auto& tile_geoms = vector_output("tile_geoms");
       auto& tile_geom_ids = vector_output("tile_geom_ids");
+      auto& tile_geom_cnts = vector_output("tile_geom_cnts");
 
       Box bbox;
       for (size_t i=0; i<polygons.size(); ++i) {
@@ -1512,14 +1515,16 @@ namespace geoflow::nodes::stepedge {
       }
       auto grid = RasterTools::Raster(cellsize_, bbox.min()[0], bbox.max()[0], bbox.min()[1], bbox.max()[1]);
 
+      std::unordered_map<int, int> tile_cnts;
       for (size_t i=0; i<polygons.size(); ++i) {
         auto c = polygons.get<LinearRing&>(i).box().center();
         int lc = (int) grid.getLinearCoord(c[0], c[1]);
         polygon_tile_ids.push_back(lc);
+        tile_cnts[lc]++;
       }
 
-      for(size_t col=0; col < grid.dimx_-1; ++col) {
-        for(size_t row=0; row < grid.dimy_-1; ++row) {
+      for(size_t col=0; col < grid.dimx_; ++col) {
+        for(size_t row=0; row < grid.dimy_; ++row) {
           LinearRing g;
           g.push_back(arr3f{
             float(grid.minx_ + col*cellsize_),
@@ -1541,8 +1546,10 @@ namespace geoflow::nodes::stepedge {
             float(grid.miny_ + (row+1)*cellsize_),
             0            
           });
+          auto lc = int(grid.getLinearCoord(row,col));
+          tile_geom_cnts.push_back(tile_cnts[lc]);
           tile_geoms.push_back(g);
-          tile_geom_ids.push_back(int(grid.getLinearCoord(row,col)));
+          tile_geom_ids.push_back(lc);
         }
       }
     };

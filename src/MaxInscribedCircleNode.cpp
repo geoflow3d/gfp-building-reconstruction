@@ -31,8 +31,8 @@ namespace geoflow::nodes::stepedge {
   void insert_edges(Triangulation& t, const Polygon& polygon, const float& interval) {
     for (auto ei = polygon.edges_begin(); ei != polygon.edges_end(); ++ei) {
       auto e_l = CGAL::sqrt(ei->squared_length());
-      auto e_v = ei->to_vector();
-      auto n = std::floor(e_l / interval);
+      auto e_v = ei->to_vector()/e_l;
+      auto n = std::ceil(e_l / interval);
       auto s = ei->source();
       t.insert(s);
       for(size_t i=0; i<n; ++i) {
@@ -167,7 +167,20 @@ namespace geoflow::nodes::stepedge {
         0
       });
     }
+
+    PointCollection vd_pts;
+    for(const auto& vertex : t.finite_vertex_handles()) {
+      vd_pts.push_back(
+        arr3f{
+          float(vertex->point().x()),
+          float(vertex->point().y()),
+          0
+        }
+      );
+    }
+
     // PointCollection mc; mc.push_back({float(c_max.x()), float(c_max.y()), 0});
+    output("vd_pts").set(vd_pts);
     output("max_circle").set(circle);
     output("max_diameter").set(float(2*r_max));
   }

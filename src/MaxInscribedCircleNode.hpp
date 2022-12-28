@@ -14,6 +14,7 @@ namespace geoflow::nodes::stepedge {
 
       add_output("max_diameter", typeid(float));
       add_output("max_circle", typeid(LinearRing));
+      add_output("vd_pts", typeid(PointCollection));
 
       // add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
       add_param(ParamFloat(cellsize_, "cellsize", "Cellsize"));
