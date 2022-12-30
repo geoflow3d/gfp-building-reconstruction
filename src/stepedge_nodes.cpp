@@ -2169,6 +2169,8 @@ void ArrDissolveNode::process() {
     arr_dissolve_fp(arr, false, true);
   }
 
+  arr_remove_redundant_vertices(arr);
+
   // label different building parts
   arr_label_buildingparts(arr);
   

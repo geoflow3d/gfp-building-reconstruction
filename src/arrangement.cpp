@@ -76,6 +76,18 @@ void arr_dissolve_seg_edges(Arrangement_2& arr)
     arr.remove_edge(he);
   }
 }
+void arr_remove_redundant_vertices(Arrangement_2& arr)
+{
+  // cleanup vertices with degree==2
+  std::vector<Arrangement_2::Vertex_handle> to_remove;
+  for (auto v : arr.vertex_handles()) {
+    if(v->degree()==2)
+      to_remove.push_back(v);
+  }
+  for (auto v : to_remove) {
+    CGAL::remove_vertex(arr, v);
+  }
+}
 
 void arr_dissolve_step_edges_naive(Arrangement_2& arr, float step_height_threshold, bool compute_on_edge)
 {
@@ -245,16 +257,6 @@ void arr_dissolve_fp(Arrangement_2& arr, bool inside, bool outside) {
     for (auto he : to_remove) {
       arr.remove_edge(he);
     }
-  }
-  // cleanup vertices with degree==2
-  {
-    std::vector<Arrangement_2::Vertex_handle> to_remove;
-    for (auto v : arr.vertex_handles()) {
-      if(v->degree()==2)
-        to_remove.push_back(v);
-    }
-    for (auto v : to_remove)
-      CGAL::remove_vertex(arr, v);
   }
 }
 
