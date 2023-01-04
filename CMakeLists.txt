@@ -67,7 +67,6 @@ geoflow_create_plugin(
   src/snap_round.cpp
   src/polygon_offset.cpp
   src/alpha_shape.cpp
-  src/CityGMLMeshWriter.cpp
   src/data_coverage_node.cpp
   src/detect_planes_node.cpp
   src/polygon_util.cpp
