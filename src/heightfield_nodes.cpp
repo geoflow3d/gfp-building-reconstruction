@@ -381,7 +381,7 @@ namespace geoflow::nodes::stepedge {
     auto boxmin = box.min();
     auto boxmax = box.max();
 
-    RasterTools::Raster r(cellsize, boxmin[0], boxmax[0], boxmin[1], boxmax[1]);
+    RasterTools::Raster r(cellsize, boxmin[0]-cellsize, boxmax[0]+cellsize, boxmin[1]-cellsize, boxmax[1]+cellsize);
     r.prefill_arrays(RasterTools::MAX);
 
     // point in polygon to set ground plane outside footprint
@@ -452,7 +452,9 @@ namespace geoflow::nodes::stepedge {
       }
     } else {
       for(auto& p : points) {
-        r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+        if (r.check_point(p[0], p[1])) {
+          r.add_point(p[0], p[1], p[2], RasterTools::MAX);
+        }
       }
       if (use_ground_pts) {
         for(auto& p : ground_points) {
@@ -466,14 +468,16 @@ namespace geoflow::nodes::stepedge {
     }
 
     PointCollection grid_points;
+    grid_points.reserve(r.dimx_*r.dimy_);
     vec1f values;
+    values.reserve(r.dimx_*r.dimy_);
     double nodata = r.getNoDataVal();
     for(size_t i=0; i<r.dimx_ ; ++i) {
       for(size_t j=0; j<r.dimy_ ; ++j) {
         auto p = r.getPointFromRasterCoords(i,j);
         if (p[2]!=nodata) {
-          grid_points.push_back(p);
-          values.push_back(p[2]);
+          grid_points.emplace_back(p);
+          values.emplace_back(p[2]);
         }
       }
     }
