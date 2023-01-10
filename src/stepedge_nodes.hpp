@@ -22,8 +22,6 @@
 #include "line_regulariser.hpp"
 #include "Raster.h"
 
-#include "MaxInscribedCircleNode.hpp"
-
 namespace geoflow::nodes::stepedge {
 
   float compute_percentile(std::vector<float>& z_vec, float percentile);
@@ -1072,7 +1070,7 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() override {
-      add_vector_input("polygons", {typeid(LinearRing), typeid(std::unordered_map<int, Mesh>)});
+      add_vector_input("polygons", {typeid(LinearRing), typeid(std::unordered_map<int, Mesh>), typeid(Mesh)});
       // add_vector_output("dupe_rings", typeid(LinearRing));
       add_output("triangles", typeid(TriangleCollection));
       add_output("multi_triangle_collections", typeid(MultiTriangleCollection));

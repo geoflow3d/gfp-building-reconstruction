@@ -213,6 +213,24 @@ void PolygonTriangulatorNode::process()
         multitrianglecols.building_part_ids_.push_back(sid);
       }
     }
+  } else if (rings.is_connected_type(typeid(Mesh))) {
+    auto mesh = rings.get<Mesh>();
+    TriangleCollection mesh_triangles;
+    AttributeMap mesh_attributes;
+    std::vector<attribute_value> tri_labels;
+    for (size_t ri = 0; ri<mesh.get_polygons().size(); ++ri) {
+      TriangleCollection tc;
+      triangulate_polygon(mesh.get_polygons()[ri], normals, tc, ri, ring_ids);
+      int poly_label = mesh.get_labels()[ri];
+      // Need to get a label for each triangle that was generated
+      for (size_t i = 0; i<tc.size(); i++) tri_labels.emplace_back(poly_label);
+      triangles.insert(triangles.end(), tc.begin(), tc.end());
+      mesh_triangles.insert(mesh_triangles.end(), tc.begin(), tc.end());
+    }
+    mesh_attributes["labels"] = tri_labels;
+    multitrianglecols.push_back(mesh_triangles);
+    multitrianglecols.push_back(mesh_attributes);
+    multitrianglecols.building_part_ids_.push_back(0);
   }
 
   // set outputs

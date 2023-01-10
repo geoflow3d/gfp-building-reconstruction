@@ -76,6 +76,7 @@ geoflow_create_plugin(
   src/ClusterPointCloudNode.cpp
   src/ContourRegulariserNode.cpp
   src/MaxInscribedCircleNode.cpp
+  src/MeshSimplifyNode.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE
@@ -83,6 +84,7 @@ target_include_directories(gfp_buildingreconstruction PRIVATE
   thirdparty/ptinpoly
   thirdparty/earcut
   thirdparty/region-grower
+  thirdparty/fast-quadric-mesh-simplification
   ${PDAL_INCLUDE_DIRS}
   ${GLM_INCLUDE_DIRECTORIES}
 )

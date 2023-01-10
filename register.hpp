@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "stepedge_nodes.hpp"
+#include "MaxInscribedCircleNode.hpp"
+#include "MeshSimplifyNode.hpp"
 
 using namespace geoflow::nodes::stepedge;
 
@@ -73,4 +75,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<GridTilerNode>("GridTiler");
     node_register.register_node<MTC2MMNode>("MTC2MM");
     node_register.register_node<MaxInscribedCircleNode>("MaxInscribedCircle");
+    node_register.register_node<MeshSimplifyNode>("MeshSimplify");
 }
