@@ -1,9 +1,9 @@
-#include "MeshSimplifyNode.hpp"
+#include "MeshSimplifyFastQuadNode.hpp"
 #include "Simplify.h"
 
 namespace geoflow::nodes::stepedge {
 
-  void MeshSimplifyNode::process() { 
+  void MeshSimplifyFastQuadNode::process() { 
     auto& triangles = input("triangles").get<TriangleCollection>();
 
     Simplify::vertices.clear();

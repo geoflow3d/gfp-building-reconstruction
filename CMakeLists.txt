@@ -76,7 +76,9 @@ geoflow_create_plugin(
   src/ClusterPointCloudNode.cpp
   src/ContourRegulariserNode.cpp
   src/MaxInscribedCircleNode.cpp
-  src/MeshSimplifyNode.cpp
+  src/MeshSimplifyFastQuadNode.cpp
+  src/MeshClipperNode.cpp
+  src/MeshSimplify.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

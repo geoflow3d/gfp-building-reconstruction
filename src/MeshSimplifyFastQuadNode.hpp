@@ -2,7 +2,7 @@
 
 namespace geoflow::nodes::stepedge {
 
-  class MeshSimplifyNode:public Node {
+  class MeshSimplifyFastQuadNode:public Node {
     float reduce_fraction_ = 0.5;
     float agressiveness_ = 7.0;
 
