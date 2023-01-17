@@ -79,6 +79,7 @@ geoflow_create_plugin(
   src/MeshSimplifyFastQuadNode.cpp
   src/MeshClipperNode.cpp
   src/MeshSimplify.cpp
+  src/Mesh2TriangleCollectionNode.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE

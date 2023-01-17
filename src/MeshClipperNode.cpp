@@ -53,26 +53,8 @@ namespace geoflow::nodes::stepedge {
       smesh,
       cuboid
     );
-
-    TriangleCollection triangleCollection;
-
-    for (auto& f : smesh.faces()) {
-      Triangle t;
-      unsigned i = 0;
-      for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
-        auto& p = smesh.point(vi);
-        t[i++] = arr3f{ 
-        (float) p.x(),
-        (float) p.y(),
-        (float) p.z()
-        };
-      }
-      triangleCollection.push_back(t);
-    }
-
-    output("triangles").set(triangleCollection);
+    
     output("cgal_surface_mesh").set(smesh);
-
   }
 
 }

@@ -79,4 +79,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<MeshSimplifyFastQuadNode>("MeshSimplifyFastQuad");
     node_register.register_node<MeshSimplifyNode>("MeshSimplify");
     node_register.register_node<MeshClipperNode>("MeshClipper");
+    node_register.register_node<Mesh2TriangleCollectionNode>("Mesh2TriangleCollection");
 }

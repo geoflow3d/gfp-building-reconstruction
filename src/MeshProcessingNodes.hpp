@@ -19,7 +19,6 @@ namespace geoflow::nodes::stepedge {
       add_input("mesh", typeid(Mesh));
       add_input("bbox", typeid(Box));
 
-      add_output("triangles", typeid(TriangleCollection));
       add_output("cgal_surface_mesh", typeid(SurfaceMesh));
 
       // add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
@@ -39,11 +38,30 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("cgal_surface_mesh", typeid(SurfaceMesh));
 
-      add_output("triangles", typeid(TriangleCollection));
       add_output("cgal_surface_mesh", typeid(SurfaceMesh));
 
       // add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
       add_param(ParamBoundedFloat(stop_ratio_, 0, 1, "stop_ratio", "Target reduction ratio in nr of edges"));
+      // add_param(ParamFloat(agressiveness_, "agressiveness", "Agressiveness"));
+      // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
+    }
+    void process() override;
+  };
+
+  class Mesh2TriangleCollectionNode:public Node {
+    // bool stop_ratio_;
+    // float agressiveness_ = 7.0;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("cgal_surface_mesh", typeid(SurfaceMesh));
+
+      add_output("triangles", typeid(TriangleCollection));
+      add_output("normals", typeid(vec3f));
+
+      // add_param(ParamBool(flatten, "flatten", "Ignore Z coordinates in clustering"));
+      // add_param(ParamBoundedFloat(stop_ratio_, 0, 1, "stop_ratio", "Target reduction ratio in nr of edges"));
       // add_param(ParamFloat(agressiveness_, "agressiveness", "Agressiveness"));
       // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
     }

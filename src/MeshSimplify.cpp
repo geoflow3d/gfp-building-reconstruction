@@ -9,6 +9,8 @@
 // Stop-condition policy
 #include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/Count_ratio_stop_predicate.h>
 
+#include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
+
 namespace geoflow::nodes::stepedge {
 
   typedef SurfaceMesh::Vertex_index       VertexIndex;
@@ -37,6 +39,8 @@ namespace geoflow::nodes::stepedge {
   void MeshSimplifyNode::process() { 
 
     auto smesh = input("cgal_surface_mesh").get<SurfaceMesh>();
+
+    if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
     
     SurfaceMesh::Property_map<halfedge_descriptor, std::pair<K::Point_3, K::Point_3> > constrained_halfedges;
     constrained_halfedges = smesh.add_property_map<halfedge_descriptor,std::pair<K::Point_3, K::Point_3> >("h:vertices").first;
@@ -55,36 +59,13 @@ namespace geoflow::nodes::stepedge {
     Border_is_constrained_edge_map bem(smesh);
     // This the actual call to the simplification algorithm.
     // The surface mesh and stop conditions are mandatory arguments.
-    std::cout << "Collapsing as many edges of mesh as possible..." << std::endl;
     int r = SMS::edge_collapse(smesh, stop,
                               CGAL::parameters::edge_is_constrained_map(bem)
                                                 .get_placement(Placement(bem)));
-    std::cout << "\nFinished!\n" << r << " edges removed.\n"
-              << smesh.number_of_edges() << " final edges.\n";
+    // std::cout << "\nFinished!\n" << r << " edges removed.\n"
+              // << smesh.number_of_edges() << " final edges.\n";
     
-    // clip
-    // if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
-
-
-    TriangleCollection triangleCollection;
-
-    for (auto& f : smesh.faces()) {
-      Triangle t;
-      unsigned i = 0;
-      for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
-        auto& p = smesh.point(vi);
-        t[i++] = arr3f{ 
-        (float) p.x(),
-        (float) p.y(),
-        (float) p.z()
-        };
-      }
-      triangleCollection.push_back(t);
-    }
-
-    output("triangles").set(triangleCollection);
     output("cgal_surface_mesh").set(smesh);
-
   }
 
 }
