@@ -1,3 +1,5 @@
+#pragma once
+
 #include <geoflow/geoflow.hpp>
 
 namespace geoflow::nodes::stepedge {

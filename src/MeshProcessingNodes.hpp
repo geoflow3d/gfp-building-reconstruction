@@ -1,3 +1,5 @@
+#pragma once
+
 #include <geoflow/geoflow.hpp>
 
 #include <CGAL/Simple_cartesian.h>
