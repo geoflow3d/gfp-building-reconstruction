@@ -49,11 +49,14 @@ namespace geoflow::nodes::stepedge {
 
     // clip
     if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
-    CGAL::Polygon_mesh_processing::clip(
-      smesh,
-      cuboid
-    );
     
+    if(!CGAL::Polygon_mesh_processing::does_self_intersect(smesh)) {
+      CGAL::Polygon_mesh_processing::clip(
+        smesh,
+        cuboid
+      );
+    }
+
     output("cgal_surface_mesh").set(smesh);
   }
 
