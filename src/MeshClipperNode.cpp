@@ -39,24 +39,25 @@ namespace geoflow::nodes::stepedge {
       }
     }
 
-    auto& gfbox = input("bbox").get<Box>();
-    const auto& pmin = gfbox.min();
-    const auto& pmax = gfbox.max();
-    K::Iso_cuboid_3 cuboid(
-      K::Point_3(pmin[0], pmin[1], pmin[2]), 
-      K::Point_3(pmax[0], pmax[1], pmax[2])
-    );
-
-    // clip
-    if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
-    
-    if(!CGAL::Polygon_mesh_processing::does_self_intersect(smesh)) {
-      CGAL::Polygon_mesh_processing::clip(
-        smesh,
-        cuboid
+    if(!skip_clip_){
+      auto& gfbox = input("bbox").get<Box>();
+      const auto& pmin = gfbox.min();
+      const auto& pmax = gfbox.max();
+      K::Iso_cuboid_3 cuboid(
+        K::Point_3(pmin[0], pmin[1], pmin[2]), 
+        K::Point_3(pmax[0], pmax[1], pmax[2])
       );
-    }
 
+      // clip
+      if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
+      
+      if(!CGAL::Polygon_mesh_processing::does_self_intersect(smesh)) {
+        CGAL::Polygon_mesh_processing::clip(
+          smesh,
+          cuboid
+        );
+      }
+    }
     output("cgal_surface_mesh").set(smesh);
   }
 
