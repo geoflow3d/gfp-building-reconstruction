@@ -897,8 +897,8 @@ void ArrExtruderNode::process(){
 
   }
 
-  for (size_t i=0; i< meshmap.size(); ++i) {
-    vector_output("mesh").push_back(meshmap[i]);
+  for (auto& mm : meshmap) {
+    vector_output("mesh").push_back(mm.second);
   }
   output("multisolid").push_back(meshmap);
   
