@@ -33,7 +33,7 @@ set(GLM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/thirdparty/glm)
 find_package(laslib CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 add_definitions(-DCGAL_EIGEN3_ENABLED)
-find_package(CGAL QUIET COMPONENTS Core REQUIRED)
+find_package(CGAL 5.4 QUIET COMPONENTS Core REQUIRED)
 # PDAL
 if(GFP_WITH_PDAL)
   find_package(PDAL REQUIRED)
