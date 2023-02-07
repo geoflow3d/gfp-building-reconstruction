@@ -437,10 +437,10 @@ void LASInPolygonsNode::process() {
 
     // tell lasreader our area of interest. It will then use quadtree indexing if available (.lax file created with lasindex)
     lasreader->inside_rectangle(
-      aoi_min[0] + (*manager.data_offset)[0], 
-      aoi_min[1] + (*manager.data_offset)[1], 
-      aoi_max[0] + (*manager.data_offset)[0], 
-      aoi_max[1] + (*manager.data_offset)[1]
+      aoi_min[0] + (*manager.data_offset())[0], 
+      aoi_min[1] + (*manager.data_offset())[1], 
+      aoi_max[0] + (*manager.data_offset())[0], 
+      aoi_max[1] + (*manager.data_offset())[1]
     );
 
     while (lasreader->read_point()) {
@@ -506,10 +506,10 @@ void EptInPolygonsNode::process()
   auto pmin = pip_collector.completearea_bb.min();
   auto pmax = pip_collector.completearea_bb.max();
   pdal::BOX2D poly_bbox(
-    pmin[0] - buffer + (*manager.data_offset)[0],
-    pmin[1] - buffer + (*manager.data_offset)[1],
-    pmax[0] + buffer + (*manager.data_offset)[0],
-    pmax[1] + buffer + (*manager.data_offset)[1]
+    pmin[0] - buffer + (*manager.data_offset())[0],
+    pmin[1] - buffer + (*manager.data_offset())[1],
+    pmax[0] + buffer + (*manager.data_offset())[0],
+    pmax[1] + buffer + (*manager.data_offset())[1]
   );
   pdal::EptReader reader;
   {
@@ -542,9 +542,9 @@ void EptInPolygonsNode::process()
       std::cout << "0 points were found" << std::endl;
     }
     for (pdal::point_count_t p(0); p < view->size(); ++p) {
-      float px = view->getFieldAs<float>(pdal::Dimension::Id::X, p) - (*manager.data_offset)[0];
-      float py = view->getFieldAs<float>(pdal::Dimension::Id::Y, p) - (*manager.data_offset)[1];
-      float pz = view->getFieldAs<float>(pdal::Dimension::Id::Z, p) - (*manager.data_offset)[2];
+      float px = view->getFieldAs<float>(pdal::Dimension::Id::X, p) - (*manager.data_offset())[0];
+      float py = view->getFieldAs<float>(pdal::Dimension::Id::Y, p) - (*manager.data_offset())[1];
+      float pz = view->getFieldAs<float>(pdal::Dimension::Id::Z, p) - (*manager.data_offset())[2];
       int pclass = view->getFieldAs<int>(pdal::Dimension::Id::Classification, p);
       
       pip_collector.add_point({px, py, pz}, pclass);

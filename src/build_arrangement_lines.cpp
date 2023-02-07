@@ -357,7 +357,7 @@ void BuildArrFromLinesNode::process() {
   }
 
   // insert footprint segments
-  Point_2 geo_p((*manager.data_offset)[0], (*manager.data_offset)[1]);
+  Point_2 geo_p((*manager.data_offset())[0], (*manager.data_offset())[1]);
   Arrangement_2 arr_base;
   Face_split_observer obs (arr_base);
   {
