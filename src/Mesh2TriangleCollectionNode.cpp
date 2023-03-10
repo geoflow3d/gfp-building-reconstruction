@@ -53,4 +53,41 @@ namespace geoflow::nodes::stepedge {
     output("normals").set(normals);
   }
 
+  void Mesh2CGALSurfaceMeshNode::process() { 
+    typedef SurfaceMesh::Vertex_index       VertexIndex;
+    namespace PMP = CGAL::Polygon_mesh_processing;
+
+    auto gfmesh = input("mesh").get<Mesh>();
+    
+    SurfaceMesh smesh;
+    {
+      std::map<arr3f, VertexIndex> vertex_map;
+      std::set<arr3f> vertex_set;
+      for (const auto &ring : gfmesh.get_polygons())
+      {
+        for (auto &v : ring)
+        {
+          auto [it, did_insert] = vertex_set.insert(v);
+          if (did_insert)
+          {
+            vertex_map[v] = smesh.add_vertex(K::Point_3(v[0],v[1],v[2]));;
+          }
+        }
+      }
+    
+      for (auto& ring : gfmesh.get_polygons()) {
+        std::vector<VertexIndex> rindices;
+        rindices.reserve(ring.size());
+        for(auto& p : ring) {
+          rindices.push_back(vertex_map[p]);
+        }
+        smesh.add_face(rindices);
+      }
+    }
+
+    if(!CGAL::is_triangle_mesh(smesh)) PMP::triangulate_faces(smesh);
+
+    output("cgal_surface_mesh").set(smesh);
+  }
+
 }

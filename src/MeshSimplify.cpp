@@ -10,6 +10,7 @@
 #include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/Count_ratio_stop_predicate.h>
 
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
+#include <CGAL/Polygon_mesh_processing/self_intersections.h>
 
 namespace geoflow::nodes::stepedge {
 
@@ -35,27 +36,34 @@ namespace geoflow::nodes::stepedge {
   // Placement class
   typedef SMS::Constrained_placement<SMS::Midpoint_placement<SurfaceMesh>,
                                     Border_is_constrained_edge_map > Placement;
+  namespace PMP = CGAL::Polygon_mesh_processing;
 
-  void MeshSimplifyNode::process() { 
+  void MeshSimplifyNode::process() {
     auto smesh = input("cgal_surface_mesh").get<SurfaceMesh>();
 
+    // !PMP::does_self_intersect(smesh)
     if (stop_ratio_ < 1.){
       if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
       
       SurfaceMesh::Property_map<halfedge_descriptor, std::pair<K::Point_3, K::Point_3> > constrained_halfedges;
       constrained_halfedges = smesh.add_property_map<halfedge_descriptor,std::pair<K::Point_3, K::Point_3> >("h:vertices").first;
-      std::size_t nb_border_edges=0;
+      size_t n_border=0;
       for(halfedge_descriptor hd : halfedges(smesh))
       {
         if(CGAL::is_border(hd, smesh))
         {
           constrained_halfedges[hd] = std::make_pair(smesh.point(source(hd, smesh)),
                                                     smesh.point(target(hd, smesh)));
-          ++nb_border_edges;
+          ++n_border;
         }
       }
-      // Contract the surface mesh as much as possible
-      SMS::Count_ratio_stop_predicate<SurfaceMesh> stop(stop_ratio_);
+      float stop_ratio = stop_ratio_;
+      if(border_correction_) {
+        size_t n_all = smesh.number_of_halfedges();
+        stop_ratio = ((n_all-n_border) * stop_ratio_) / n_all;
+      }
+      // Contract the surface mesh as much as possible. Correct for the border edges that will not be removed
+      SMS::Count_ratio_stop_predicate<SurfaceMesh> stop( stop_ratio );
       Border_is_constrained_edge_map bem(smesh);
       // This the actual call to the simplification algorithm.
       // The surface mesh and stop conditions are mandatory arguments.
@@ -67,5 +75,9 @@ namespace geoflow::nodes::stepedge {
     }
     output("cgal_surface_mesh").set(smesh);
   }
+
+  // void MeshGridClusterSimplifyNode::process() {
+    
+  // }
 
 }

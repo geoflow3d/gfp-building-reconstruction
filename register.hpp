@@ -78,6 +78,8 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<MaxInscribedCircleNode>("MaxInscribedCircle");
     node_register.register_node<MeshSimplifyFastQuadNode>("MeshSimplifyFastQuad");
     node_register.register_node<MeshSimplifyNode>("MeshSimplify");
+    node_register.register_node<MeshGridSimplifyNode>("MeshGridSimplify");
     node_register.register_node<MeshClipperNode>("MeshClipper");
     node_register.register_node<Mesh2TriangleCollectionNode>("Mesh2TriangleCollection");
+    node_register.register_node<Mesh2CGALSurfaceMeshNode>("Mesh2CGALSurfaceMesh");
 }

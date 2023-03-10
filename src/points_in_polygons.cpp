@@ -402,16 +402,17 @@ void LASInPolygonsNode::process() {
     }
   }
 
+  std::string wkt = manager.substitute_globals(wkt_);
   for (auto lasfile : lasfiles)
   {
     LASreadOpener lasreadopener;
     lasreadopener.set_file_name(lasfile.c_str());
     LASreader* lasreader = lasreadopener.open();
 
-    std::string wkt;
-    getOgcWkt(&lasreader->header, wkt);
+    if(wkt.size()==0) {
+      getOgcWkt(&lasreader->header, wkt);
+    }
     manager.set_fwd_crs_transform(wkt.c_str());
-    
     
     if (!lasreader){
       std::cout << "cannot read las file: " << lasfile << "\n";
