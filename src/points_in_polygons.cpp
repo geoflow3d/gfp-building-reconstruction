@@ -376,9 +376,6 @@ void LASInPolygonsNode::process() {
     building_class
   };
 
-  auto aoi_min = pip_collector.completearea_bb.min();
-  auto aoi_max = pip_collector.completearea_bb.max();
-
   auto filepaths = manager.substitute_globals(filepaths_);
 
   std::vector<std::string> lasfiles;
@@ -402,13 +399,13 @@ void LASInPolygonsNode::process() {
     }
   }
 
-  std::string wkt = manager.substitute_globals(wkt_);
   for (auto lasfile : lasfiles)
   {
     LASreadOpener lasreadopener;
     lasreadopener.set_file_name(lasfile.c_str());
     LASreader* lasreader = lasreadopener.open();
 
+    std::string wkt = manager.substitute_globals(wkt_);
     if(wkt.size()==0) {
       getOgcWkt(&lasreader->header, wkt);
     }
@@ -437,11 +434,20 @@ void LASInPolygonsNode::process() {
     }
 
     // tell lasreader our area of interest. It will then use quadtree indexing if available (.lax file created with lasindex)
+    manager.set_rev_crs_transform(wkt.c_str());
+    const auto aoi_min = manager.coord_transform_rev(pip_collector.completearea_bb.min());
+    const auto aoi_max = manager.coord_transform_rev(pip_collector.completearea_bb.max());
+    manager.clear_rev_crs_transform();
+    std::cout << lasreader->npoints << std::endl;
+    std::cout << lasreader->get_min_x() << " " << lasreader->get_min_y() << " " << lasreader->get_min_z() << std::endl;
+    std::cout << aoi_min[0] << " " << aoi_min[1] << " " << aoi_min[2] << std::endl;
+    std::cout << lasreader->get_max_x() << " " << lasreader->get_max_y() << " " << lasreader->get_max_z() << std::endl;
+    std::cout << aoi_max[0] << " " << aoi_max[1] << " " << aoi_max[2] << std::endl;
     lasreader->inside_rectangle(
-      aoi_min[0] + (*manager.data_offset())[0], 
-      aoi_min[1] + (*manager.data_offset())[1], 
-      aoi_max[0] + (*manager.data_offset())[0], 
-      aoi_max[1] + (*manager.data_offset())[1]
+      aoi_min[0], 
+      aoi_min[1], 
+      aoi_max[0], 
+      aoi_max[1]
     );
 
     while (lasreader->read_point()) {

@@ -527,6 +527,7 @@ namespace geoflow::nodes::stepedge {
   }
   void RoofPartitionRasteriseNode::process(){
     auto arr = input("arrangement").get<Arrangement_2>();
+    auto h_ground = input("h_ground").get<float>();
 
     auto unbounded_face = arr.unbounded_face();
     auto& footprint = input("footprint").get<LinearRing&>();
@@ -538,6 +539,17 @@ namespace geoflow::nodes::stepedge {
     r.prefill_arrays(RasterTools::MAX);
     size_t roofdata_area_cnt = 0;
     rasterise_arrangement(arr, r, roofdata_area_cnt, use_planes_);
+
+    float volume = 0;
+    float cellarea = cellsize*cellsize;
+    for (size_t col = 0; col < r.dimx_; ++col) {
+      for (size_t row = 0; row < r.dimy_; ++row) {
+        if (!r.isNoData(col, row)) {
+          volume += cellarea * std::fabs(r.get_val(col, row) - h_ground);
+        }
+      }
+    }
+    output("volume").set(volume);
 
     geoflow::Image I;
     I.dim_x = r.dimx_;

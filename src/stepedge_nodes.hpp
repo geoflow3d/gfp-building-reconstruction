@@ -903,9 +903,11 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("footprint", typeid(LinearRing));
+      add_input("h_ground", typeid(float));
 
       // add_output("values", typeid(vec1f));
       add_output("image", typeid(geoflow::Image));
+      add_output("volume", typeid(float));
 
       add_param(ParamBool(use_planes_, "use_planes",  "Use actual planes to determine elevation of pixels instead of 70p elevation of whole roofpart."));
       add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
