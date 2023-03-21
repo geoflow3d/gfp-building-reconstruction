@@ -27,7 +27,7 @@
 #include <CGAL/Timer.h>
 #endif
 
-#include <CGAL/boost/graph/Named_function_parameters.h>
+// #include <CGAL/boost/graph/Named_function_parameters.h>
 
 #include <boost/version.hpp>
 
