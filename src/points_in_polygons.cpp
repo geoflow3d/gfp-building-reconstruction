@@ -409,7 +409,9 @@ void LASInPolygonsNode::process() {
     if(wkt.size()==0) {
       getOgcWkt(&lasreader->header, wkt);
     }
-    manager.set_fwd_crs_transform(wkt.c_str());
+    if (wkt.size()!=0){
+      manager.set_fwd_crs_transform(wkt.c_str());
+    }
     
     if (!lasreader){
       std::cout << "cannot read las file: " << lasfile << "\n";
