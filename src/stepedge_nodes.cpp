@@ -1484,11 +1484,23 @@ void BuildingSelectorNode::process() {
 
 void RegulariseLinesNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
-  auto edges = input("edge_segments").get<SegmentCollection>();
+  auto& edges_inp = input("edge_segments");
   auto ints_segments = input("ints_segments").get<SegmentCollection>();
   // auto footprint = input("footprint").get<LinearRing>();
   // auto ring_id = input("ring_id").get<vec1i>();
   // auto ring_order = input("ring_order").get<vec1i>();
+
+  SegmentCollection edges;
+  if (edges_inp.is_connected_type(typeid(SegmentCollection))) {
+    edges = edges_inp.get<SegmentCollection>();
+  } else {
+    for(int i=0; i<edges_inp.size(); ++i) {
+      auto& ls = edges_inp.get<LineString>(i);
+      edges.push_back(Segment{
+        ls[0], ls[1]
+      });
+    }
+  }
 
   // linereg::Polygon_2 cgal_footprint;
   // std::vector<linereg::Polygon_2> ek_holes;

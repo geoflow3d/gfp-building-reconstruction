@@ -692,7 +692,7 @@ namespace geoflow::nodes::stepedge {
     public:
     using Node::Node;
     void init() override {
-      add_input("edge_segments", typeid(SegmentCollection));
+      add_input("edge_segments", {typeid(SegmentCollection), typeid(LineString)});
       add_input("ints_segments", typeid(SegmentCollection));
       // add_input("footprint", typeid(LinearRing));
 
