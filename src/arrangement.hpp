@@ -45,6 +45,7 @@ struct FaceInfo {
   bool is_footprint_hole=false;
   float elevation_50p=0;
   float elevation_70p=0;
+  float elevation_97p=0;
   float elevation_min=0, elevation_max=0;
   float data_coverage=0;
   int pixel_count=0;
@@ -206,6 +207,8 @@ class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
         remaining_face->data().elevation_50p * w1 + discarded_face->data().elevation_50p * w2;
       remaining_face->data().elevation_70p = 
         remaining_face->data().elevation_70p * w1 + discarded_face->data().elevation_70p * w2;
+      remaining_face->data().elevation_97p = 
+        std::max(remaining_face->data().elevation_97p, discarded_face->data().elevation_97p);
       remaining_face->data().data_coverage = 
         remaining_face->data().data_coverage * w1 + discarded_face->data().data_coverage * w2;
       // and sum the counts

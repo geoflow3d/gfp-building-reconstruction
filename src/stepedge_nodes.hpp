@@ -174,6 +174,7 @@ namespace geoflow::nodes::stepedge {
   class ArrExtruderNode:public Node {
     bool do_walls=true, do_roofs=true, do_floor=true;
     bool LoD2 = true;
+    bool lod1_extrude_to_max_ = false;
     // float base_elevation = 0;
     float nodata_elevation = 3;
     int snap_tolerance_exp = 4;
@@ -194,6 +195,7 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamBool(do_roofs, "do_roofs", "Do roofs"));
       add_param(ParamBool(do_floor, "do_floor", "Do floor"));
       add_param(ParamBool(LoD2, "LoD2", "LoD2 (uncheck for LoD1.3)"));
+      add_param(ParamBool(lod1_extrude_to_max_, "lod1_extrude_to_max", "Extrude LoD1.x roofparts to 97th percentile height. If false the 70th percentile is used."));
       // ", ParamFloat( add_param("b,base_elevation, "Base elevation"));
       // add_param(ParamFloat(nodata_elevation, "nodata_elevation", "Nodata elevation"));
       add_param(ParamInt(snap_tolerance_exp, "snap_tolerance_exp", "Snap tolerance"));
@@ -434,6 +436,7 @@ namespace geoflow::nodes::stepedge {
       add_input("arrangement", typeid(Arrangement_2));
       add_input("heightfield", typeid(RasterTools::Raster));
       
+      add_output("global_elevation_97p", typeid(float));
       add_output("global_elevation_70p", typeid(float));
       add_output("global_elevation_50p", typeid(float));
       add_output("global_elevation_min", typeid(float));

@@ -566,6 +566,7 @@ void ArrExtruderNode::process(){
 
   auto unbounded_face = arr.unbounded_face();
   unbounded_face->data().elevation_70p=floor_elevation;
+  unbounded_face->data().elevation_97p=floor_elevation;
 
   // floor
   if (do_floor) {
@@ -638,7 +639,10 @@ void ArrExtruderNode::process(){
           auto& plane = f->data().plane;
           h = (plane.a()*CGAL::to_double(p.x()) + plane.b()*CGAL::to_double(p.y()) + plane.d()) / (-plane.c());
         } else {
-          h = f->data().elevation_70p;
+          if (lod1_extrude_to_max_)
+            h = f->data().elevation_97p;
+          else 
+            h = f->data().elevation_70p;
         }
       } else if (f->data().in_footprint) {
         h = nodata_elevation;
@@ -2133,6 +2137,7 @@ void ArrDissolveNode::process() {
           auto& pz = polygon[0][2];
           face->data().elevation_50p = pz;
           face->data().elevation_70p = pz;
+          face->data().elevation_97p = pz;
           face->data().elevation_min = pz;
           face->data().elevation_max = pz;
           face->data().data_coverage = 0;
@@ -2152,6 +2157,8 @@ void ArrDissolveNode::process() {
           face->data().elevation_50p = height_points[elevation_id][2];
           elevation_id = std::floor(0.7*float(datasize-1));
           face->data().elevation_70p = height_points[elevation_id][2];
+          elevation_id = std::floor(0.97*float(datasize-1));
+          face->data().elevation_97p = height_points[elevation_id][2];
           face->data().elevation_min = height_points[0][2];
           face->data().elevation_max = height_points[datasize-1][2];
           face->data().data_coverage = float(data_cnt) / float(datasize);
@@ -2233,6 +2240,7 @@ void ArrDissolveNode::process() {
           auto& pz = polygon[0][2];
           face->data().elevation_50p = heightfield.noDataVal_;
           face->data().elevation_70p = heightfield.noDataVal_;
+          face->data().elevation_97p = heightfield.noDataVal_;
           face->data().elevation_min = heightfield.noDataVal_;
           face->data().elevation_max = heightfield.noDataVal_;
           face->data().data_coverage = 0;
@@ -2245,6 +2253,8 @@ void ArrDissolveNode::process() {
           face->data().elevation_50p = (*(pts[elevation_id])) [2];
           elevation_id = std::floor(0.7*float(datasize-1));
           face->data().elevation_70p = (*(pts[elevation_id])) [2];
+          elevation_id = std::floor(0.97*float(datasize-1));
+          face->data().elevation_97p = (*(pts[elevation_id])) [2];
           face->data().elevation_min = (*(pts[0])) [2];
           face->data().elevation_max = (*(pts[datasize-1])) [2];
           face->data().data_coverage = float(data_cnt) / float(height_points.size());
@@ -2258,6 +2268,7 @@ void ArrDissolveNode::process() {
   if (all_elevations.size()==0) {
     output("global_elevation_50p").set_from_any(std::any());
     output("global_elevation_70p").set_from_any(std::any());
+    output("global_elevation_97p").set_from_any(std::any());
     output("global_elevation_min").set_from_any(std::any());
     output("global_elevation_max").set_from_any(std::any());  
   } else {
@@ -2267,6 +2278,8 @@ void ArrDissolveNode::process() {
     output("global_elevation_50p").set(all_elevations[elevation_id]);
     elevation_id = std::floor(0.7*float(last_id));
     output("global_elevation_70p").set(all_elevations[elevation_id]);
+    elevation_id = std::floor(0.99*float(last_id));
+    output("global_elevation_97p").set(all_elevations[elevation_id]);
     output("global_elevation_min").set(all_elevations[0]);
     output("global_elevation_max").set(all_elevations[last_id]);
   }
