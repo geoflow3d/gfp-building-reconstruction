@@ -549,8 +549,11 @@ namespace geoflow::nodes::stepedge {
     float metrics_plane_epsilon = 0.2;
     float metrics_plane_normal_threshold = 0.75;
     float metrics_is_horizontal_threshold = 0.97;
+    float metrics_probability_ransac = 0.05;
+    float metrics_cluster_epsilon_ransac = 0.3;
     float metrics_is_wall_threshold = 0.3;
     int n_refit = 5;
+    bool use_ransac = false;
     // float roof_percentile=0.5;
     public:
     using Node::Node;
@@ -576,12 +579,15 @@ namespace geoflow::nodes::stepedge {
       add_output("total_roofplane_cnt", typeid(int));
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
 
+      add_param(ParamBool(use_ransac, "use_ransac", "Use ransac instead of region growing plane detection"));
       add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
       add_param(ParamFloat(horiz_min_count, "horiz_min_count", "Mininmal point count for horizontal planes"));
       add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
       add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Number of neighbours used during region growing plane detection"));
       add_param(ParamInt(metrics_plane_min_points, "metrics_plane_min_points", "Minimum number of points in a plane"));
       add_param(ParamFloat(metrics_plane_epsilon, "metrics_plane_epsilon", "Plane epsilon"));
+      add_param(ParamFloat(metrics_cluster_epsilon_ransac, "metrics_cluster_epsilon_ransac", "Cluster epsilon RANSAC only"));
+      add_param(ParamFloat(metrics_probability_ransac, "metrics_probability_ransac", "Probability RANSAC only"));
       add_param(ParamFloat(metrics_plane_normal_threshold, "metrics_plane_normal_threshold", "Plane normal angle threshold"));
       add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Threshold for horizontal plane detection (expressed as angle wrt unit verctor in +z direction)"));
       add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
