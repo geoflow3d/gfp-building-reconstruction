@@ -13,8 +13,8 @@
 
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#include "point_edge.h"
 #include "stepedge_nodes.hpp"
-// #include <CGAL/Regularization/regularize_planes.h>
 #include <CGAL/Shape_detection/Efficient_RANSAC.h>
 #include "plane_detect.hpp"
 
@@ -23,6 +23,9 @@
 #include <CGAL/Search_traits_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Search_traits_adapter.h>
+#include <CGAL/Shape_regularization/regularize_planes.h>
+#include <cstddef>
+#include <geoflow/common.hpp>
 
 struct AdjacencyFinder {
 
@@ -261,23 +264,6 @@ namespace geoflow::nodes::stepedge {
 
     }
 
-    
-    // if (regularise_planes) {
-    //   // Regularize detected planes.
-    //   CGAL::regularize_planes(points,
-    //                           Point_map(),
-    //                           planes,
-    //                           CGAL::Shape_detection::Plane_map<Traits>(),
-    //                           CGAL::Shape_detection::Point_to_shape_index_map<Traits>(points, planes),
-    //                           true,  // regularize parallelism
-    //                           true,  // regularize orthogonality
-    //                           false, // do not regularize coplanarity
-    //                           true,  // regularize Z-symmetry (default)
-    // }
-
-
-
-
     bool b_is_horizontal = float(horiz_pt_cnt)/float(total_pt_cnt) > horiz_min_count;
     // int roof_type=-2; // as built: -2=undefined; -1=no pts; 0=LOD1, 1=LOD1.3, 2=LOD2
     std::string roof_type = "no planes";
@@ -329,6 +315,98 @@ namespace geoflow::nodes::stepedge {
     output("is_horizontal").set(is_horizontal);
 
     
+  }
+
+  struct Custom_point_map
+  {
+    using key_type = arr3f; // The iterator's value type is an index
+    using value_type = Point;  // The object manipulated by the algorithm is a Point
+    using reference = Point;   // The object does not exist in memory, so there's no reference
+    using category = boost::readable_property_map_tag; // The property map is used both
+                                                        // for reading and writing data
+    // The get() function returns the object expected by the algorithm (here, Point)
+    friend Point get (const Custom_point_map& map, const arr3f& p)
+    {
+      return Point (p[0],
+                    p[1],
+                    p[2]);
+    }
+  };
+  struct Custom_plane_map
+  {
+    using key_type = Plane; // The iterator's value type is an index
+    using value_type = Plane;  // The object manipulated by the algorithm is a Plane
+    using reference = Plane&;   // The object does not exist in memory, so there's no reference
+    using category = boost::read_write_property_map_tag; // The property map is used both
+                                                        // for reading and writing data
+    // The get() function returns the object expected by the algorithm (here, Point)
+    friend Plane get (const Custom_plane_map& map, Plane& plane)
+    {
+      return plane;
+    }
+    friend const Plane get (const Custom_plane_map& map, const Plane& plane)
+    {
+      return plane;
+    }
+    // The put() function updated the user's data structure from the
+    // object handled by the algorithm (here Plane)
+    friend void put (const Custom_plane_map& map, Plane& plane_old, const Plane& plane_new)
+    {
+      plane_old = plane_new;
+    }
+  };
+  struct Custom_plane_index_map
+  {
+    using key_type = std::size_t; // The iterator's value type is an index
+    using value_type = int;  // The object manipulated by the algorithm is a Plane
+    using reference = int;   // The object does not exist in memory, so there's no reference
+    using category = boost::readable_property_map_tag; // The property map is used both
+                                                        // for reading and writing data
+    vec1i* plane_id;
+    Custom_plane_index_map (vec1i* plane_id=nullptr)
+      : plane_id (plane_id) { }
+    // The get() function returns the object expected by the algorithm (here, Plane)
+    friend int get (const Custom_plane_index_map& map, const std::size_t& idx)
+    {
+      if ((*map.plane_id)[idx] == 0)
+        return -1;
+      else
+        return (*map.plane_id)[idx]-1;
+    }
+  };
+
+  void RegularisePlanesNode::process() {
+
+    auto& points = input("points").get<PointCollection&>();
+    auto& plane_id = input("plane_id").get<vec1i&>();
+    auto& planes_inp = input("planes");
+
+    std::vector<Plane> planes;
+    planes.reserve(planes_inp.size());
+    for (size_t i=0; i<planes_inp.size(); ++i) {
+      planes.emplace_back( planes_inp.get<Plane>(i) );
+    }
+
+    // Regularize detected planes.
+    CGAL::Shape_regularization::Planes::regularize_planes(
+      planes,
+      points,
+      CGAL::parameters::
+      plane_map(Custom_plane_map()).
+      point_map(Custom_point_map()).
+      plane_index_map(Custom_plane_index_map(&plane_id)).
+      maximum_angle(maximum_angle_).
+      maximum_offset(maximum_offset_).
+      regularize_parallelism(regularize_parallelism_).
+      regularize_orthogonality(regularize_orthogonality_).
+      regularize_coplanarity(regularize_coplanarity_).
+      regularize_axis_symmetry(regularize_axis_symmetry_)
+      // symmetry_direction(symmetry_direction_)
+    );
+
+    for (auto& pl : planes) {
+      output("planes").push_back( pl );
+    }
   }
 
 }

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
+#include <geoflow/common.hpp>
 #include <geoflow/geoflow.hpp>
 
 #include "arrangement.hpp"
@@ -539,6 +540,39 @@ namespace geoflow::nodes::stepedge {
 
   //   void process() override;
   // };
+
+  class RegularisePlanesNode:public Node {
+    float maximum_angle_ = 25;
+    float maximum_offset_ = 0.01;
+    bool regularize_parallelism_ = true;
+    bool regularize_orthogonality_ = true;
+    bool regularize_coplanarity_ = true;
+    bool regularize_axis_symmetry_ = true;
+    // symmetry_direction_
+    public:
+    using Node::Node;
+
+    void init() override {
+      
+      add_input("points", typeid(PointCollection));
+      add_input("plane_id", typeid(vec1i));
+      add_input("planes", typeid(Plane));
+      // add_input("points", typeid(PointCollection));
+      // add_output("is_wall", typeid(vec1i));
+      // add_output("is_horizontal", typeid(vec1i));
+      add_output("planes", typeid(Plane));
+      
+      // add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+
+      add_param(ParamBool(regularize_parallelism_, "regularize_parallelism", "regularizeparallelism"));
+      add_param(ParamBool(regularize_orthogonality_, "regularize_orthogonality", "regularizeorthogonality"));
+      add_param(ParamBool(regularize_coplanarity_, "regularize_coplanarity", "regularizecoplanarity"));
+      add_param(ParamFloat(maximum_angle_, "maximum_angle", "maximum allowed angle in degrees between plane normals used for parallelism, orthogonality, and axis symmetry"));
+      add_param(ParamFloat(maximum_offset_, "maximum_offset", "maximum allowed orthogonal distance between two parallel planes such that they are considered to be coplanar"));
+    }
+
+    void process() override;
+  };
 
   class DetectPlanesNode:public Node {
     bool only_horizontal = true;

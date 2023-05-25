@@ -30,6 +30,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<BuildArrFromLinesNode>("BuildArrFromLines");
     node_register.register_node<DetectLinesNode>("DetectLines");
     node_register.register_node<DetectPlanesNode>("DetectPlanes");
+    node_register.register_node<RegularisePlanesNode>("RegularisePlanes");
     node_register.register_node<LASInPolygonsNode>("LASInPolygons");
     #ifdef GFP_WITH_PDAL
       node_register.register_node<EptInPolygonsNode>("EptInPolygons");
