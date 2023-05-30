@@ -140,16 +140,20 @@ namespace geoflow::nodes::stepedge {
     if (skip_clip_ || cgal_clip_) {
       for (auto& f : smesh.faces()) {
         Triangle t;
-        unsigned i = 0;
-        
+
+        unsigned i = 0;        
         for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
+	  if(i==3) {
+	    std::cout << "WARNING: skipping triangulated SurfaceMesh face with more than 3 vertices\n";
+	    continue;
+	  }
           auto& p = smesh.point(vi);
           t[i++] = arr3f{ 
           (float) p.x(),
           (float) p.y(),
           (float) p.z()
           };
-        }
+        }	
         auto& n = fnormals[f];
         normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
         normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
