@@ -24,8 +24,11 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Search_traits_adapter.h>
 #include <CGAL/Shape_regularization/regularize_planes.h>
+#include <boost/container_hash/hash_fwd.hpp>
 #include <cstddef>
 #include <geoflow/common.hpp>
+#include <utility>
+#include <functional>
 
 struct AdjacencyFinder {
 
@@ -375,6 +378,27 @@ namespace geoflow::nodes::stepedge {
     }
   };
 
+
+  // allow us to hash Plane instances
+  template <class T>
+  inline void hash_combine(std::size_t& seed, const T& v)
+  {
+      std::hash<T> hasher;
+      seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  }
+
+  struct PlaneHash {
+  std::size_t operator()(const Plane& k) const
+  {
+      size_t seed = std::hash<double>{}(k.a());
+      boost::hash_combine(seed, k.b());
+      boost::hash_combine(seed, k.c());
+      boost::hash_combine(seed, k.d());
+      return seed;
+  }
+  };
+
+  inline 
   void RegularisePlanesNode::process() {
 
     auto& points = input("points").get<PointCollection&>();
@@ -404,9 +428,36 @@ namespace geoflow::nodes::stepedge {
       // symmetry_direction(symmetry_direction_)
     );
 
-    for (auto& pl : planes) {
-      output("planes").push_back( pl );
+    std::unordered_map<Plane, std::vector<Point>, PlaneHash> plane_merge_map;
+    for (int pt_i=0 ; points.size(); ++pt_i) {
+      auto pid = plane_id[pt_i];
+      if (pid > 0){
+        const auto& pl = planes[pid+1];
+        if (plane_merge_map.find(pl) == plane_merge_map.end()) {
+          plane_merge_map[pl] = { Point(points[pt_i][0], points[pt_i][1], points[pt_i][2]) };
+        } else {
+          plane_merge_map[pl].push_back( Point(points[pt_i][0], points[pt_i][1], points[pt_i][2]) );
+        }
+      }
     }
+    IndexedPlanesWithPoints pts_per_roofplane;
+
+    int plane_cnt = 1;
+    for(auto& [plane, ptvec] : plane_merge_map) {
+      Vector n = plane.orthogonal_vector();
+      // this dot product is close to 0 for vertical planes
+      auto horizontality = CGAL::abs(n*Vector(0,0,1));
+      bool is_wall = horizontality < metrics_is_wall_threshold;
+
+      if (!is_wall) {
+        pts_per_roofplane[plane_cnt++] = std::make_pair(plane, ptvec);
+      }
+      output("planes").push_back( plane );
+    }
+
+    // make pts_per_roofplane
+
+    
   }
 
 }

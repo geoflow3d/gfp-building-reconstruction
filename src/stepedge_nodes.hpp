@@ -548,6 +548,9 @@ namespace geoflow::nodes::stepedge {
     bool regularize_orthogonality_ = true;
     bool regularize_coplanarity_ = true;
     bool regularize_axis_symmetry_ = true;
+    
+    
+    float metrics_is_wall_threshold = 0.3;
     // symmetry_direction_
     public:
     using Node::Node;
@@ -562,13 +565,16 @@ namespace geoflow::nodes::stepedge {
       // add_output("is_horizontal", typeid(vec1i));
       add_output("planes", typeid(Plane));
       
-      // add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
+      add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
       add_param(ParamBool(regularize_parallelism_, "regularize_parallelism", "regularizeparallelism"));
       add_param(ParamBool(regularize_orthogonality_, "regularize_orthogonality", "regularizeorthogonality"));
       add_param(ParamBool(regularize_coplanarity_, "regularize_coplanarity", "regularizecoplanarity"));
       add_param(ParamFloat(maximum_angle_, "maximum_angle", "maximum allowed angle in degrees between plane normals used for parallelism, orthogonality, and axis symmetry"));
       add_param(ParamFloat(maximum_offset_, "maximum_offset", "maximum allowed orthogonal distance between two parallel planes such that they are considered to be coplanar"));
+
+      add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
+
     }
 
     void process() override;
