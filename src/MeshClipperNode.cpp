@@ -143,10 +143,10 @@ namespace geoflow::nodes::stepedge {
 
         unsigned i = 0;        
         for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
-	  if(i==3) {
-	    std::cout << "WARNING: skipping triangulated SurfaceMesh face with more than 3 vertices\n";
-	    continue;
-	  }
+          if(i==3) {
+            std::cout << "WARNING: skipping triangulated SurfaceMesh face with more than 3 vertices\n";
+            continue;
+          }
           auto& p = smesh.point(vi);
           t[i++] = arr3f{ 
           (float) p.x(),
