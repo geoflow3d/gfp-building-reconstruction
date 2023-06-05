@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#include <CGAL/Kernel/global_functions_3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -20,6 +21,7 @@
 #include <CGAL/Polygon_2.h>
 
 #include <stepedge_nodes.hpp>
+#include "point_edge.h"
 #include "polygon_util.hpp"
 #include "cdt_util.hpp"
 
@@ -33,8 +35,7 @@ typedef CGAL::Plane_3<tri::K> Plane_3;
 glm::vec3 calculate_normal(const LinearRing ring)
 {
   glm::vec3 normal(0, 0, 0);
-  for (size_t i = 0; i < ring.size(); ++i)
-  {
+  for (size_t i = 0; i < ring.size(); ++i) {
     const auto &curr = ring[i];
     const auto &next = ring[(i + 1) % ring.size()];
     normal[0] += (curr[1] - next[1]) * (curr[2] + next[2]);
@@ -42,6 +43,17 @@ glm::vec3 calculate_normal(const LinearRing ring)
     normal[2] += (curr[0] - next[0]) * (curr[1] + next[1]);
   }
   return glm::normalize(normal);
+}
+
+double calculate_volume(const TriangleCollection& triangle_collection) {
+  double sum = 0;
+  for(const auto& t : triangle_collection) {
+    auto a = Vector(t[0][0], t[0][1], t[0][2]);
+    auto b = Vector(t[1][0], t[1][1], t[1][2]);
+    auto c = Vector(t[2][0], t[2][1], t[2][2]);
+    sum += CGAL::scalar_product(a, CGAL::cross_product(b, c));
+  }
+  return sum/6;
 }
 
 // void mark_domains(CDT& cdt) {
@@ -175,6 +187,7 @@ void PolygonTriangulatorNode::process()
   vec3f normals;
   // vec1f values_out;
   vec1i ring_ids;
+  vec1f volumes;
   // vec1i nesting_levels;
   // SegmentCollection edges;
   // vec1i edges_constr;
@@ -194,6 +207,7 @@ void PolygonTriangulatorNode::process()
     // cut a footprint into parts because of cutting off the underground part.
     for (size_t mi = 0; mi < rings.size(); ++mi) {
       auto meshmap = rings.get<std::unordered_map<int, Mesh>>(mi);
+      double volume_sum = 0;
       for(auto& [sid, mesh] : meshmap) {
         TriangleCollection mesh_triangles;
         AttributeMap mesh_attributes;
@@ -211,7 +225,9 @@ void PolygonTriangulatorNode::process()
         multitrianglecols.push_back(mesh_triangles);
         multitrianglecols.push_back(mesh_attributes);
         multitrianglecols.building_part_ids_.push_back(sid);
+        volume_sum += calculate_volume(mesh_triangles);
       }
+      volumes.push_back(volume_sum);
     }
   } else if (rings.is_connected_type(typeid(Mesh))) {
     for (size_t mi = 0; mi < rings.size(); ++mi) {

@@ -140,16 +140,20 @@ namespace geoflow::nodes::stepedge {
 
       total_plane_cnt = R.regions.size();
       // classify horizontal/vertical planes using plane normals
+      unsigned shape_id = 0;
       for(auto region: R.regions){
+        
         auto& plane = region.plane;
-        output("planes").push_back(plane);
+        
         Vector n = plane.orthogonal_vector();
         // this dot product is close to 0 for vertical planes
         auto horizontality = CGAL::abs(n*Vector(0,0,1));
         bool is_wall = horizontality < metrics_is_wall_threshold;
-        bool is_horizontal = horizontality > metrics_is_horizontal_threshold;
+        bool is_horizontal = horizontality > metrics_is_horizontal_threshold;      
+
         // put slanted surface points at index -1 if we care only about horzontal surfaces
         if (!is_wall) {
+          ++shape_id;
           std::vector<Point> segpts;
           for (auto& i : region.inliers) {
             segpts.push_back(boost::get<0>(pnl_points[i]));
@@ -158,8 +162,8 @@ namespace geoflow::nodes::stepedge {
           total_pt_cnt += segpts.size();
           if (!only_horizontal ||
               (only_horizontal && is_horizontal)) {
-            pts_per_roofplane[region.get_region_id()].second = segpts;
-            pts_per_roofplane[region.get_region_id()].first = plane;
+            pts_per_roofplane[shape_id].second = segpts;
+            pts_per_roofplane[shape_id].first = plane;
           } else if (!is_horizontal) {
             pts_per_roofplane[-1].second.insert(
               pts_per_roofplane[-1].second.end(),
@@ -178,10 +182,13 @@ namespace geoflow::nodes::stepedge {
         else if (!is_wall && !is_horizontal)
           ++slant_roofplane_cnt;
 
-        for (size_t& i : region.inliers) {
-          boost::get<2>(pnl_points[i]) = region.get_region_id();
-          boost::get<3>(pnl_points[i]) = is_wall;
-          boost::get<9>(pnl_points[i]) = is_horizontal;
+        if(!is_wall) {
+          output("planes").push_back(plane);
+          for (size_t& i : region.inliers) {
+            boost::get<2>(pnl_points[i]) = shape_id;
+            boost::get<3>(pnl_points[i]) = is_wall;
+            boost::get<9>(pnl_points[i]) = is_horizontal;
+          }
         }
       }
       output("plane_adj").set(R.adjacencies);
@@ -215,11 +222,9 @@ namespace geoflow::nodes::stepedge {
 
       unsigned shape_id = 0;
       for(auto shape: ransac.shapes()){
-        ++shape_id;
+        
         RansacPlane* ransac_plane = dynamic_cast<RansacPlane*>(shape.get());
         Plane plane = static_cast<Plane>(*ransac_plane);
-
-        output("planes").push_back(plane);
         Vector n = plane.orthogonal_vector();
         // this dot product is close to 0 for vertical planes
         auto horizontality = CGAL::abs(n*Vector(0,0,1));
@@ -227,6 +232,7 @@ namespace geoflow::nodes::stepedge {
         bool is_horizontal = horizontality > metrics_is_horizontal_threshold;
         // put slanted surface points at index -1 if we care only about horzontal surfaces
         if (!is_wall) {
+          ++shape_id;
           std::vector<Point> segpts;
           for (auto& i : shape->indices_of_assigned_points()) {
             segpts.push_back(boost::get<0>(pnl_points[i]));
@@ -255,10 +261,13 @@ namespace geoflow::nodes::stepedge {
         else if (!is_wall && !is_horizontal)
           ++slant_roofplane_cnt;
 
-        for (const size_t& i : shape->indices_of_assigned_points()) {
-          boost::get<2>(pnl_points[i]) = shape_id;
-          boost::get<3>(pnl_points[i]) = is_wall;
-          boost::get<9>(pnl_points[i]) = is_horizontal;
+        if(!is_wall) {
+          output("planes").push_back(plane);
+          for (const size_t& i : shape->indices_of_assigned_points()) {
+            boost::get<2>(pnl_points[i]) = shape_id;
+            boost::get<3>(pnl_points[i]) = is_wall;
+            boost::get<9>(pnl_points[i]) = is_horizontal;
+          }
         }
       }
 
@@ -369,6 +378,7 @@ namespace geoflow::nodes::stepedge {
     Custom_plane_index_map (vec1i* plane_id=nullptr)
       : plane_id (plane_id) { }
     // The get() function returns the object expected by the algorithm (here, Plane)
+    // return plane based on point idx
     friend int get (const Custom_plane_index_map& map, const std::size_t& idx)
     {
       if ((*map.plane_id)[idx] == 0)
@@ -411,25 +421,42 @@ namespace geoflow::nodes::stepedge {
       planes.emplace_back( planes_inp.get<Plane>(i) );
     }
 
-    // Regularize detected planes.
-    CGAL::Shape_regularization::Planes::regularize_planes(
-      planes,
-      points,
-      CGAL::parameters::
-      plane_map(Custom_plane_map()).
-      point_map(Custom_point_map()).
-      plane_index_map(Custom_plane_index_map(&plane_id)).
-      maximum_angle(maximum_angle_).
-      maximum_offset(maximum_offset_).
-      regularize_parallelism(regularize_parallelism_).
-      regularize_orthogonality(regularize_orthogonality_).
-      regularize_coplanarity(regularize_coplanarity_).
-      regularize_axis_symmetry(regularize_axis_symmetry_)
-      // symmetry_direction(symmetry_direction_)
-    );
+    // Custom_plane_index_map index_map(&plane_id);
+    // Custom_point_map point_map;
+    // std::vector< std::vector<Point> > listp(planes.size());
+    // for (std::size_t i = 0; i < points.size(); ++i) {
+    //   const int idx = get(index_map, i);
+    //   std::cout << idx << std::endl;
+    //   if (idx != -1) {
+    //     listp[std::size_t(idx)].push_back(
+    //       get(point_map, *(points.begin() + i)));
+    //   }
+    // }
+    std::cout << "N planes before: " << planes.size() << std::endl;
 
+    // Regularize detected planes.
+    if (regularize_parallelism_ ||
+        regularize_orthogonality_ ||
+        regularize_coplanarity_ ||
+        regularize_axis_symmetry_) {
+      CGAL::Shape_regularization::Planes::regularize_planes(
+        planes,
+        points,
+        CGAL::parameters::
+        plane_map(Custom_plane_map()).
+        point_map(Custom_point_map()).
+        plane_index_map(Custom_plane_index_map(&plane_id)).
+        maximum_angle(maximum_angle_).
+        maximum_offset(maximum_offset_).
+        regularize_parallelism(regularize_parallelism_).
+        regularize_orthogonality(regularize_orthogonality_).
+        regularize_coplanarity(regularize_coplanarity_).
+        regularize_axis_symmetry(regularize_axis_symmetry_)
+        // symmetry_direction(symmetry_direction_)
+      );
+    }
     std::unordered_map<Plane, std::vector<Point>, PlaneHash> plane_merge_map;
-    for (int pt_i=0 ; points.size(); ++pt_i) {
+    for (int pt_i=0 ; pt_i < points.size(); ++pt_i) {
       auto pid = plane_id[pt_i];
       if (pid > 0){
         const auto& pl = planes[pid+1];
@@ -454,9 +481,24 @@ namespace geoflow::nodes::stepedge {
       }
       output("planes").push_back( plane );
     }
+    std::cout << "N planes after: " << plane_cnt << std::endl;
+
+    
+    PNL_vector pnl_points;
+    for (auto& [pid, planepts] : pts_per_roofplane) {
+      for (auto& p : planepts.second) {
+        PNL pv;
+        boost::get<0>(pv) = Point(p[0], p[1], p[2]);
+        boost::get<2>(pv) = pid;
+        pnl_points.push_back(pv);
+      }
+    }
+    auto metrics_plane_k = 15;
+    AdjacencyFinder adj_finder(pnl_points, metrics_plane_k);
+    output("plane_adj").set(adj_finder.adjacencies);
 
     // make pts_per_roofplane
-
+    output("pts_per_roofplane").push_back( pts_per_roofplane );
     
   }
 
