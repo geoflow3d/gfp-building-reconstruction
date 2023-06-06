@@ -1130,6 +1130,7 @@ namespace geoflow::nodes::stepedge {
       add_output("triangles", typeid(TriangleCollection));
       add_output("multi_triangle_collections", typeid(MultiTriangleCollection));
       add_output("normals", typeid(vec3f));
+      add_output("volumes", typeid(float));
       add_output("ring_ids", typeid(vec1i));
       // add_output("nesting_levels", typeid(vec1i));
 

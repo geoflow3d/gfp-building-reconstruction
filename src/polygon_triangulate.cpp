@@ -187,7 +187,7 @@ void PolygonTriangulatorNode::process()
   vec3f normals;
   // vec1f values_out;
   vec1i ring_ids;
-  vec1f volumes;
+  auto& volumes = output("volumes");
   // vec1i nesting_levels;
   // SegmentCollection edges;
   // vec1i edges_constr;
@@ -201,6 +201,7 @@ void PolygonTriangulatorNode::process()
       triangulate_polygon(poly_3d, normals, tc, ri, ring_ids);
       triangles.insert(triangles.end(), tc.begin(), tc.end());
     }
+    volumes.push_back((float)calculate_volume(triangles));
     multitrianglecols.push_back(triangles);
   } else if (rings.is_connected_type(typeid(std::unordered_map<int, Mesh>))) {
     // We are processing a building part here. We get a building part when we
@@ -227,7 +228,7 @@ void PolygonTriangulatorNode::process()
         multitrianglecols.building_part_ids_.push_back(sid);
         volume_sum += calculate_volume(mesh_triangles);
       }
-      volumes.push_back(volume_sum);
+      volumes.push_back((float)volume_sum);
     }
   } else if (rings.is_connected_type(typeid(Mesh))) {
     for (size_t mi = 0; mi < rings.size(); ++mi) {
@@ -244,6 +245,7 @@ void PolygonTriangulatorNode::process()
         triangles.insert(triangles.end(), tc.begin(), tc.end());
         mesh_triangles.insert(mesh_triangles.end(), tc.begin(), tc.end());
       }
+      volumes.push_back((float)calculate_volume(mesh_triangles));
       mesh_attributes["labels"] = tri_labels;
       multitrianglecols.push_back(mesh_triangles);
       multitrianglecols.push_back(mesh_attributes);
