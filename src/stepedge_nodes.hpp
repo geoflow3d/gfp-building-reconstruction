@@ -1120,6 +1120,7 @@ namespace geoflow::nodes::stepedge {
   class PolygonTriangulatorNode:public Node {
     int dupe_threshold_exp = 6;
     bool output_all_triangles = false;
+    bool output_mtc_for_every_input = false;
 
     void triangulate_polygon(LinearRing& ring, vec3f& normals, TriangleCollection& triangles, size_t& ring_id, vec1i& ring_ids);
     public:
@@ -1138,6 +1139,7 @@ namespace geoflow::nodes::stepedge {
       // add_output("edges_constr", typeid(vec1i));
 
       add_param(ParamBool(output_all_triangles, "output_all_triangles",  "Also output triangles in holes and outside convex hull."));
+      add_param(ParamBool(output_mtc_for_every_input, "output_mtc_for_every_input",  "Output a MultiTriangleCollection for every input. Otherwise aggregate all inputs into one MultiTriangleCollection. Only applies to Mesh type inputs."));
       add_param(ParamInt(dupe_threshold_exp, "dupe_threshold_exp", "Dupe tolerance exponent"));
 
     }

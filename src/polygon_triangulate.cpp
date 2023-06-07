@@ -203,6 +203,7 @@ void PolygonTriangulatorNode::process()
     }
     volumes.push_back((float)calculate_volume(triangles));
     multitrianglecols.push_back(triangles);
+    output("multi_triangle_collections").set(multitrianglecols);
   } else if (rings.is_connected_type(typeid(std::unordered_map<int, Mesh>))) {
     // We are processing a building part here. We get a building part when we
     // cut a footprint into parts because of cutting off the underground part.
@@ -230,7 +231,13 @@ void PolygonTriangulatorNode::process()
       }
       volumes.push_back((float)volume_sum);
     }
+    output("multi_triangle_collections").set(multitrianglecols);
   } else if (rings.is_connected_type(typeid(Mesh))) {
+    if(output_mtc_for_every_input) {
+      multitrianglecols.get_tricollections().clear();
+      multitrianglecols.get_attributes().clear();
+      multitrianglecols.building_part_ids_.clear();
+    }
     for (size_t mi = 0; mi < rings.size(); ++mi) {
       auto mesh = rings.get<Mesh>(mi);
       TriangleCollection mesh_triangles;
@@ -249,13 +256,16 @@ void PolygonTriangulatorNode::process()
       mesh_attributes["labels"] = tri_labels;
       multitrianglecols.push_back(mesh_triangles);
       multitrianglecols.push_back(mesh_attributes);
-      multitrianglecols.building_part_ids_.push_back(0);
+      multitrianglecols.building_part_ids_.push_back(mi);
+      if(output_mtc_for_every_input) {
+        output("multi_triangle_collections").push_back(multitrianglecols);
+      }
     }
+    if(!output_mtc_for_every_input) output("multi_triangle_collections").set(multitrianglecols);
   }
 
   // set outputs
   output("triangles").set(triangles);
-  output("multi_triangle_collections").set(multitrianglecols);
   output("normals").set(normals);
   output("ring_ids").set(ring_ids);
   // output("nesting_levels").set(nesting_levels);
