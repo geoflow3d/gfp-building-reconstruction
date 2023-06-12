@@ -83,4 +83,5 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<MeshClipperNode>("MeshClipper");
     node_register.register_node<Mesh2TriangleCollectionNode>("Mesh2TriangleCollection");
     node_register.register_node<Mesh2CGALSurfaceMeshNode>("Mesh2CGALSurfaceMesh");
+    node_register.register_node<RoofPartition3DBAGRasteriseNode>("RoofPartition3DBAGRasterise");
 }

@@ -968,6 +968,26 @@ namespace geoflow::nodes::stepedge {
 
   };
 
+  class RoofPartition3DBAGRasteriseNode:public Node {
+    float cellsize = 0.5;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("lod12_roofparts", typeid(geoflow::LinearRing));
+      add_input("lod13_roofparts", typeid(geoflow::LinearRing));
+      add_input("lod22_roofparts", typeid(geoflow::LinearRing));
+
+      // add_output("values", typeid(vec1f));
+      add_poly_output("lod12_hattr", {typeid(float)});
+      add_poly_output("lod13_hattr", {typeid(float)});
+      add_poly_output("lod22_hattr", {typeid(float)});
+
+      add_param(ParamBoundedFloat(cellsize, 0, 50, "cellsize",  "cellsize"));
+    }
+    void process() override;
+  };
+
   class BuildingRasteriseNode:public Node {
     float cellsize = 0.5;
     bool use_tin = false;
