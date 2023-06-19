@@ -30,6 +30,7 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<BuildArrFromLinesNode>("BuildArrFromLines");
     node_register.register_node<DetectLinesNode>("DetectLines");
     node_register.register_node<DetectPlanesNode>("DetectPlanes");
+    node_register.register_node<RegularisePlanesNode>("RegularisePlanes");
     node_register.register_node<LASInPolygonsNode>("LASInPolygons");
     #ifdef GFP_WITH_PDAL
       node_register.register_node<EptInPolygonsNode>("EptInPolygons");
@@ -78,8 +79,10 @@ void register_nodes(geoflow::NodeRegister& node_register) {
     node_register.register_node<MaxInscribedCircleNode>("MaxInscribedCircle");
     node_register.register_node<MeshSimplifyFastQuadNode>("MeshSimplifyFastQuad");
     node_register.register_node<MeshSimplifyNode>("MeshSimplify");
+    node_register.register_node<SurfaceMesh2OFFNode>("SurfaceMesh2OFF");
     node_register.register_node<MeshGridSimplifyNode>("MeshGridSimplify");
     node_register.register_node<MeshClipperNode>("MeshClipper");
     node_register.register_node<Mesh2TriangleCollectionNode>("Mesh2TriangleCollection");
     node_register.register_node<Mesh2CGALSurfaceMeshNode>("Mesh2CGALSurfaceMesh");
+    node_register.register_node<RoofPartition3DBAGRasteriseNode>("RoofPartition3DBAGRasterise");
 }

@@ -11,6 +11,10 @@
 
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
+#include <CGAL/Polygon_mesh_processing/manifoldness.h>
+#include <CGAL/Polygon_mesh_processing/repair.h>
+
+#include <CGAL/Surface_mesh/IO/OFF.h>
 
 namespace geoflow::nodes::stepedge {
 
@@ -44,6 +48,10 @@ namespace geoflow::nodes::stepedge {
     // !PMP::does_self_intersect(smesh)
     if (stop_ratio_ < 1.){
       if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
+
+      // this prevents potentially getting stuck in infinite loop (see https://github.com/CGAL/cgal/issues/7529)
+      CGAL::Polygon_mesh_processing::duplicate_non_manifold_vertices( smesh );
+      CGAL::Polygon_mesh_processing::remove_isolated_vertices( smesh	);
       
       SurfaceMesh::Property_map<halfedge_descriptor, std::pair<K::Point_3, K::Point_3> > constrained_halfedges;
       constrained_halfedges = smesh.add_property_map<halfedge_descriptor,std::pair<K::Point_3, K::Point_3> >("h:vertices").first;
@@ -67,6 +75,7 @@ namespace geoflow::nodes::stepedge {
       Border_is_constrained_edge_map bem(smesh);
       // This the actual call to the simplification algorithm.
       // The surface mesh and stop conditions are mandatory arguments.
+
       int r = SMS::edge_collapse(smesh, stop,
                                 CGAL::parameters::edge_is_constrained_map(bem)
                                                   .get_placement(Placement(bem)));
@@ -76,8 +85,16 @@ namespace geoflow::nodes::stepedge {
     output("cgal_surface_mesh").set(smesh);
   }
 
-  // void MeshGridClusterSimplifyNode::process() {
+  void SurfaceMesh2OFFNode::process() {
     
-  // }
+    auto smesh = input("cgal_surface_mesh").get<SurfaceMesh>();
+    auto fname = manager.substitute_globals(filepath_);
+
+    std::ofstream ofs;
+    ofs << std::fixed << std::setprecision(5);
+    ofs.open(fname);
+    CGAL::IO::write_OFF(ofs, smesh);
+    ofs.close();
+  }
 
 }

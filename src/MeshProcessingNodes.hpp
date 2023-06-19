@@ -111,5 +111,17 @@ namespace geoflow::nodes::stepedge {
     }
     void process() override;
   };
+  class SurfaceMesh2OFFNode:public Node {
+    std::string filepath_="";
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("cgal_surface_mesh", typeid(SurfaceMesh));
+
+      add_param(ParamPath(filepath_, "filepath", "File path"));
+    }
+    void process() override;
+  };
 
 }
