@@ -408,7 +408,6 @@ namespace geoflow::nodes::stepedge {
   }
   };
 
-  inline 
   void RegularisePlanesNode::process() {
 
     auto& points = input("points").get<PointCollection&>();
