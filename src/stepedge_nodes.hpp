@@ -541,49 +541,7 @@ namespace geoflow::nodes::stepedge {
   //   void process() override;
   // };
 
-  class RegularisePlanesNode:public Node {
-    float maximum_angle_ = 25;
-    float maximum_offset_ = 0.01;
-    bool regularize_parallelism_ = true;
-    bool regularize_orthogonality_ = false;
-    bool regularize_coplanarity_ = true;
-    bool regularize_axis_symmetry_ = false;
-    
-    int metrics_plane_k = 15;
-    float metrics_is_wall_threshold = 0.3;
-    // symmetry_direction_
-    public:
-    using Node::Node;
-
-    void init() override {
-      
-      add_input("points", typeid(PointCollection));
-      add_input("plane_id", typeid(vec1i));
-      add_input("planes", typeid(Plane));
-      // add_input("points", typeid(PointCollection));
-      // add_output("is_wall", typeid(vec1i));
-      // add_output("is_horizontal", typeid(vec1i));
-      add_output("planes", typeid(Plane));
-      add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
-      add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
-
-      add_param(ParamBool(regularize_parallelism_, "regularize_parallelism", "regularizeparallelism"));
-      add_param(ParamBool(regularize_orthogonality_, "regularize_orthogonality", "regularizeorthogonality"));
-      add_param(ParamBool(regularize_coplanarity_, "regularize_coplanarity", "regularizecoplanarity"));
-      add_param(ParamBool(regularize_axis_symmetry_, "regularize_axis_symmetry", "regularize_axis_symmetry"));
-      add_param(ParamFloat(maximum_angle_, "maximum_angle", "maximum allowed angle in degrees between plane normals used for parallelism, orthogonality, and axis symmetry"));
-      add_param(ParamFloat(maximum_offset_, "maximum_offset", "maximum allowed orthogonal distance between two parallel planes such that they are considered to be coplanar"));
-
-      add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Number of neighbours used during adjacency detection"));
-      add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
-
-    }
-
-    void process() override;
-  };
-
   class DetectPlanesNode:public Node {
-    bool only_horizontal = true;
     float horiz_min_count = 0.95;
     int metrics_normal_k = 5;
     int metrics_plane_k = 15;
@@ -597,6 +555,15 @@ namespace geoflow::nodes::stepedge {
     int n_refit = 5;
     bool use_ransac = false;
     // float roof_percentile=0.5;
+
+    // plane regularisation
+    float maximum_angle_ = 25;
+    float maximum_offset_ = 0.5;
+    bool regularize_parallelism_ = false;
+    bool regularize_orthogonality_ = false;
+    bool regularize_coplanarity_ = false;
+    bool regularize_axis_symmetry_ = false;
+
     public:
     using Node::Node;
     void init() override {
@@ -604,7 +571,6 @@ namespace geoflow::nodes::stepedge {
       add_output("plane_id", typeid(vec1i));
       add_output("is_wall", typeid(vec1i));
       add_output("is_horizontal", typeid(vec1i));
-      add_output("planes", typeid(Plane));
       
       add_output("pts_per_roofplane", typeid(IndexedPlanesWithPoints ));
 
@@ -622,7 +588,6 @@ namespace geoflow::nodes::stepedge {
       add_output("plane_adj", typeid(std::map<size_t, std::map<size_t, size_t>>));
 
       add_param(ParamBool(use_ransac, "use_ransac", "Use ransac instead of region growing plane detection"));
-      add_param(ParamBool(only_horizontal, "only_horizontal", "Output only horizontal planes"));
       add_param(ParamFloat(horiz_min_count, "horiz_min_count", "Mininmal point count for horizontal planes"));
       add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
       add_param(ParamInt(metrics_plane_k, "metrics_plane_k", "Number of neighbours used during region growing plane detection"));
@@ -634,6 +599,13 @@ namespace geoflow::nodes::stepedge {
       add_param(ParamFloat(metrics_is_horizontal_threshold, "metrics_is_horizontal_threshold", "Threshold for horizontal plane detection (expressed as angle wrt unit verctor in +z direction)"));
       add_param(ParamFloat(metrics_is_wall_threshold, "metrics_is_wall_threshold", "Wall angle thres"));
       add_param(ParamInt(n_refit, "n_refit", "Refit every n points"));
+
+      add_param(ParamBool(regularize_parallelism_, "regularize_parallelism", "regularizeparallelism"));
+      add_param(ParamBool(regularize_orthogonality_, "regularize_orthogonality", "regularizeorthogonality"));
+      add_param(ParamBool(regularize_coplanarity_, "regularize_coplanarity", "regularizecoplanarity"));
+      add_param(ParamBool(regularize_axis_symmetry_, "regularize_axis_symmetry", "regularize_axis_symmetry"));
+      add_param(ParamFloat(maximum_angle_, "maximum_angle", "Plane regularisation: maximum allowed angle in degrees between plane normals used for parallelism, orthogonality, and axis symmetry"));
+      add_param(ParamFloat(maximum_offset_, "maximum_offset", "Plane regularisation: maximum allowed orthogonal distance between two parallel planes such that they are considered to be coplanar"));
       // add_param(ParamBoundedFloat(roof_percentile, 0, 1, "roof_percentile",  "Roof elevation percentile"));
     }
     // void before_gui(){

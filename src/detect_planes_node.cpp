@@ -49,11 +49,17 @@ struct AdjacencyFinder {
     for(auto& pi : points){
       auto& p = boost::get<0>(pi);
       auto& l = boost::get<2>(pi);
+      if(l==0) continue; // skip unsegmented points
+      // std::cout << "pid:" << l << std::endl;
       Neighbor_search search(tree, p, N+1);
       // skip the first point since it is identical to the query point
       for (auto nb = search.begin()+1 ; nb < search.end(); ++nb) {
         // auto& p = boost::get<0>(pi);
-        auto& l_nb = boost::get<2>(nb->first);
+        auto l_nb = boost::get<2>(nb->first);
+        if(l_nb==0 || l_nb == l) continue; // skip unsegmented neighbours
+        // std::cout << "dist:" << nb->second << std::endl;
+        // std::cout << "p_x:" << boost::get<2>(nb->first) << std::endl;
+        // std::cout << "pid_:" << l_nb << std::endl;
         if(l > l_nb) {
           adjacencies[l][l_nb]++;
         } else {
@@ -61,6 +67,12 @@ struct AdjacencyFinder {
         }
       }
     }
+
+    // for(auto& [idl, value] : adjacencies) {
+    //   for(auto& [idh, cnt] : value) {
+    //     std::cout<< idl << ":" << idh << "-" << cnt << std::endl;
+    //   }
+    // }
   };
 };
 
@@ -70,6 +82,87 @@ namespace geoflow::nodes::stepedge {
   <Kernel, PNL_vector, Point_map, Normal_map>             Traits;
   typedef CGAL::Shape_detection::Efficient_RANSAC<Traits> Efficient_ransac;
   typedef CGAL::Shape_detection::Plane<Traits>            RansacPlane;
+
+
+  // struct Custom_point_map
+  // {
+  //   using key_type = arr3f; // The iterator's value type is an index
+  //   using value_type = Point;  // The object manipulated by the algorithm is a Point
+  //   using reference = Point;   // The object does not exist in memory, so there's no reference
+  //   using category = boost::readable_property_map_tag; // The property map is used both
+  //                                                       // for reading and writing data
+  //   // The get() function returns the object expected by the algorithm (here, Point)
+  //   friend Point get (const Custom_point_map& map, const arr3f& p)
+  //   {
+  //     return Point (p[0],
+  //                   p[1],
+  //                   p[2]);
+  //   }
+  // };
+  struct Custom_plane_map
+  {
+    using key_type = Plane; // The iterator's value type is an index
+    using value_type = Plane;  // The object manipulated by the algorithm is a Plane
+    using reference = Plane&;   // The object does not exist in memory, so there's no reference
+    using category = boost::read_write_property_map_tag; // The property map is used both
+                                                        // for reading and writing data
+    // The get() function returns the object expected by the algorithm (here, Point)
+    friend Plane get (const Custom_plane_map& map, Plane& plane)
+    {
+      return plane;
+    }
+    friend const Plane get (const Custom_plane_map& map, const Plane& plane)
+    {
+      return plane;
+    }
+    // The put() function updated the user's data structure from the
+    // object handled by the algorithm (here Plane)
+    friend void put (const Custom_plane_map& map, Plane& plane_old, const Plane& plane_new)
+    {
+      plane_old = plane_new;
+    }
+  };
+  struct Custom_plane_index_map
+  {
+    using key_type = std::size_t; // The iterator's value type is an index
+    using value_type = int;  // The object manipulated by the algorithm is a Plane
+    using reference = int;   // The object does not exist in memory, so there's no reference
+    using category = boost::readable_property_map_tag; // The property map is used both
+                                                        // for reading and writing data
+    PNL_vector* plane_id;
+    Custom_plane_index_map (PNL_vector* plane_id=nullptr)
+      : plane_id (plane_id) { }
+    // The get() function returns the object expected by the algorithm (here, Plane)
+    // return plane based on point idx
+    friend int get (const Custom_plane_index_map& map, const std::size_t& idx)
+    {
+      auto pid = boost::get<2>((*map.plane_id)[idx]);
+      if (pid == 0)
+        return -1;
+      else
+        return pid-1;
+    }
+  };
+
+
+  // allow us to hash Plane instances
+  template <class T>
+  inline void hash_combine(std::size_t& seed, const T& v)
+  {
+      std::hash<T> hasher;
+      seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  }
+
+  struct PlaneHash {
+  std::size_t operator()(const Plane& k) const
+  {
+      size_t seed = std::hash<double>{}(k.a());
+      boost::hash_combine(seed, k.b());
+      boost::hash_combine(seed, k.c());
+      boost::hash_combine(seed, k.d());
+      return seed;
+  }
+  };
 
   void DetectPlanesNode::process() {
     auto points = input("points").get<PointCollection>();
@@ -107,10 +200,10 @@ namespace geoflow::nodes::stepedge {
     IndexedPlanesWithPoints pts_per_roofplane;
     size_t horiz_roofplane_cnt=0;
     size_t slant_roofplane_cnt=0;
-    if (only_horizontal) pts_per_roofplane[-1].second = std::vector<Point>();
     size_t horiz_pt_cnt=0, total_pt_cnt=0, wall_pt_cnt=0, unsegmented_pt_cnt=0, total_plane_cnt=0;
     vec1f roof_elevations;
 
+    std::vector<Plane> planes;
 
     if (!use_ransac) {
       // convert to lists required by the planedetector class
@@ -142,6 +235,8 @@ namespace geoflow::nodes::stepedge {
       // classify horizontal/vertical planes using plane normals
       unsigned shape_id = 0;
       for(auto region: R.regions){
+
+        if(region.get_region_id() == 0) continue;
         
         auto& plane = region.plane;
         
@@ -154,44 +249,30 @@ namespace geoflow::nodes::stepedge {
         // put slanted surface points at index -1 if we care only about horzontal surfaces
         if (!is_wall) {
           ++shape_id;
+          planes.push_back(plane);
           std::vector<Point> segpts;
           for (auto& i : region.inliers) {
             segpts.push_back(boost::get<0>(pnl_points[i]));
             roof_elevations.push_back(float(boost::get<0>(pnl_points[i]).z()));
+            boost::get<2>(pnl_points[i]) = shape_id;
+            boost::get<3>(pnl_points[i]) = is_wall;
+            boost::get<9>(pnl_points[i]) = is_horizontal;
           }
           total_pt_cnt += segpts.size();
-          if (!only_horizontal ||
-              (only_horizontal && is_horizontal)) {
-            pts_per_roofplane[shape_id].second = segpts;
-            pts_per_roofplane[shape_id].first = plane;
-          } else if (!is_horizontal) {
-            pts_per_roofplane[-1].second.insert(
-              pts_per_roofplane[-1].second.end(),
-              segpts.begin(),
-              segpts.end()
-            );
-          } 
+          pts_per_roofplane[shape_id].second = segpts;
+          pts_per_roofplane[shape_id].first = plane;
+
           if (is_horizontal) {
             horiz_pt_cnt += segpts.size();
           }
         } else { // is_wall
-          wall_pt_cnt = region.inliers.size();
+          wall_pt_cnt += region.inliers.size();
         }
         if (is_horizontal)
           ++horiz_roofplane_cnt;
         else if (!is_wall && !is_horizontal)
           ++slant_roofplane_cnt;
-
-        if(!is_wall) {
-          output("planes").push_back(plane);
-          for (size_t& i : region.inliers) {
-            boost::get<2>(pnl_points[i]) = shape_id;
-            boost::get<3>(pnl_points[i]) = is_wall;
-            boost::get<9>(pnl_points[i]) = is_horizontal;
-          }
-        }
       }
-      output("plane_adj").set(R.adjacencies);
 
     } else { // use_ransac == true
 
@@ -233,48 +314,108 @@ namespace geoflow::nodes::stepedge {
         // put slanted surface points at index -1 if we care only about horzontal surfaces
         if (!is_wall) {
           ++shape_id;
+          planes.push_back(plane);
           std::vector<Point> segpts;
           for (auto& i : shape->indices_of_assigned_points()) {
             segpts.push_back(boost::get<0>(pnl_points[i]));
             roof_elevations.push_back(float(boost::get<0>(pnl_points[i]).z()));
+            boost::get<2>(pnl_points[i]) = shape_id;
+            boost::get<3>(pnl_points[i]) = is_wall;
+            boost::get<9>(pnl_points[i]) = is_horizontal;
           }
           total_pt_cnt += segpts.size();
-          if (!only_horizontal ||
-              (only_horizontal && is_horizontal)) {
-            pts_per_roofplane[shape_id].second = segpts;
-            pts_per_roofplane[shape_id].first = plane;
-          } else if (!is_horizontal) {
-            pts_per_roofplane[-1].second.insert(
-              pts_per_roofplane[-1].second.end(),
-              segpts.begin(),
-              segpts.end()
-            );
-          } 
+          pts_per_roofplane[shape_id].second = segpts;
+          pts_per_roofplane[shape_id].first = plane;
+
           if (is_horizontal) {
             horiz_pt_cnt += segpts.size();
           }
         } else { // is_wall
-          wall_pt_cnt = shape->indices_of_assigned_points().size();
+          wall_pt_cnt += shape->indices_of_assigned_points().size();
         }
         if (is_horizontal)
           ++horiz_roofplane_cnt;
         else if (!is_wall && !is_horizontal)
           ++slant_roofplane_cnt;
 
-        if(!is_wall) {
-          output("planes").push_back(plane);
-          for (const size_t& i : shape->indices_of_assigned_points()) {
-            boost::get<2>(pnl_points[i]) = shape_id;
-            boost::get<3>(pnl_points[i]) = is_wall;
-            boost::get<9>(pnl_points[i]) = is_horizontal;
+      }
+    }
+    
+    vec1i plane_id, is_wall, is_horizontal;
+    for(auto& p : pnl_points) {
+      auto pid = boost::get<2>(p);
+      if (pid==0) ++unsegmented_pt_cnt;
+      plane_id.push_back(pid);
+      is_wall.push_back(boost::get<3>(p));
+      is_horizontal.push_back(boost::get<9>(p));
+    }
+
+    // Plane regularisation
+    std::cout << "\nN planes before: " << pts_per_roofplane.size() << std::endl;
+
+    // START Regularize detected planes.
+    if (regularize_parallelism_ ||
+        regularize_orthogonality_ ||
+        regularize_coplanarity_ ||
+        regularize_axis_symmetry_) {
+      CGAL::Shape_regularization::Planes::regularize_planes(
+        planes,
+        pnl_points,
+        CGAL::parameters::
+        plane_map(Custom_plane_map()).
+        point_map(Point_map()).
+        plane_index_map(Custom_plane_index_map(&pnl_points)).
+        maximum_angle(maximum_angle_).
+        maximum_offset(maximum_offset_).
+        regularize_parallelism(regularize_parallelism_).
+        regularize_orthogonality(regularize_orthogonality_).
+        regularize_coplanarity(regularize_coplanarity_).
+        regularize_axis_symmetry(regularize_axis_symmetry_)
+        // symmetry_direction(symmetry_direction_)
+      );
+
+      std::unordered_map<Plane, std::vector<size_t>, PlaneHash> plane_merge_map;
+      size_t pt_i=0;
+      for (auto& p :pnl_points) {
+        // std::cout << "pt_i=" << pt_i << std::endl;
+        auto pid = boost::get<2>(p);
+        // boost::get<2>(p) = 0;
+        // std::cout << "pid=" << pid << std::endl;
+        if (pid > 0){
+          const auto& pl = planes[pid-1];
+          plane_merge_map[pl].push_back( pt_i );
+        }
+        ++pt_i;
+      }
+      std::cout << "plane_merge_map.size=" << plane_merge_map.size() << std::endl;
+      pts_per_roofplane.clear();
+
+      int plane_cnt = 1;
+      for(auto& [plane, pt_i_vec] : plane_merge_map) {
+        Vector n = plane.orthogonal_vector();
+        // this dot product is close to 0 for vertical planes
+        auto horizontality = CGAL::abs(n*Vector(0,0,1));
+        bool is_wall = horizontality < metrics_is_wall_threshold;
+
+        if (!is_wall) {
+          std::vector<Point> ptvec;
+          ptvec.reserve(pt_i_vec.size());
+          for (auto& pt_i : pt_i_vec) {
+            boost::get<2>(pnl_points[pt_i]) = plane_cnt;
+            plane_id[pt_i] = plane_cnt;
+            ptvec.push_back(boost::get<0>(pnl_points[pt_i]));
           }
+          pts_per_roofplane[plane_cnt] = std::make_pair(plane, ptvec);
+          ++plane_cnt;
         }
       }
-
-      AdjacencyFinder adj_finder(pnl_points, metrics_plane_k);
-      output("plane_adj").set(adj_finder.adjacencies);
-
+      std::cout << "N planes after: " << plane_cnt-1 << std::endl;
     }
+
+    // END Regularize detected planes.
+
+    AdjacencyFinder adj_finder(pnl_points, metrics_plane_k);
+    output("plane_adj").set(adj_finder.adjacencies);
 
     bool b_is_horizontal = float(horiz_pt_cnt)/float(total_pt_cnt) > horiz_min_count;
     // int roof_type=-2; // as built: -2=undefined; -1=no pts; 0=LOD1, 1=LOD1.3, 2=LOD2
@@ -312,192 +453,12 @@ namespace geoflow::nodes::stepedge {
     output("roof_pt_cnt").set((int)total_pt_cnt);
     output("wall_pt_cnt").set((int)wall_pt_cnt);
 
-    vec1i plane_id, is_wall, is_horizontal;
-    for(auto& p : pnl_points) {
-      auto pid = boost::get<2>(p);
-      if (pid==0) ++unsegmented_pt_cnt;
-      plane_id.push_back(pid);
-      is_wall.push_back(boost::get<3>(p));
-      is_horizontal.push_back(boost::get<9>(p));
-    }
     output("unsegmented_pt_cnt").set((int)unsegmented_pt_cnt);
     output("pts_per_roofplane").set(pts_per_roofplane);
     output("plane_id").set(plane_id);
     output("is_wall").set(is_wall);
     output("is_horizontal").set(is_horizontal);
 
-    
-  }
-
-  struct Custom_point_map
-  {
-    using key_type = arr3f; // The iterator's value type is an index
-    using value_type = Point;  // The object manipulated by the algorithm is a Point
-    using reference = Point;   // The object does not exist in memory, so there's no reference
-    using category = boost::readable_property_map_tag; // The property map is used both
-                                                        // for reading and writing data
-    // The get() function returns the object expected by the algorithm (here, Point)
-    friend Point get (const Custom_point_map& map, const arr3f& p)
-    {
-      return Point (p[0],
-                    p[1],
-                    p[2]);
-    }
-  };
-  struct Custom_plane_map
-  {
-    using key_type = Plane; // The iterator's value type is an index
-    using value_type = Plane;  // The object manipulated by the algorithm is a Plane
-    using reference = Plane&;   // The object does not exist in memory, so there's no reference
-    using category = boost::read_write_property_map_tag; // The property map is used both
-                                                        // for reading and writing data
-    // The get() function returns the object expected by the algorithm (here, Point)
-    friend Plane get (const Custom_plane_map& map, Plane& plane)
-    {
-      return plane;
-    }
-    friend const Plane get (const Custom_plane_map& map, const Plane& plane)
-    {
-      return plane;
-    }
-    // The put() function updated the user's data structure from the
-    // object handled by the algorithm (here Plane)
-    friend void put (const Custom_plane_map& map, Plane& plane_old, const Plane& plane_new)
-    {
-      plane_old = plane_new;
-    }
-  };
-  struct Custom_plane_index_map
-  {
-    using key_type = std::size_t; // The iterator's value type is an index
-    using value_type = int;  // The object manipulated by the algorithm is a Plane
-    using reference = int;   // The object does not exist in memory, so there's no reference
-    using category = boost::readable_property_map_tag; // The property map is used both
-                                                        // for reading and writing data
-    vec1i* plane_id;
-    Custom_plane_index_map (vec1i* plane_id=nullptr)
-      : plane_id (plane_id) { }
-    // The get() function returns the object expected by the algorithm (here, Plane)
-    // return plane based on point idx
-    friend int get (const Custom_plane_index_map& map, const std::size_t& idx)
-    {
-      if ((*map.plane_id)[idx] == 0)
-        return -1;
-      else
-        return (*map.plane_id)[idx]-1;
-    }
-  };
-
-
-  // allow us to hash Plane instances
-  template <class T>
-  inline void hash_combine(std::size_t& seed, const T& v)
-  {
-      std::hash<T> hasher;
-      seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-  }
-
-  struct PlaneHash {
-  std::size_t operator()(const Plane& k) const
-  {
-      size_t seed = std::hash<double>{}(k.a());
-      boost::hash_combine(seed, k.b());
-      boost::hash_combine(seed, k.c());
-      boost::hash_combine(seed, k.d());
-      return seed;
-  }
-  };
-
-  void RegularisePlanesNode::process() {
-
-    auto& points = input("points").get<PointCollection&>();
-    auto& plane_id = input("plane_id").get<vec1i&>();
-    auto& planes_inp = input("planes");
-
-    std::vector<Plane> planes;
-    planes.reserve(planes_inp.size());
-    for (size_t i=0; i<planes_inp.size(); ++i) {
-      planes.emplace_back( planes_inp.get<Plane>(i) );
-    }
-
-    // Custom_plane_index_map index_map(&plane_id);
-    // Custom_point_map point_map;
-    // std::vector< std::vector<Point> > listp(planes.size());
-    // for (std::size_t i = 0; i < points.size(); ++i) {
-    //   const int idx = get(index_map, i);
-    //   std::cout << idx << std::endl;
-    //   if (idx != -1) {
-    //     listp[std::size_t(idx)].push_back(
-    //       get(point_map, *(points.begin() + i)));
-    //   }
-    // }
-    std::cout << "N planes before: " << planes.size() << std::endl;
-
-    // Regularize detected planes.
-    if (regularize_parallelism_ ||
-        regularize_orthogonality_ ||
-        regularize_coplanarity_ ||
-        regularize_axis_symmetry_) {
-      CGAL::Shape_regularization::Planes::regularize_planes(
-        planes,
-        points,
-        CGAL::parameters::
-        plane_map(Custom_plane_map()).
-        point_map(Custom_point_map()).
-        plane_index_map(Custom_plane_index_map(&plane_id)).
-        maximum_angle(maximum_angle_).
-        maximum_offset(maximum_offset_).
-        regularize_parallelism(regularize_parallelism_).
-        regularize_orthogonality(regularize_orthogonality_).
-        regularize_coplanarity(regularize_coplanarity_).
-        regularize_axis_symmetry(regularize_axis_symmetry_)
-        // symmetry_direction(symmetry_direction_)
-      );
-    }
-    std::unordered_map<Plane, std::vector<Point>, PlaneHash> plane_merge_map;
-    for (int pt_i=0 ; pt_i < points.size(); ++pt_i) {
-      auto pid = plane_id[pt_i];
-      if (pid > 0){
-        const auto& pl = planes[pid+1];
-        if (plane_merge_map.find(pl) == plane_merge_map.end()) {
-          plane_merge_map[pl] = { Point(points[pt_i][0], points[pt_i][1], points[pt_i][2]) };
-        } else {
-          plane_merge_map[pl].push_back( Point(points[pt_i][0], points[pt_i][1], points[pt_i][2]) );
-        }
-      }
-    }
-    IndexedPlanesWithPoints pts_per_roofplane;
-
-    int plane_cnt = 1;
-    for(auto& [plane, ptvec] : plane_merge_map) {
-      Vector n = plane.orthogonal_vector();
-      // this dot product is close to 0 for vertical planes
-      auto horizontality = CGAL::abs(n*Vector(0,0,1));
-      bool is_wall = horizontality < metrics_is_wall_threshold;
-
-      if (!is_wall) {
-        pts_per_roofplane[plane_cnt++] = std::make_pair(plane, ptvec);
-      }
-      output("planes").push_back( plane );
-    }
-    std::cout << "N planes after: " << plane_cnt << std::endl;
-
-    
-    PNL_vector pnl_points;
-    for (auto& [pid, planepts] : pts_per_roofplane) {
-      for (auto& p : planepts.second) {
-        PNL pv;
-        boost::get<0>(pv) = Point(p[0], p[1], p[2]);
-        boost::get<2>(pv) = pid;
-        pnl_points.push_back(pv);
-      }
-    }
-    auto metrics_plane_k = 15;
-    AdjacencyFinder adj_finder(pnl_points, metrics_plane_k);
-    output("plane_adj").set(adj_finder.adjacencies);
-
-    // make pts_per_roofplane
-    output("pts_per_roofplane").push_back( pts_per_roofplane );
     
   }
 
