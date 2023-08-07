@@ -593,7 +593,7 @@ namespace geoflow::nodes::stepedge {
 
   }
   
-  void calculate_h_attr(gfSingleFeatureInputTerminal& roofparts, gfMultiFeatureOutputTerminal& h_attr, RasterTools::Raster& r_lod22) {
+  void calculate_h_attr(gfSingleFeatureInputTerminal& roofparts, gfMultiFeatureOutputTerminal& h_attr, RasterTools::Raster& r_lod22, float z_offset) {
     h_attr.add_vector("h_min", typeid(float));
     h_attr.add_vector("h_max", typeid(float));
     h_attr.add_vector("h_50p", typeid(float));
@@ -616,11 +616,11 @@ namespace geoflow::nodes::stepedge {
 
       size_t datasize = part_points.size();
       int elevation_id = std::floor(0.5*float(datasize-1));
-      h_attr.sub_terminal("h_50p").push_back(part_points[elevation_id][2]);
+      h_attr.sub_terminal("h_50p").push_back(part_points[elevation_id][2] + z_offset);
       elevation_id = std::floor(0.7*float(datasize-1));
-      h_attr.sub_terminal("h_70p").push_back(part_points[elevation_id][2]);
-      h_attr.sub_terminal("h_min").push_back(part_points[0][2]);
-      h_attr.sub_terminal("h_max").push_back(part_points[datasize-1][2]);
+      h_attr.sub_terminal("h_70p").push_back(part_points[elevation_id][2] + z_offset);
+      h_attr.sub_terminal("h_min").push_back(part_points[0][2] + z_offset);
+      h_attr.sub_terminal("h_max").push_back(part_points[datasize-1][2] + z_offset);
     }
   }
 
@@ -647,10 +647,10 @@ namespace geoflow::nodes::stepedge {
       auto ring = lod22_roofparts.get<LinearRing>(i);
       rasterise_ring(ring, r_lod22);
     }
-
-    calculate_h_attr(lod12_roofparts, lod12_hattr, r_lod22);
-    calculate_h_attr(lod13_roofparts, lod13_hattr, r_lod22);
-    calculate_h_attr(lod22_roofparts, lod22_hattr, r_lod22);
+    auto z_offset = (*manager.data_offset())[2];
+    calculate_h_attr(lod12_roofparts, lod12_hattr, r_lod22, z_offset);
+    calculate_h_attr(lod13_roofparts, lod13_hattr, r_lod22, z_offset);
+    calculate_h_attr(lod22_roofparts, lod22_hattr, r_lod22, z_offset);
   }
 
   void SegmentRasteriseNode::rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt) {
