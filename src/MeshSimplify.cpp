@@ -11,8 +11,6 @@
 
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
-#include <CGAL/Polygon_mesh_processing/manifoldness.h>
-#include <CGAL/Polygon_mesh_processing/repair.h>
 
 #include <CGAL/Surface_mesh/IO/OFF.h>
 
@@ -48,10 +46,6 @@ namespace geoflow::nodes::stepedge {
     // !PMP::does_self_intersect(smesh)
     if (stop_ratio_ < 1.){
       if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
-
-      // this prevents potentially getting stuck in infinite loop (see https://github.com/CGAL/cgal/issues/7529)
-      CGAL::Polygon_mesh_processing::duplicate_non_manifold_vertices( smesh );
-      CGAL::Polygon_mesh_processing::remove_isolated_vertices( smesh	);
       
       SurfaceMesh::Property_map<halfedge_descriptor, std::pair<K::Point_3, K::Point_3> > constrained_halfedges;
       constrained_halfedges = smesh.add_property_map<halfedge_descriptor,std::pair<K::Point_3, K::Point_3> >("h:vertices").first;

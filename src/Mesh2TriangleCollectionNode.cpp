@@ -2,6 +2,12 @@
 
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
+#include <cstddef>
+
+#include <CGAL/Polygon_mesh_processing/manifoldness.h>
+#include <CGAL/Polygon_mesh_processing/repair.h>
+#include <CGAL/Polygon_mesh_processing/repair_polygon_soup.h>
+#include <CGAL/Polygon_mesh_processing/orient_polygon_soup_extension.h>
 
 namespace geoflow::nodes::stepedge {
 
@@ -61,8 +67,9 @@ namespace geoflow::nodes::stepedge {
     
     SurfaceMesh smesh;
     {
-      std::map<arr3f, VertexIndex> vertex_map;
+      std::map<arr3f, std::size_t> vertex_map;
       std::set<arr3f> vertex_set;
+      std::vector<K::Point_3> points;
       for (const auto &ring : gfmesh.get_polygons())
       {
         for (auto &v : ring)
@@ -70,22 +77,44 @@ namespace geoflow::nodes::stepedge {
           auto [it, did_insert] = vertex_set.insert(v);
           if (did_insert)
           {
-            vertex_map[v] = smesh.add_vertex(K::Point_3(v[0],v[1],v[2]));;
+            vertex_map[v] = points.size();
+            points.push_back(K::Point_3(v[0],v[1],v[2]));
           }
         }
       }
-    
+
+      // First build a polygon soup
+      std::vector<std::vector<std::size_t> > polygons;
       for (auto& ring : gfmesh.get_polygons()) {
-        std::vector<VertexIndex> rindices;
+        std::vector<std::size_t> rindices;
         rindices.reserve(ring.size());
         for(auto& p : ring) {
           rindices.push_back(vertex_map[p]);
         }
-        smesh.add_face(rindices);
+        polygons.push_back(rindices);
       }
+
+      // Do CGAL mesh repair magic, see https://github.com/CGAL/cgal/issues/7529
+
+      // remove all kinds of typical issues in a polygon soup (degenerate polygons, isolated points, etc.)
+      CGAL::Polygon_mesh_processing::repair_polygon_soup(points, polygons);
+
+      // duplicate non-manifold edges (but does not re-orient faces)
+      CGAL::Polygon_mesh_processing::duplicate_non_manifold_edges_in_polygon_soup(points, polygons);
+
+      CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, smesh);
+
+      if(!CGAL::is_triangle_mesh(smesh)) PMP::triangulate_faces(smesh);
+
+      // this prevents potentially getting stuck in infinite loop (see https://github.com/CGAL/cgal/issues/7529)
+      CGAL::Polygon_mesh_processing::duplicate_non_manifold_vertices( smesh );
+
+      // this is not needed since PMP::repair_polygon_soup() will perform this repair
+      // CGAL::Polygon_mesh_processing::remove_isolated_vertices( smesh	);
+    
     }
 
-    if(!CGAL::is_triangle_mesh(smesh)) PMP::triangulate_faces(smesh);
+    
 
     output("cgal_surface_mesh").set(smesh);
   }
