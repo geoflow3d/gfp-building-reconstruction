@@ -261,7 +261,10 @@ void PolygonTriangulatorNode::process()
         output("multi_triangle_collections").push_back(multitrianglecols);
       }
     }
-    if(!output_mtc_for_every_input) output("multi_triangle_collections").set(multitrianglecols);
+    if(!output_mtc_for_every_input ||
+      output("multi_triangle_collections").size()==0) {
+      output("multi_triangle_collections").set(multitrianglecols);
+    }
   }
 
   // set outputs
