@@ -12,6 +12,7 @@ namespace geoflow::nodes::stepedge {
   class MeshClipperNode:public Node {
     bool skip_clip_ = false;
     bool cgal_clip_ = false;
+    bool smooth_normals_ = false;
     // float reduce_fraction_ = 0.5;
     // float agressiveness_ = 7.0;
 
@@ -27,6 +28,7 @@ namespace geoflow::nodes::stepedge {
 
       add_param(ParamBool(skip_clip_, "skip_clip", "Skip the clip"));
       add_param(ParamBool(cgal_clip_, "cgal_clip", "Use CGAL::Polygon_mesh_processing::clip instead of simpler but more robust triangle by triangle clip."));
+      add_param(ParamBool(smooth_normals_, "smooth_normals", "Use use smooth vertex normals instead of flat face normals."));
       // add_param(ParamFloat(reduce_fraction_, "reduce_fraction", "Target reduction in nr of triangles"));
       // add_param(ParamFloat(agressiveness_, "agressiveness", "Agressiveness"));
       // add_param(ParamInt(metrics_normal_k, "metrics_normal_k", "Number of neighbours used for normal estimation"));
