@@ -152,7 +152,7 @@ namespace geoflow::nodes::stepedge {
     for (auto& f : smesh.faces()) {
       Triangle t;
 
-      unsigned i = 0;        
+      unsigned i = 0;
       for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
         if(i==3) {
           std::cout << "WARNING: skipping triangulated SurfaceMesh face with more than 3 vertices\n";
@@ -164,17 +164,25 @@ namespace geoflow::nodes::stepedge {
           (float) p.y(),
           (float) p.z()
         };
+        // if (!smesh.is_border(vi)) {
         if (smooth_normals_) {
-          auto& n = vnormals[vi];
-          normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
+          normals.push_back(arr3f{ 
+            float(vnormals[vi].x()), 
+            float(vnormals[vi].y()), 
+            float(vnormals[vi].z()) });
+        } else {
+          normals.push_back(arr3f{ 
+            float(fnormals[f].x()), 
+            float(fnormals[f].y()), 
+            float(fnormals[f].z()) });
         }
       }	
-      if (!smooth_normals_) {
-        auto& n = fnormals[f];
-        normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
-        normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
-        normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
-      }
+      // if (!smooth_normals_) {
+        
+        
+      //   normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
+      //   normals.push_back(arr3f{ float(n.x()), float(n.y()), float(n.z()) });
+      // }
       triangleCollection.push_back(t);
     }
 

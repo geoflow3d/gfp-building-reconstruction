@@ -56,6 +56,20 @@ namespace geoflow::nodes::stepedge {
     void process() override;
   };
 
+  class MeshSimplify2DNode:public Node {
+    float error_ = 0.5;
+
+    public:
+    using Node::Node;
+    void init() override {
+      add_input("cgal_surface_mesh", typeid(SurfaceMesh));
+      add_output("cgal_surface_mesh", typeid(SurfaceMesh));
+
+      add_param(ParamBoundedFloat(error_, 0, 5, "error", "Target maximum eror after simplification"));
+    }
+    void process() override;
+  };
+
   class MeshGridSimplifyNode:public Node {
     float cell_size_xy_ = 0.5;
     float cell_size_z_ = 0.5;

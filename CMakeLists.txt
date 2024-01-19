@@ -81,6 +81,7 @@ geoflow_create_plugin(
   src/MeshSimplify.cpp
   src/MeshGridSimplify.cpp
   src/Mesh2TriangleCollectionNode.cpp
+  src/tinsimp.cpp
 )
 
 target_include_directories(gfp_buildingreconstruction PRIVATE
