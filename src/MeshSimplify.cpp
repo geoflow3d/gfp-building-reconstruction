@@ -15,6 +15,14 @@
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
 
 #include <CGAL/Surface_mesh/IO/OFF.h>
+#include <CGAL/boost/graph/iterator.h>
+#include <geoflow/common.hpp>
+
+#include <CGAL/Polygon_mesh_processing/polygon_soup_to_polygon_mesh.h>
+#include <CGAL/Polygon_mesh_processing/manifoldness.h>
+#include <CGAL/Polygon_mesh_processing/repair.h>
+#include <CGAL/Polygon_mesh_processing/repair_polygon_soup.h>
+#include <CGAL/Polygon_mesh_processing/orient_polygon_soup_extension.h>
 
 #include "tinsimp.hpp"
 
@@ -44,6 +52,50 @@ namespace geoflow::nodes::stepedge {
   typedef SMS::Constrained_placement<SMS::Midpoint_placement<SurfaceMesh>,
                                     Border_is_constrained_edge_map > Placement;
   // namespace d = CGAL::Polygon_mesh_processing;
+
+  struct MeshBuilder {
+    std::map<K::Point_3, std::size_t> vertex_map;
+    std::set<K::Point_3> vertex_set;
+    std::vector<K::Point_3> points;
+
+    std::vector<std::vector<std::size_t> > polygons;
+
+    void add_point(const K::Point_3& p) {
+      auto [it, did_insert] = vertex_set.insert(p);
+      if (did_insert)
+      {
+        vertex_map[p] = points.size();
+        points.push_back(p);
+      }
+    }
+    void add_points(const K::Point_3& p0, const K::Point_3& p1, const K::Point_3& p2) {
+      add_point(p0);
+      add_point(p1);
+      add_point(p2);
+    }
+
+    void add_triangle(const K::Point_3& p0, const K::Point_3& p1, const K::Point_3& p2) {
+      // First build a polygon soup
+      add_points(p0, p1, p2);
+      std::vector<std::size_t> rindices;
+      rindices.reserve(3);
+      rindices.push_back(vertex_map[p0]);
+      rindices.push_back(vertex_map[p1]);
+      rindices.push_back(vertex_map[p2]);
+      polygons.push_back(rindices);
+    }
+
+    void get_mesh(geoflow::nodes::stepedge::SurfaceMesh& smesh) {
+      smesh.clear();
+      CGAL::Polygon_mesh_processing::repair_polygon_soup(points, polygons);
+
+      // duplicate non-manifold edges (but does not re-orient faces)
+      CGAL::Polygon_mesh_processing::duplicate_non_manifold_edges_in_polygon_soup(points, polygons);
+      CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, smesh);
+    }
+
+  };
+
   const K::Vector_3 up(0,0,1);
 
   bool is_vertical(const K::Point_3& a, const K::Point_3& b, const K::Point_3& c) {
@@ -60,7 +112,7 @@ namespace geoflow::nodes::stepedge {
     if (error_ > 0){
       tinsimp::CDT t;
 
-      // collect vertical faces
+      // collect vertical faces that make up the vertical wall
       std::vector<std::vector<K::Point_3>> wall_triangles;
       for (auto& face : smesh.faces()) {
         std::vector<K::Point_3> triangle;
@@ -69,7 +121,7 @@ namespace geoflow::nodes::stepedge {
         }
         if (is_vertical(triangle[0], triangle[1], triangle[2])) {
           wall_triangles.push_back(triangle);
-          smesh.remove_face(face);
+          CGAL::Euler::remove_face(smesh.halfedge(face), smesh);
         }
       }
       smesh.collect_garbage();
@@ -114,30 +166,42 @@ namespace geoflow::nodes::stepedge {
       tinsimp::mark_domains(t);
 
       smesh.clear();
-      std::map<tinsimp::CDT::Vertex_handle, VertexIndex> vertex_map;
-      for (auto& vh : t.finite_vertex_handles()) {
-        auto vindex = smesh.add_vertex(K::Point_3(
-          vh->point().x(),
-          vh->point().y(),
-          vh->point().z()
-        ));
-        vertex_map[vh] = vindex;
-      }
+      MeshBuilder mb;
       for (auto& fh : t.finite_face_handles()) {
         if(fh->info().in_domain()) {
-          smesh.add_face(
-            vertex_map[fh->vertex(0)],
-            vertex_map[fh->vertex(1)],
-            vertex_map[fh->vertex(2)]
-          );
+            mb.add_triangle(
+              K::Point_3(
+                fh->vertex(0)->point().x(),
+                fh->vertex(0)->point().y(),
+                fh->vertex(0)->point().z()
+              ),
+              K::Point_3(
+                fh->vertex(1)->point().x(),
+                fh->vertex(1)->point().y(),
+                fh->vertex(1)->point().z()
+              ),
+              K::Point_3(
+                fh->vertex(2)->point().x(),
+                fh->vertex(2)->point().y(),
+                fh->vertex(2)->point().z()
+              )
+            );
         }
       }
       for (auto& triangle : wall_triangles) {
-        auto ia = smesh.add_vertex(triangle[0]);
-        auto ib = smesh.add_vertex(triangle[1]);
-        auto ic = smesh.add_vertex(triangle[2]);
-        smesh.add_face(ia, ib, ic);
+        mb.add_triangle(triangle[0], triangle[1], triangle[2]);
       }
+      mb.get_mesh(smesh);
+
+      // TriangleCollection tc;
+      // for ( auto& t : wall_triangles ) {
+      //   Triangle gft;
+      //   gft[0] = arr3f{static_cast<float>(t[0].x()), static_cast<float>(t[0].y()), static_cast<float>(t[0].z())};
+      //   gft[1] = arr3f{static_cast<float>(t[1].x()), static_cast<float>(t[1].y()), static_cast<float>(t[1].z())};
+      //   gft[2] = arr3f{static_cast<float>(t[2].x()), static_cast<float>(t[2].y()), static_cast<float>(t[2].z())};
+      //   tc.push_back(gft);
+      // }
+      // output("wall_triangles").set(tc);
     }
     output("cgal_surface_mesh").set(smesh);
   }

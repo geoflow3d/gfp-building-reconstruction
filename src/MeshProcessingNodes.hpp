@@ -1,5 +1,6 @@
 #pragma once
 
+#include <geoflow/common.hpp>
 #include <geoflow/geoflow.hpp>
 
 #include <CGAL/Simple_cartesian.h>
@@ -64,6 +65,7 @@ namespace geoflow::nodes::stepedge {
     void init() override {
       add_input("cgal_surface_mesh", typeid(SurfaceMesh));
       add_output("cgal_surface_mesh", typeid(SurfaceMesh));
+      // add_output("wall_triangles", typeid(TriangleCollection));
 
       add_param(ParamBoundedFloat(error_, 0, 5, "error", "Target maximum eror after simplification"));
     }
