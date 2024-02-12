@@ -15,11 +15,15 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // triangulation
 #include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/Kernel/global_functions_3.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Triangulation_hierarchy_2.h>
 #include <CGAL/Projection_traits_xy_3.h>
 #include <CGAL/linear_least_squares_fitting_3.h>
+#include <CGAL/number_utils.h>
+#include <CGAL/Projection_traits_xy_3.h>
 #include <cstddef>
+#include <cmath>
 #include <geoflow/common.hpp>
 
 #include "Raster.h"
@@ -624,6 +628,22 @@ namespace geoflow::nodes::stepedge {
     }
   }
 
+  AK::Vector_3 calculate_normal_ak(const LinearRing ring)
+  {
+    AK::Vector_3 normal(0, 0, 0);
+    for (size_t i = 0; i < ring.size(); ++i) {
+      const auto &curr = ring[i];
+      const auto &next = ring[(i + 1) % ring.size()];
+      normal.x() += (curr[1] - next[1]) * (curr[2] + next[2]);
+      normal.y() += (curr[2] - next[2]) * (curr[0] + next[0]);
+      normal.z() += (curr[0] - next[0]) * (curr[1] + next[1]);
+    }
+    return normal / CGAL::approximate_sqrt(normal.squared_length());
+  }
+  
+  static constexpr double pi = 3.14159265358979323846;
+  static const AK::Vector_3 up = AK::Vector_3(0,0,1);
+
   void RoofPartition3DBAGRasteriseNode::process(){
     auto& lod12_roofparts = input("lod12_roofparts");//.get<LinearRing>();
     auto& lod13_roofparts = input("lod13_roofparts");//.get<LinearRing>();
@@ -651,6 +671,29 @@ namespace geoflow::nodes::stepedge {
     calculate_h_attr(lod12_roofparts, lod12_hattr, r_lod22, z_offset);
     calculate_h_attr(lod13_roofparts, lod13_hattr, r_lod22, z_offset);
     calculate_h_attr(lod22_roofparts, lod22_hattr, r_lod22, z_offset);
+
+    // compute inclination and azimuth. Both in degrees.
+    lod22_hattr.add_vector("b3_hellingshoek", typeid(float));
+    lod22_hattr.add_vector("b3_azimut", typeid(float));
+    for (size_t i=0; i<lod22_roofparts.size(); ++i) {
+      auto ring = lod22_roofparts.get<LinearRing>(i);
+      auto n = calculate_normal_ak(ring);
+      auto slope = CGAL::approximate_angle(n, up);
+      auto x = CGAL::to_double(n.x());
+      auto y = CGAL::to_double(n.y());
+      // calculate azimuth from arctan2 (https://en.cppreference.com/w/cpp/numeric/math/atan2)
+      // ie. subtract pi/2, multiply by -1 and then add 2 pi if result is negative (4th quadrant)
+      double azimuth = -1 * ( std::atan2(y, x) - pi/2 );
+      if (azimuth<0) {
+        azimuth = 2*pi + azimuth;
+      }
+      // convert to degrees
+      azimuth = azimuth / (180/pi);
+
+      // push attributes
+      lod22_hattr.sub_terminal("b3_hellingshoek").push_back(slope);
+      lod22_hattr.sub_terminal("b3_azimut").push_back(azimuth);
+    }
   }
 
   void SegmentRasteriseNode::rasterise_input(gfSingleFeatureInputTerminal& input_triangles, RasterTools::Raster& r, size_t& data_pixel_cnt) {
