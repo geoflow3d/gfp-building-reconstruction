@@ -50,6 +50,6 @@ typedef CGAL::Constrained_triangulation_plus_2<CDT>     CT;
 typedef CDT::Point													Point;
 
 // void greedy_insert(CDT &T, const std::vector<std::array<float,3>> &pts, double threshold);
-void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold);
+void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold, size_t minpts=0);
 void mark_domains(CDT& cdt);
 }

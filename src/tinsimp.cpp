@@ -4,6 +4,7 @@
 #include <CGAL/Triangulation_vertex_base_with_id_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 
+#include <cstddef>
 #include <vector>
 #include <unordered_set>
 
@@ -106,7 +107,7 @@ inline double compute_error(Point &p, CDT::Face_handle &face) {
 //   greedy_insert(T, cpts, threshold);
 // }
 
-void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold) {
+void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold, size_t minpts) {
   // assumes all lidar points are inside a triangle
   Heap heap;
 
@@ -130,8 +131,11 @@ void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold) {
   }
   std::cout << "prepared tinsimp...\n";
 
+  if (heap.size() < minpts) minpts = heap.size();
+
   // insert points, update errors of affected triangles until threshold error is reached
-  while (!heap.empty() && heap.top().error > threshold) {
+  size_t insert_cnt = 0;
+  while ( (!heap.empty() && heap.top().error > threshold) || insert_cnt < minpts ) {
     // get top element (with largest error) from heap
     auto maxelement = heap.top();
     auto max_p = cpts[maxelement.index];
@@ -144,6 +148,7 @@ void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold) {
     auto face_hint = faces[0];
     auto v = T.insert(max_p, face_hint);
     face_hint = v->face();
+    ++insert_cnt;
 
     // update clear info of triangles that just changed, collect points that were inside these triangles
     std::vector<heap_handle> points_to_update;

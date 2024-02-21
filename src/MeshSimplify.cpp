@@ -160,7 +160,7 @@ namespace geoflow::nodes::stepedge {
         }
       }
       
-      tinsimp::greedy_insert(t, zpts, error_);
+      tinsimp::greedy_insert(t, zpts, error_, minpts_);
       // std::cout << "\nFinished!\n" << r << " edges removed.\n"
                 // << smesh.number_of_edges() << " final edges.\n";
       tinsimp::mark_domains(t);

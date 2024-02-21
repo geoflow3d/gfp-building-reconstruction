@@ -5,6 +5,7 @@
 
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Surface_mesh.h>
+#include <geoflow/parameters.hpp>
 
 namespace geoflow::nodes::stepedge {
   typedef CGAL::Simple_cartesian<double>  K;
@@ -59,6 +60,7 @@ namespace geoflow::nodes::stepedge {
 
   class MeshSimplify2DNode:public Node {
     float error_ = 0.5;
+    int minpts_ = 10;
 
     public:
     using Node::Node;
@@ -68,6 +70,7 @@ namespace geoflow::nodes::stepedge {
       // add_output("wall_triangles", typeid(TriangleCollection));
 
       add_param(ParamBoundedFloat(error_, 0, 5, "error", "Target maximum eror after simplification"));
+      add_param(ParamBoundedInt(minpts_, 0, 100, "error", "Minimum number of elevation points inside a polygon"));
     }
     void process() override;
   };
