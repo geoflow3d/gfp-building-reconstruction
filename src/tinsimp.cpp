@@ -3,8 +3,10 @@
 #include <CGAL/Projection_traits_xy_3.h>
 #include <CGAL/Triangulation_vertex_base_with_id_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
+#include <CGAL/Random.h>
 
 #include <cstddef>
+#include <gmp.h>
 #include <vector>
 #include <unordered_set>
 
@@ -131,11 +133,10 @@ void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold, size_t mi
   }
   std::cout << "prepared tinsimp...\n";
 
-  if (heap.size() < minpts) minpts = heap.size();
-
   // insert points, update errors of affected triangles until threshold error is reached
   size_t insert_cnt = 0;
-  while ( (!heap.empty() && heap.top().error > threshold) || insert_cnt < minpts ) {
+  // while ( (!heap.empty() && heap.top().error > threshold) || insert_cnt < minpts ) {
+  while (!heap.empty() && heap.top().error > threshold) {
     // get top element (with largest error) from heap
     auto maxelement = heap.top();
     auto max_p = cpts[maxelement.index];
@@ -182,6 +183,29 @@ void greedy_insert(CDT &T, std::vector<Point> &cpts, double threshold, size_t mi
         heap.update(curelement, new_pe);
         containing_face->info().points_inside->push_back(curelement);
       }
+    }
+  }
+  
+  // insert more points so we can guarantee the minpts number of interior points
+  if (heap.size() < minpts) minpts = heap.size();
+  if(insert_cnt < minpts) {
+    std::list<CGAL::Point_3<K>> remaining_pts;
+    for (auto hit = heap.ordered_begin(); hit != heap.ordered_end(); ++hit) {
+      auto& p = cpts[(*hit).index];
+      remaining_pts.push_back(p);
+    }
+
+    auto rand = CGAL::Random(13374269);
+    while (insert_cnt < minpts) {
+      auto it = remaining_pts.begin();
+      auto r = rand.get_int(0, remaining_pts.size());
+      while (r > 0) {
+        ++it;
+        --r;
+      }
+      T.insert(*it);
+      ++insert_cnt;
+      remaining_pts.erase(it);
     }
   }
 

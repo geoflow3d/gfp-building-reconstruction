@@ -16,6 +16,7 @@
 
 #include <CGAL/Surface_mesh/IO/OFF.h>
 #include <CGAL/boost/graph/iterator.h>
+#include <cmath>
 #include <geoflow/common.hpp>
 
 #include <CGAL/Polygon_mesh_processing/polygon_soup_to_polygon_mesh.h>
@@ -159,11 +160,25 @@ namespace geoflow::nodes::stepedge {
           );
         }
       }
+
+      tinsimp::mark_domains(t);
+      float sq_area = 0;
+      for (auto& fh : t.finite_face_handles()) {
+        if(fh->info().in_domain()) {
+          sq_area += t.triangle(fh).squared_area();
+        }
+      }
+      float total_area = std::sqrt(sq_area);
       
-      tinsimp::greedy_insert(t, zpts, error_, minpts_);
+      tinsimp::greedy_insert(t, zpts, error_, minpts_*total_area);
+
+      // reset and recompute nesting levels
+      for (auto& fh : t.all_face_handles()) {
+        fh->info().nesting_level = -1;
+      }
+      tinsimp::mark_domains(t);
       // std::cout << "\nFinished!\n" << r << " edges removed.\n"
                 // << smesh.number_of_edges() << " final edges.\n";
-      tinsimp::mark_domains(t);
 
       smesh.clear();
       MeshBuilder mb;
