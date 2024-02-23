@@ -689,7 +689,7 @@ namespace geoflow::nodes::stepedge {
         azimuth = 2*pi + azimuth;
       }
       // convert to degrees
-      azimuth = azimuth / (180/pi);
+      azimuth = azimuth * (180/pi);
 
       // push attributes
       lod22_hattr.sub_terminal("b3_hellingshoek").push_back(slope);
