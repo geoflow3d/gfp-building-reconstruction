@@ -628,17 +628,18 @@ namespace geoflow::nodes::stepedge {
     }
   }
 
-  AK::Vector_3 calculate_normal_ak(const LinearRing ring)
+  AK::Vector_3 calculate_normal_ak(const LinearRing& ring)
   {
-    AK::Vector_3 normal(0, 0, 0);
+    float x=0, y=0, z=0;
     for (size_t i = 0; i < ring.size(); ++i) {
       const auto &curr = ring[i];
       const auto &next = ring[(i + 1) % ring.size()];
-      normal.x() += (curr[1] - next[1]) * (curr[2] + next[2]);
-      normal.y() += (curr[2] - next[2]) * (curr[0] + next[0]);
-      normal.z() += (curr[0] - next[0]) * (curr[1] + next[1]);
+      x += (curr[1] - next[1]) * (curr[2] + next[2]);
+      y += (curr[2] - next[2]) * (curr[0] + next[0]);
+      z += (curr[0] - next[0]) * (curr[1] + next[1]);
     }
-    return normal / CGAL::approximate_sqrt(normal.squared_length());
+    AK::Vector_3 n(x, y, z);
+    return n / CGAL::approximate_sqrt(n.squared_length());
   }
   
   static constexpr double pi = 3.14159265358979323846;
@@ -678,12 +679,12 @@ namespace geoflow::nodes::stepedge {
     for (size_t i=0; i<lod22_roofparts.size(); ++i) {
       auto ring = lod22_roofparts.get<LinearRing>(i);
       auto n = calculate_normal_ak(ring);
-      auto slope = CGAL::approximate_angle(n, up);
+      float slope = CGAL::to_double(CGAL::approximate_angle(n, up));
       auto x = CGAL::to_double(n.x());
       auto y = CGAL::to_double(n.y());
       // calculate azimuth from arctan2 (https://en.cppreference.com/w/cpp/numeric/math/atan2)
       // ie. subtract pi/2, multiply by -1 and then add 2 pi if result is negative (4th quadrant)
-      double azimuth = -1 * ( std::atan2(y, x) - pi/2 );
+      float azimuth = -1 * ( std::atan2(y, x) - pi/2 );
       if (azimuth<0) {
         azimuth = 2*pi + azimuth;
       }
