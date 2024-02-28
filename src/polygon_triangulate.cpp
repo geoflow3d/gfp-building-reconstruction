@@ -111,9 +111,14 @@ void PolygonTriangulatorNode::triangulate_polygon(LinearRing& poly, vec3f& norma
 
   float dupe_threshold = (float) std::pow(10,-dupe_threshold_exp);
   if (is_degenerate(poly, dupe_threshold)) {
-    std::cout << "skipping ring with duplicates\n";
-    // dupe_rings.push_back(poly);
-    return;
+    LinearRing new_poly = fix_duplicates(poly, dupe_threshold);
+    if(is_degenerate(new_poly, dupe_threshold)) {
+      std::cout << "skipping ring with duplicates\n";
+      // dupe_rings.push_back(poly);
+      return;
+    }
+    std::cout << "fixed ring with duplicates\n";
+    poly = new_poly;
   }
   auto normal = calculate_normal(poly);
   if (std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)){

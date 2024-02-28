@@ -37,4 +37,27 @@ namespace geoflow::nodes::stepedge {
     }
     return false;
   }
+
+
+  void fix_duplicates_ring(vec3f& poly, vec3f& new_ring, float& dupe_threshold) {
+    auto pl = *poly.rbegin();
+    for (auto& p : poly) {
+      if (!(std::fabs(pl[0]-p[0])< dupe_threshold && std::fabs(pl[1]-p[1])< dupe_threshold && std::fabs(pl[2]-p[2])< dupe_threshold)) {
+        new_ring.push_back(p);
+      }
+      pl=p;
+    }
+  }
+
+  LinearRing fix_duplicates(LinearRing& poly, float& dupe_threshold) {
+    LinearRing new_lr;
+    fix_duplicates_ring(poly, new_lr, dupe_threshold);
+
+    for (auto& ring : poly.interior_rings()) {
+      vec3f new_ring;
+      fix_duplicates_ring(ring, new_ring, dupe_threshold);
+      new_lr.interior_rings().push_back(new_ring);
+    }
+    return new_lr;
+  }
 }
