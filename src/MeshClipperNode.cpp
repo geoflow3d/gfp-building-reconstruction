@@ -98,7 +98,7 @@ namespace geoflow::nodes::stepedge {
       } else {
         MeshBuilder mb;
         CGAL::Vertex_around_face_iterator<SurfaceMesh> vit, vend;
-        for (auto& f : smesh.faces()) {
+        for (auto f : smesh.faces()) {
           boost::tie(vit, vend) = CGAL::vertices_around_face(smesh.halfedge(f), smesh);
           auto end = vit;
           K::Point_3 p1 = smesh.point(*vit); vit++;
