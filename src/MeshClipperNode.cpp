@@ -149,7 +149,7 @@ namespace geoflow::nodes::stepedge {
     // convert to triangleCollection
     TriangleCollection triangleCollection;
     vec3f normals;
-    for (auto& f : smesh.faces()) {
+    for (auto f : smesh.faces()) {
       Triangle t;
 
       unsigned i = 0;

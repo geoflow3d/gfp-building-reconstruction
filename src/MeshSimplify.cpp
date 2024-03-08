@@ -115,7 +115,7 @@ namespace geoflow::nodes::stepedge {
 
       // collect vertical faces that make up the vertical wall
       std::vector<std::vector<K::Point_3>> wall_triangles;
-      for (auto& face : smesh.faces()) {
+      for (auto face : smesh.faces()) {
         std::vector<K::Point_3> triangle;
         for(vertex_descriptor vd : vertices_around_face(smesh.halfedge(face), smesh)){
           triangle.push_back(smesh.point(vd));
