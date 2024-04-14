@@ -22,6 +22,7 @@
 #include <CGAL/linear_least_squares_fitting_3.h>
 #include <CGAL/number_utils.h>
 #include <CGAL/Projection_traits_xy_3.h>
+#include <CGAL/Cartesian.h>
 #include <cstddef>
 #include <cmath>
 #include <geoflow/common.hpp>
@@ -628,7 +629,8 @@ namespace geoflow::nodes::stepedge {
     }
   }
 
-  AK::Vector_3 calculate_normal_ak(const LinearRing& ring)
+  typedef CGAL::Simple_cartesian<float> CF;
+  CF::Vector_3 calculate_normal_cf(const LinearRing& ring)
   {
     float x=0, y=0, z=0;
     for (size_t i = 0; i < ring.size(); ++i) {
@@ -638,12 +640,12 @@ namespace geoflow::nodes::stepedge {
       y += (curr[2] - next[2]) * (curr[0] + next[0]);
       z += (curr[0] - next[0]) * (curr[1] + next[1]);
     }
-    AK::Vector_3 n(x, y, z);
+    CF::Vector_3 n(x, y, z);
     return n / CGAL::approximate_sqrt(n.squared_length());
   }
   
   static constexpr double pi = 3.14159265358979323846;
-  static const AK::Vector_3 up = AK::Vector_3(0,0,1);
+  static const CF::Vector_3 up = CF::Vector_3(0,0,1);
 
   void RoofPartition3DBAGRasteriseNode::process(){
     auto& lod12_roofparts = input("lod12_roofparts");//.get<LinearRing>();
@@ -678,19 +680,24 @@ namespace geoflow::nodes::stepedge {
     lod22_hattr.add_vector("b3_azimut", typeid(float));
     for (size_t i=0; i<lod22_roofparts.size(); ++i) {
       auto ring = lod22_roofparts.get<LinearRing>(i);
-      auto n = calculate_normal_ak(ring);
-      float slope = CGAL::to_double(CGAL::approximate_angle(n, up));
-      auto x = CGAL::to_double(n.x());
-      auto y = CGAL::to_double(n.y());
-      // calculate azimuth from arctan2 (https://en.cppreference.com/w/cpp/numeric/math/atan2)
-      // ie. subtract pi/2, multiply by -1 and then add 2 pi if result is negative (4th quadrant)
-      float azimuth = -1 * ( std::atan2(y, x) - pi/2 );
-      if (azimuth<0) {
-        azimuth = 2*pi + azimuth;
-      }
-      // convert to degrees
-      azimuth = azimuth * (180/pi);
+      auto n = calculate_normal_cf(ring);
+      float azimuth, slope;
+      if (std::isnan(n.x()) || std::isnan(n.y()) || std::isnan(n.z())){
+        azimuth = std::numeric_limits<float>::quiet_NaN();
+        slope = std::numeric_limits<float>::quiet_NaN();
+      } else {
+        float slope = CGAL::to_double(CGAL::approximate_angle(n, up));
+        
+        // calculate azimuth from arctan2 (https://en.cppreference.com/w/cpp/numeric/math/atan2)
+        // ie. subtract pi/2, multiply by -1 and then add 2 pi if result is negative (4th quadrant)
+        float azimuth = -1 * ( std::atan2(n.y(), n.x()) - pi/2 );
+        if (azimuth<0) {
+          azimuth = 2*pi + azimuth;
+        }
 
+        // convert to degrees
+        azimuth = azimuth * (180/pi);
+      }
       // push attributes
       lod22_hattr.sub_terminal("b3_hellingshoek").push_back(slope);
       lod22_hattr.sub_terminal("b3_azimut").push_back(azimuth);
