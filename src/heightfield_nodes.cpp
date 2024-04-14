@@ -655,8 +655,8 @@ namespace geoflow::nodes::stepedge {
     auto& lod22_hattr = poly_output("lod22_hattr");
 
     Box box;
-    for (size_t i=0; i< lod12_roofparts.size(); ++i) {
-      auto rpart = lod12_roofparts.get<LinearRing>(i);
+    for (size_t i=0; i< lod22_roofparts.size(); ++i) {
+      auto rpart = lod22_roofparts.get<LinearRing>(i);
       box.add(rpart.box());
     }
     auto boxmin = box.min();
