@@ -144,7 +144,7 @@ namespace geoflow::nodes::stepedge {
     // merge vertices in each grid cell, and create a mapping (old vertex indices -> new vertex indices, std::map<unsigned, unsigned>)
     Grid2D G(box, cell_size_xy_, cell_size_z_);
     std::unordered_map<unsigned, unsigned> vertex_map;
-    for (auto& vi : smesh.vertices()) {
+    for (auto vi : smesh.vertices()) {
       unsigned c = G.getCellCoordinate( smesh.point(vi) );
       vertex_map[vi] = c;
     }
@@ -161,7 +161,7 @@ namespace geoflow::nodes::stepedge {
       //   Cluster(float x, float y) : x(x), y(y) {};
       // };
       std::unordered_map<unsigned, arr3f> new_vertices;
-      for (auto& f : smesh.faces()) {
+      for (auto f : smesh.faces()) {
         for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
           auto p = G.getCellCenterPoint(vertex_map[vi]);
           new_mesh_vertices[vertex_map[vi]] = smesh_new.add_vertex(K::Point_3(p[0], p[1], p[2]));
@@ -169,7 +169,7 @@ namespace geoflow::nodes::stepedge {
       }
     }
     {
-      for (auto& f : smesh.faces()) {
+      for (auto f : smesh.faces()) {
         std::set<unsigned> face_set;
         for(VertexIndex vi : vertices_around_face(smesh.halfedge(f), smesh)) {
           face_set.insert(vertex_map[vi]);
