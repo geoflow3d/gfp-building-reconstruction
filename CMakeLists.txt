@@ -17,7 +17,7 @@ endif(GFP_WITH_PDAL)
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
 set_target_properties(
   ptinpoly PROPERTIES 
-  C_STANDARD 11
+  C_STANDARD 90
   POSITION_INDEPENDENT_CODE ON
 )
 
