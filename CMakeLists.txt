@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project (building-reconstruction VERSION 0.4.4)
+project (building-reconstruction VERSION 0.4.5)
 
 option(GFP_WITH_PDAL "Build parts dependent on PDAL" OFF)
 
