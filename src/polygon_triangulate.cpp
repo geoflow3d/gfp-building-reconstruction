@@ -102,7 +102,9 @@ void project_and_insert(geoflow::vec3f& ring, Plane_3& plane, tri::CDT& cdt) {
       vh_next = cdt.insert(plane.to_2d(tri::K::Point_3((*pit)[0], (*pit)[1], (*pit)[2])));
       vh_next->info().set_point(*pit);
     }
-    cdt.insert_constraint(vh, vh_next);
+    if (vh != vh_next) {
+      cdt.insert_constraint(vh, vh_next);
+    }
     vh = vh_next;
   }
 }
