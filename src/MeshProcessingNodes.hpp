@@ -3,12 +3,14 @@
 #include <geoflow/common.hpp>
 #include <geoflow/geoflow.hpp>
 
-#include <CGAL/Simple_cartesian.h>
+// #include <CGAL/Simple_cartesian.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
 #include <geoflow/parameters.hpp>
 
 namespace geoflow::nodes::stepedge {
-  typedef CGAL::Simple_cartesian<double>  K;
+  // typedef CGAL::Simple_cartesian<double>  K;
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
   typedef CGAL::Surface_mesh<K::Point_3>  SurfaceMesh;
 
   class MeshClipperNode:public Node {

@@ -61,6 +61,7 @@ namespace geoflow::nodes::stepedge {
 
   void Mesh2CGALSurfaceMeshNode::process() { 
     typedef SurfaceMesh::Vertex_index       VertexIndex;
+    // typedef boost::graph_traits<SurfaceMe/h>::halfedge_descriptor  halfedge_descriptor;
     namespace PMP = CGAL::Polygon_mesh_processing;
 
     auto gfmesh = input("mesh").get<Mesh>();
@@ -104,17 +105,21 @@ namespace geoflow::nodes::stepedge {
 
       CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, polygons, smesh);
 
-      if(!CGAL::is_triangle_mesh(smesh)) PMP::triangulate_faces(smesh);
+      // this is not needed since PMP::repair_polygon_soup() will perform this repair
+      // CGAL::Polygon_mesh_processing::remove_isolated_vertices( smesh	);
 
       // this prevents potentially getting stuck in infinite loop (see https://github.com/CGAL/cgal/issues/7529)
       CGAL::Polygon_mesh_processing::duplicate_non_manifold_vertices( smesh );
 
-      // this is not needed since PMP::repair_polygon_soup() will perform this repair
-      // CGAL::Polygon_mesh_processing::remove_isolated_vertices( smesh	);
+      // check for non manifold vertices
+      // std::vector<halfedge_descriptor> nmvs;
+      // CGAL::Polygon_mesh_processing::non_manifold_vertices(smesh, std::back_inserter(nmvs));
+      // std::cout << "N non manifold vertices: " << nmvs.size() << std::endl;
+      // std::cout << "Mesh valid: " << smesh.is_valid() << std::endl;
+
+      if(!CGAL::is_triangle_mesh(smesh)) PMP::triangulate_faces(smesh);
     
     }
-
-    
 
     output("cgal_surface_mesh").set(smesh);
   }
