@@ -64,35 +64,42 @@ namespace geoflow::nodes::stepedge {
     // typedef boost::graph_traits<SurfaceMe/h>::halfedge_descriptor  halfedge_descriptor;
     namespace PMP = CGAL::Polygon_mesh_processing;
 
-    auto gfmesh = input("mesh").get<Mesh>();
+    auto& gfmeshes = input("mesh");
     
     SurfaceMesh smesh;
     {
       std::map<arr3f, std::size_t> vertex_map;
       std::set<arr3f> vertex_set;
       std::vector<K::Point_3> points;
-      for (const auto &ring : gfmesh.get_polygons())
-      {
-        for (auto &v : ring)
+      for (size_t i = 0; i<gfmeshes.size(); ++i) {
+        auto& gfmesh = gfmeshes.get<Mesh>(i);
+        for (const auto &ring : gfmesh.get_polygons())
         {
-          auto [it, did_insert] = vertex_set.insert(v);
-          if (did_insert)
+          for (auto &v : ring)
           {
-            vertex_map[v] = points.size();
-            points.push_back(K::Point_3(v[0],v[1],v[2]));
+            auto [it, did_insert] = vertex_set.insert(v);
+            if (did_insert)
+            {
+              vertex_map[v] = points.size();
+              points.push_back(K::Point_3(v[0],v[1],v[2]));
+            }
           }
         }
       }
 
       // First build a polygon soup
       std::vector<std::vector<std::size_t> > polygons;
-      for (auto& ring : gfmesh.get_polygons()) {
-        std::vector<std::size_t> rindices;
-        rindices.reserve(ring.size());
-        for(auto& p : ring) {
-          rindices.push_back(vertex_map[p]);
+      
+      for(size_t i = 0; i<gfmeshes.size(); ++i){
+        auto& gfmesh = gfmeshes.get<Mesh>(i);
+        for (auto& ring : gfmesh.get_polygons()) {
+          std::vector<std::size_t> rindices;
+          rindices.reserve(ring.size());
+          for(auto& p : ring) {
+            rindices.push_back(vertex_map[p]);
+          }
+          polygons.push_back(rindices);
         }
-        polygons.push_back(rindices);
       }
 
       // Do CGAL mesh repair magic, see https://github.com/CGAL/cgal/issues/7529
