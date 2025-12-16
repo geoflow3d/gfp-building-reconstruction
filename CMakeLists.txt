@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project (building-reconstruction VERSION 0.4.8)
+project (building-reconstruction VERSION 0.4.9)
 
 option(GFP_WITH_PDAL "Build parts dependent on PDAL" OFF)
 
@@ -16,7 +16,7 @@ endif(GFP_WITH_PDAL)
 # ptinpoly
 add_library(ptinpoly STATIC thirdparty/ptinpoly/ptinpoly.c)
 set_target_properties(
-  ptinpoly PROPERTIES 
+  ptinpoly PROPERTIES
   C_STANDARD 90
   POSITION_INDEPENDENT_CODE ON
 )
@@ -98,7 +98,7 @@ target_link_libraries( gfp_buildingreconstruction PRIVATE
   ptinpoly
   CGAL::CGAL CGAL::CGAL_Core Eigen3::Eigen
   LASlib
-  ${PDAL_LIBRARIES} 
+  ${PDAL_LIBRARIES}
 )
 target_link_directories( gfp_buildingreconstruction PRIVATE
   ${PDAL_LIBRARY_DIRS}
@@ -107,7 +107,7 @@ target_link_directories( gfp_buildingreconstruction PRIVATE
 if (MSVC)
   # collect dll's required for runtime
   INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Release/ DESTINATION bin
-    FILES_MATCHING 
+    FILES_MATCHING
     PATTERN "*.dll"
     PATTERN "gfp*" EXCLUDE)
 endif()
