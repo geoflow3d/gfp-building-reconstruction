@@ -133,7 +133,7 @@ namespace geoflow::nodes::stepedge {
         {
           auto a = smesh.point(source(hd, smesh));
           auto b = smesh.point(target(hd, smesh));
-            
+
           t.insert_constraint(
             tinsimp::Point(
               a.x(),
@@ -148,75 +148,77 @@ namespace geoflow::nodes::stepedge {
           );
         }
       }
+      // only continue if there are vertices in the triangulation
+      if (t.number_of_vertices() > 0) {
+          std::vector<tinsimp::Point> zpts;
+          for(vertex_descriptor vd : smesh.vertices())
+          {
+            if(!CGAL::is_border(vd, smesh))
+            {
+              auto p = smesh.point(vd);
+              zpts.push_back(
+                tinsimp::Point( p.x(), p.y(), p.z() )
+              );
+            }
+          }
 
-      std::vector<tinsimp::Point> zpts;
-      for(vertex_descriptor vd : smesh.vertices())
-      {
-        if(!CGAL::is_border(vd, smesh))
-        {
-          auto p = smesh.point(vd);
-          zpts.push_back(
-            tinsimp::Point( p.x(), p.y(), p.z() )
-          );
-        }
-      }
+          tinsimp::mark_domains(t);
+          float sq_area = 0;
+          for (auto& fh : t.finite_face_handles()) {
+            if(fh->info().in_domain()) {
+              sq_area += t.triangle(fh).squared_area();
+            }
+          }
+          float total_area = std::sqrt(sq_area);
 
-      tinsimp::mark_domains(t);
-      float sq_area = 0;
-      for (auto& fh : t.finite_face_handles()) {
-        if(fh->info().in_domain()) {
-          sq_area += t.triangle(fh).squared_area();
-        }
-      }
-      float total_area = std::sqrt(sq_area);
-      
-      tinsimp::greedy_insert(t, zpts, error_, minpts_*total_area);
+          tinsimp::greedy_insert(t, zpts, error_, minpts_*total_area);
 
-      // reset and recompute nesting levels
-      for (auto& fh : t.all_face_handles()) {
-        fh->info().nesting_level = -1;
-      }
-      tinsimp::mark_domains(t);
-      // std::cout << "\nFinished!\n" << r << " edges removed.\n"
-                // << smesh.number_of_edges() << " final edges.\n";
+          // reset and recompute nesting levels
+          for (auto& fh : t.all_face_handles()) {
+            fh->info().nesting_level = -1;
+          }
+          tinsimp::mark_domains(t);
+          // std::cout << "\nFinished!\n" << r << " edges removed.\n"
+                    // << smesh.number_of_edges() << " final edges.\n";
 
-      smesh.clear();
-      MeshBuilder mb;
-      for (auto& fh : t.finite_face_handles()) {
-        if(fh->info().in_domain()) {
-            mb.add_triangle(
-              K::Point_3(
-                fh->vertex(0)->point().x(),
-                fh->vertex(0)->point().y(),
-                fh->vertex(0)->point().z()
-              ),
-              K::Point_3(
-                fh->vertex(1)->point().x(),
-                fh->vertex(1)->point().y(),
-                fh->vertex(1)->point().z()
-              ),
-              K::Point_3(
-                fh->vertex(2)->point().x(),
-                fh->vertex(2)->point().y(),
-                fh->vertex(2)->point().z()
-              )
-            );
-        }
-      }
-      for (auto& triangle : wall_triangles) {
-        mb.add_triangle(triangle[0], triangle[1], triangle[2]);
-      }
-      mb.get_mesh(smesh);
+          smesh.clear();
+          MeshBuilder mb;
+          for (auto& fh : t.finite_face_handles()) {
+            if(fh->info().in_domain()) {
+                mb.add_triangle(
+                  K::Point_3(
+                    fh->vertex(0)->point().x(),
+                    fh->vertex(0)->point().y(),
+                    fh->vertex(0)->point().z()
+                  ),
+                  K::Point_3(
+                    fh->vertex(1)->point().x(),
+                    fh->vertex(1)->point().y(),
+                    fh->vertex(1)->point().z()
+                  ),
+                  K::Point_3(
+                    fh->vertex(2)->point().x(),
+                    fh->vertex(2)->point().y(),
+                    fh->vertex(2)->point().z()
+                  )
+                );
+            }
+          }
+          for (auto& triangle : wall_triangles) {
+            mb.add_triangle(triangle[0], triangle[1], triangle[2]);
+          }
+          mb.get_mesh(smesh);
 
-      // TriangleCollection tc;
-      // for ( auto& t : wall_triangles ) {
-      //   Triangle gft;
-      //   gft[0] = arr3f{static_cast<float>(t[0].x()), static_cast<float>(t[0].y()), static_cast<float>(t[0].z())};
-      //   gft[1] = arr3f{static_cast<float>(t[1].x()), static_cast<float>(t[1].y()), static_cast<float>(t[1].z())};
-      //   gft[2] = arr3f{static_cast<float>(t[2].x()), static_cast<float>(t[2].y()), static_cast<float>(t[2].z())};
-      //   tc.push_back(gft);
-      // }
-      // output("wall_triangles").set(tc);
+          // TriangleCollection tc;
+          // for ( auto& t : wall_triangles ) {
+          //   Triangle gft;
+          //   gft[0] = arr3f{static_cast<float>(t[0].x()), static_cast<float>(t[0].y()), static_cast<float>(t[0].z())};
+          //   gft[1] = arr3f{static_cast<float>(t[1].x()), static_cast<float>(t[1].y()), static_cast<float>(t[1].z())};
+          //   gft[2] = arr3f{static_cast<float>(t[2].x()), static_cast<float>(t[2].y()), static_cast<float>(t[2].z())};
+          //   tc.push_back(gft);
+          // }
+          // output("wall_triangles").set(tc);
+      }
     }
     output("cgal_surface_mesh").set(smesh);
   }
