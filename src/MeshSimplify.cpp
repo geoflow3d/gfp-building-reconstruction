@@ -148,8 +148,8 @@ namespace geoflow::nodes::stepedge {
           );
         }
       }
-      // only continue if there are vertices in the triangulation
-      if (t.number_of_vertices() > 0) {
+      // only continue if there are vertices in the triangulation and at least 1 triangle
+      if (t.number_of_vertices() > 3 && t.number_of_faces() > 1) {
           std::vector<tinsimp::Point> zpts;
           for(vertex_descriptor vd : smesh.vertices())
           {
@@ -229,7 +229,7 @@ namespace geoflow::nodes::stepedge {
     // !d::does_self_intersect(smesh)
     if (stop_ratio_ < 1.){
       if(!CGAL::is_triangle_mesh(smesh)) CGAL::Polygon_mesh_processing::triangulate_faces(smesh);
-      
+
       SurfaceMesh::Property_map<halfedge_descriptor, std::pair<K::Point_3, K::Point_3> > constrained_halfedges;
       constrained_halfedges = smesh.add_property_map<halfedge_descriptor,std::pair<K::Point_3, K::Point_3> >("h:vertices").first;
       size_t n_border=0;
@@ -250,8 +250,8 @@ namespace geoflow::nodes::stepedge {
       // Contract the surface mesh as much as possible. Correct for the border edges that will not be removed
       SMS::Count_ratio_stop_predicate<SurfaceMesh> stop( stop_ratio );
       Border_is_constrained_edge_map bem(smesh);
-      
-      // filter that checks if a placement would invert the normal of a face 
+
+      // filter that checks if a placement would invert the normal of a face
       SMS::Bounded_normal_change_filter<> filter;
       // This the actual call to the simplification algorithm.
       // The surface mesh and stop conditions are mandatory arguments.
@@ -267,7 +267,7 @@ namespace geoflow::nodes::stepedge {
   }
 
   void SurfaceMesh2OFFNode::process() {
-    
+
     auto smesh = input("cgal_surface_mesh").get<SurfaceMesh>();
     auto fname = manager.substitute_globals(filepath_);
 
